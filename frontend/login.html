@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <title>InvestApp | Вход в инвестиционную платформу</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="login.css" />
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <!-- Улучшенный фон в темно-сине-зеленых тонах -->
+  <div class="background-container">
+    <!-- Финансовые графики -->
+    <div class="trading-charts">
+      <svg class="chart chart-1" viewBox="0 0 400 200">
+        <path class="chart-line" d="M0,150 C50,100 100,180 150,120 C200,60 250,140 300,80 C350,20 400,100 400,50" />
+      </svg>
+      <svg class="chart chart-2" viewBox="0 0 400 200">
+        <path class="chart-line" d="M0,100 C50,50 100,130 150,70 C200,10 250,90 300,30 C350,-30 400,50 400,0" />
+      </svg>
+    </div>
+    
+    <!-- Крипто иконки -->
+    <div class="crypto-icons">
+      <div class="crypto-icon btc">
+        <i class="fab fa-bitcoin"></i>
+      </div>
+      <div class="crypto-icon eth">
+        <i class="fab fa-ethereum"></i>
+      </div>
+      <div class="crypto-icon ada">
+        <i class="fab fa-connectdevelop"></i>
+      </div>
+      <div class="crypto-icon xrp">
+        <i class="fas fa-bolt"></i>
+      </div>
+    </div>
+    
+    <!-- Графики акций -->
+    <div class="stock-bars">
+      <div class="bar bar-1"></div>
+      <div class="bar bar-2"></div>
+      <div class="bar bar-3"></div>
+      <div class="bar bar-4"></div>
+      <div class="bar bar-5"></div>
+      <div class="bar bar-6"></div>
+    </div>
+    
+    <!-- Финансовые символы -->
+    <div class="financial-symbols">
+      <div class="symbol symbol-1">₿</div>
+      <div class="symbol symbol-2">€</div>
+      <div class="symbol symbol-3">£</div>
+      <div class="symbol symbol-4">$</div>
+    </div>
+    
+    <!-- Фоновая сетка -->
+    <div class="grid-overlay"></div>
+    
+    <!-- Частицы -->
+    <div class="particles"></div>
+    
+    <!-- Градиентный оверлей -->
+    <div class="gradient-overlay"></div>
+  </div>
+
+  <!-- Основной контейнер -->
+  <div id="app" class="app-container">
+    <!-- Исправленный переключатель темы -->
+    <div class="theme-switcher">
+      <button class="theme-toggle" @click="toggleTheme">
+        <i class="fas fa-sun"></i>
+        <i class="fas fa-moon"></i>
+      </button>
+    </div>
+
+    <!-- Уведомления -->
+    <transition name="toast-slide">
+      <div v-if="toast.show" :class="['toast', toast.type]" :key="toast.id">
+        <div class="toast-icon">
+          <i :class="toast.icon"></i>
+        </div>
+        <div class="toast-content">
+          <h4>{{ toast.title }}</h4>
+          <p>{{ toast.message }}</p>
+        </div>
+        <button class="toast-close" @click="toast.show = false">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </transition>
+
+    <!-- Карточка входа -->
+    <div class="login-card">
+      <!-- Левая панель - информация -->
+      <div class="card-left">
+        <div class="logo-container">
+          <div class="logo">
+            <div class="logo-icon">
+              <svg width="72" height="72" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <filter id="chartGlow">
+                    <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+                    <feMerge>
+                      <feMergeNode in="coloredBlur"/>
+                      <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                  </filter>
+                  <filter id="chartShadow">
+                    <feGaussianBlur in="SourceAlpha" stdDeviation="1.5"/>
+                    <feOffset dx="0" dy="1.5" result="offsetblur"/>
+                    <feComponentTransfer>
+                      <feFuncA type="linear" slope="0.3"/>
+                    </feComponentTransfer>
+                    <feMerge>
+                      <feMergeNode/>
+                      <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                  </filter>
+                </defs>
+                
+                <!-- Фоновый квадрат -->
+                <rect x="8" y="8" width="40" height="40" rx="8" fill="#FFFFFF" opacity="0.08" filter="url(#chartShadow)"/>
+                
+                <!-- Оси координат -->
+                <g stroke="#FFFFFF" stroke-width="1" opacity="0.3">
+                  <line x1="12" y1="38" x2="44" y2="38" class="axis-x"/>
+                  <line x1="12" y1="15" x2="12" y2="38" class="axis-y"/>
+                </g>
+                
+                <!-- Сетка графика -->
+                <g stroke="#FFFFFF" stroke-width="0.5" opacity="0.15">
+                  <line x1="12" y1="30" x2="44" y2="30"/>
+                  <line x1="12" y1="22" x2="44" y2="22"/>
+                </g>
+                
+                <!-- ОСНОВНОЙ ГРАФИК - четкие линии -->
+                <g filter="url(#chartGlow)">
+                  <!-- Заливка под графиком -->
+                  <defs>
+                    <linearGradient id="fillGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.25"/>
+                      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.02"/>
+                    </linearGradient>
+                  </defs>
+                  <polygon points="12,38 18,32 24,26 30,20 36,18 42,22 42,38" fill="url(#fillGradient)"/>
+                  
+                  <!-- Линия графика - четкие углы -->
+                  <polyline points="12,38 18,32 24,26 30,20 36,18 42,22" 
+                            fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                            stroke-dasharray="45" stroke-dashoffset="45" filter="url(#chartShadow)"/>
+                </g>
+                
+                <!-- Точки данных на графике -->
+                <g filter="url(#chartGlow)">
+                  <circle cx="12" cy="38" r="1.8" fill="#FFFFFF" opacity="0.9" class="chart-dot"/>
+                  <circle cx="18" cy="32" r="1.8" fill="#FFFFFF" opacity="0.9" class="chart-dot"/>
+                  <circle cx="24" cy="26" r="1.8" fill="#FFFFFF" opacity="0.9" class="chart-dot"/>
+                  <circle cx="30" cy="20" r="2.2" fill="#FFFFFF" opacity="1" class="chart-dot peak"/>
+                  <circle cx="36" cy="18" r="2" fill="#FFFFFF" opacity="0.95" class="chart-dot"/>
+                  <circle cx="42" cy="22" r="1.8" fill="#FFFFFF" opacity="0.9" class="chart-dot"/>
+                </g>
+                
+                <!-- Стрелка вверх (индикатор роста) -->
+                <g stroke="#FFFFFF" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85" filter="url(#chartGlow)">
+                  <path d="M 45 26 L 48 23 L 45 20" class="growth-arrow"/>
+                </g>
+                
+                <!-- Светящийся эффект на максимальной точке -->
+                <circle cx="30" cy="20" r="4" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.4" class="peak-glow"/>
+              </svg>
+            </div>
+            <div class="logo-text">
+              <h1>InvestApp</h1>
+              <p class="tagline">Инвестируй с умом</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="welcome">
+          <h2>Добро пожаловать</h2>
+          <p>Войдите в ваш инвестиционный портфель</p>
+        </div>
+        
+        <div class="features-list">
+          <div class="feature-item">
+            <div class="feature-icon-small">
+              <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="feature-text">
+              <h4>Аналитика рынка</h4>
+              <p>Расширенная аналитика и прогнозы</p>
+            </div>
+          </div>
+          
+          <div class="feature-item">
+            <div class="feature-icon-small">
+              <i class="fas fa-shield-alt"></i>
+            </div>
+            <div class="feature-text">
+              <h4>Безопасность</h4>
+              <p>Банковский уровень защиты данных</p>
+            </div>
+          </div>
+          
+          <div class="feature-item">
+            <div class="feature-icon-small">
+              <i class="fas fa-bolt"></i>
+            </div>
+            <div class="feature-text">
+              <h4>Быстрые транзакции</h4>
+              <p>Мгновенное исполнение ордеров 24/7</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Правая панель - форма входа -->
+      <div class="card-right">
+        <form @submit.prevent="handleLogin" class="login-form">
+          <!-- Поле Email -->
+          <div class="form-field" :class="{ 'error': errors.email, 'success': form.email && !errors.email }">
+            <div class="field-header">
+              <label for="email">
+                <i class="fas fa-envelope"></i>
+                <span>Email адрес</span>
+              </label>
+              <div class="field-status">
+                <i v-if="errors.email" class="fas fa-exclamation-circle error-icon"></i>
+                <i v-else-if="form.email && !errors.email" class="fas fa-check-circle success-icon"></i>
+              </div>
+            </div>
+            <div class="input-container">
+              <input
+                v-model="form.email"
+                @blur="validateField('email')"
+                @input="clearError('email')"
+                id="email"
+                type="email"
+                placeholder=""
+                :disabled="loading"
+                autocomplete="email"
+                required
+              />
+              <div class="input-decoration"></div>
+            </div>
+            <div v-if="errors.email" class="field-error">
+              {{ errors.email }}
+            </div>
+          </div>
+
+          <!-- Поле Пароль -->
+          <div class="form-field" :class="{ 'error': errors.password, 'success': form.password && !errors.password }">
+            <div class="field-header">
+              <label for="password">
+                <i class="fas fa-lock"></i>
+                <span>Пароль</span>
+              </label>
+              <div class="field-status">
+                <i v-if="errors.password" class="fas fa-exclamation-circle error-icon"></i>
+                <i v-else-if="form.password && !errors.password" class="fas fa-check-circle success-icon"></i>
+              </div>
+            </div>
+            <div class="input-container">
+              <input
+                v-model="form.password"
+                @blur="validateField('password')"
+                @input="clearError('password')"
+                id="password"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder=""
+                :disabled="loading"
+                autocomplete="current-password"
+                required
+              />
+              <button
+                type="button"
+                @click="togglePasswordVisibility"
+                class="password-toggle"
+                :class="{ 'active': showPassword }"
+                :disabled="loading"
+              >
+                <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+              </button>
+              <div class="input-decoration"></div>
+            </div>
+            <div class="field-actions">
+              <div v-if="errors.password" class="field-error">
+                {{ errors.password }}
+              </div>
+              <button
+                type="button"
+                @click="handleForgotPassword"
+                class="forgot-password"
+                :disabled="loading"
+              >
+                Забыли пароль?
+              </button>
+            </div>
+          </div>
+
+          <!-- Запомнить меня -->
+          <div class="form-options">
+            <label class="checkbox" :class="{ 'checked': form.rememberMe }">
+              <input
+                v-model="form.rememberMe"
+                type="checkbox"
+                class="checkbox-input"
+                :disabled="loading"
+              />
+              <span class="checkbox-box">
+                <i class="fas fa-check"></i>
+              </span>
+              <span class="checkbox-label">Запомнить устройство</span>
+            </label>
+          </div>
+
+          <!-- Кнопка входа -->
+          <button
+            type="submit"
+            class="submit-btn"
+            :class="{ 'loading': loading }"
+            :disabled="loading"
+          >
+            <div class="btn-glow"></div>
+            <div class="btn-content">
+              <i v-if="loading" class="fas fa-spinner fa-spin"></i>
+              <template v-else>
+                <i class="fas fa-sign-in-alt"></i>
+                <span>Войти в аккаунт</span>
+              </template>
+            </div>
+          </button>
+
+          <!-- Альтернативный вход - ТОЛЬКО GOOGLE -->
+          <div class="social-section">
+            <div class="divider">
+              <span>Или войдите через</span>
+            </div>
+            <div class="google-button-container">
+              <button
+                type="button"
+                @click="socialLogin('google')"
+                class="social-btn google"
+                :disabled="loading"
+              >
+                <i class="fab fa-google"></i>
+                <span>Google</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Футер формы -->
+          <div class="form-footer">
+            <div class="security-info">
+              <i class="fas fa-shield-alt"></i>
+              <span>Защищено банковским уровнем шифрования</span>
+            </div>
+            <div class="register-link">
+              <span>Нет аккаунта?</span>
+              <a href="register.html">
+                <span>Создать аккаунт</span>
+                <i class="fas fa-arrow-right"></i>
+              </a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="login.js"></script>
+</body>
+</html>

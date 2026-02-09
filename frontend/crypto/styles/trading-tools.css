@@ -1,0 +1,990 @@
+/* Trading Tools Styles - Main.html Inspired */
+
+/* Trading Tools Background Animation */
+.tools-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0.6;
+    z-index: 0;
+    background: linear-gradient(135deg, rgba(88, 28, 135, 0.1), rgba(59, 130, 246, 0.1));
+}
+
+.tools-bg-grid {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        linear-gradient(rgba(37, 99, 235, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(37, 99, 235, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+    animation: gridMove 20s linear infinite;
+}
+
+@keyframes gridMove {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(50px, 50px); }
+}
+
+.tools-bg-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.25;
+}
+
+.tools-bg-orb-1 {
+    width: 450px;
+    height: 450px;
+    background: linear-gradient(135deg, #2563EB, #3B82F6);
+    top: -225px;
+    left: -225px;
+    animation: orbFloat1 18s ease-in-out infinite;
+}
+
+.tools-bg-orb-2 {
+    width: 400px;
+    height: 400px;
+    background: linear-gradient(135deg, #10B981, #059669);
+    bottom: -200px;
+    right: -200px;
+    animation: orbFloat2 15s ease-in-out infinite;
+}
+
+.tools-bg-orb-3 {
+    width: 300px;
+    height: 300px;
+    background: linear-gradient(135deg, #8B5CF6, #A78BFA);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation: orbFloat3 20s ease-in-out infinite;
+}
+
+@keyframes orbFloat1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(120px, 80px) scale(1.2); }
+}
+
+@keyframes orbFloat2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-100px, -70px) scale(1.25); }
+}
+
+@keyframes orbFloat3 {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    33% { transform: translate(-30%, -60%) scale(1.1); }
+    66% { transform: translate(-70%, -40%) scale(0.9); }
+}
+
+/* Main Container */
+#tradingToolsApp {
+    position: relative;
+    padding: 2.5rem;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
+}
+
+.tools-container {
+    max-width: 1300px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+/* Header Section */
+.tools-header {
+    text-align: center;
+    margin-bottom: 3.5rem;
+    animation: fadeInDown 0.6s ease-out;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-40px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tools-title {
+    font-size: 3rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #2563EB 0%, #10B981 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 1rem;
+    letter-spacing: -0.03em;
+    animation: titleGlow 3s ease-in-out infinite;
+}
+
+@keyframes titleGlow {
+    0%, 100% { filter: drop-shadow(0 0 20px rgba(37, 99, 235, 0.4)); }
+    50% { filter: drop-shadow(0 0 30px rgba(37, 99, 235, 0.6)); }
+}
+
+.tools-subtitle {
+    color: #CBD5E1;
+    font-size: 1.2rem;
+    max-width: 750px;
+    margin: 0 auto;
+    line-height: 1.7;
+    font-weight: 400;
+}
+
+/* Tab Navigation */
+.tools-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+    flex-wrap: wrap;
+    animation: fadeInUp 0.6s ease-out 0.2s backwards;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(40px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tools-tab {
+    padding: 1.125rem 2.25rem;
+    border-radius: 2rem;
+    background: rgba(30, 27, 75, 0.6);
+    border: 2px solid rgba(37, 99, 235, 0.2);
+    color: #E2E8F0;
+    font-weight: 600;
+    font-size: 1.05rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
+}
+
+.tools-tab::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+    transition: left 0.6s;
+}
+
+.tools-tab:hover::before {
+    left: 100%;
+}
+
+.tools-tab:hover {
+    border-color: var(--primary);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+}
+
+.tools-tab.active {
+    background: linear-gradient(135deg, #2563EB 0%, #10B981 100%);
+    border-color: #2563EB;
+    color: white;
+    box-shadow: 0 10px 30px rgba(37, 99, 235, 0.4), 0 0 20px rgba(16, 185, 129, 0.3);
+    transform: translateY(-2px) scale(1.05);
+}
+
+.tools-tab i {
+    font-size: 1.2rem;
+}
+
+/* Main Card */
+.tools-main-card {
+    background: rgba(30, 27, 75, 0.8);
+    border-radius: 2rem;
+    overflow: hidden;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    animation: fadeInUp 0.6s ease-out 0.4s backwards, cardFloat 6s ease-in-out infinite;
+    backdrop-filter: blur(20px);
+}
+
+@keyframes cardFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+.tools-card-header {
+    background: linear-gradient(135deg, #2563EB 0%, #10B981 100%);
+    padding: 2.5rem;
+    border-bottom: 1px solid rgba(37, 99, 235, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.tools-card-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.1), transparent 50%);
+    animation: headerPulse 4s ease-in-out infinite;
+}
+
+@keyframes headerPulse {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.1); }
+}
+
+.tools-card-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    position: relative;
+    z-index: 1;
+}
+
+.tools-card-title i {
+    color: white;
+    font-size: 2.25rem;
+}
+
+.tools-card-desc {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 1.1rem;
+    line-height: 1.7;
+    position: relative;
+    z-index: 1;
+}
+
+.tools-card-body {
+    padding: 3rem;
+}
+
+/* Form Layout */
+.tools-layout {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 3rem;
+    align-items: start;
+}
+
+@media (max-width: 1100px) {
+    .tools-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.tools-form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+}
+
+/* Form Groups */
+.tools-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+}
+
+.tools-label {
+    font-weight: 600;
+    color: #F8FAFC;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+}
+
+.tools-label i {
+    color: var(--primary);
+    font-size: 1.15rem;
+}
+
+.tools-input,
+.tools-select {
+    padding: 1rem 1.25rem;
+    border-radius: 1rem;
+    border: 2px solid rgba(37, 99, 235, 0.2);
+    background: rgba(15, 23, 42, 0.6);
+    color: #F8FAFC;
+    font-size: 1.05rem;
+    font-family: var(--font-sans);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 100%;
+    backdrop-filter: blur(10px);
+}
+
+/* Стилизация стрелочек для number input */
+.tools-input[type="number"] {
+    appearance: textfield;
+    -webkit-appearance: textfield;
+    -moz-appearance: textfield;
+    position: relative;
+}
+
+.tools-input[type="number"]::-webkit-inner-spin-button,
+.tools-input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.tools-input[type="number"] {
+    padding-right: 3rem;
+}
+/* Number input wrapper + custom step buttons */
+.number-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    overflow: visible; /* важно: чтобы кнопки были видимы внутри поля */
+}
+
+.number-input-wrapper .number-input {
+    padding-right: 44px; /* синхронизируем с реальной шириной блока стрелок, чтобы они помещались внутри поля */
+}
+
+/* контейнер стрелок — внутри поля, компактный вертикальный стек */
+.number-steps {
+    position: absolute;
+    right: 8px; /* чуть внутрь поля, синхронизировано с padding-right */
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    z-index: 6;
+    pointer-events: auto;
+    width: 38px; /* ширина контейнера под размер кнопок */
+    height: calc(100% - 12px); /* чуть меньше высоты поля */
+    background: transparent;
+}
+
+/* визуально "плоские" стрелки внутри поля */
+.step-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;       /* оригинальный размер */
+    height: 28px;      /* оригинальный размер */
+    padding: 0;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.03);
+    background: rgba(15, 23, 42, 0.85); /* темный фон, как у поля */
+    color: #CBD5E1;
+    cursor: pointer;
+    transition: background 0.12s ease, transform 0.12s ease;
+    box-shadow: none; /* убираем объем */
+}
+
+/* иконки внутри кнопок */
+.step-btn i { font-size: 0.85rem; }
+
+/* hover — легкий акцент, без сильной тени */
+.step-btn:hover {
+    background: rgba(37,99,235,0.12);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: none;
+}
+
+/* восстановленный локальный override внутри приложения (без "объёма") */
+#tradingToolsApp .step-btn {
+    width: 34px !important;
+    height: 28px !important;
+    border-radius: 8px !important;
+    background: rgba(15, 23, 42, 0.85) !important;
+    border: 1px solid rgba(255,255,255,0.03) !important;
+    color: #CBD5E1 !important;
+    box-shadow: none !important;
+}
+
+#tradingToolsApp .step-btn i {
+    font-size: 0.85rem !important;
+}
+
+/* Focus and Hover States for Inputs and Selects */
+.tools-input:focus,
+.tools-select:focus {
+    outline: none;
+    border-color: #2563EB;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2), 0 0 20px rgba(37, 99, 235, 0.1);
+    background: rgba(15, 23, 42, 0.8);
+    transform: translateY(-2px);
+}
+
+.tools-input:hover,
+.tools-select:hover {
+    border-color: #3B82F6;
+}
+
+/* Стилизация select dropdown */
+.tools-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url('data:image/svg+xml;charset=UTF-8,<svg width="14" height="8" viewBox="0 0 14 8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L7 7L13 1" stroke="%233B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 1.25rem center;
+    background-size: 14px;
+    padding-right: 3.5rem;
+    cursor: pointer;
+}
+
+.tools-select:hover {
+    background-image: url('data:image/svg+xml;charset=UTF-8,<svg width="14" height="8" viewBox="0 0 14 8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L7 7L13 1" stroke="%232563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+}
+
+.tools-select:focus {
+    background-image: url('data:image/svg+xml;charset=UTF-8,<svg width="14" height="8" viewBox="0 0 14 8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L7 7L13 1" stroke="%2310B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+}
+
+.tools-select option {
+    background: #1e293b;
+    color: #F8FAFC;
+    padding: 0.75rem;
+}
+
+/* Button */
+.tools-btn {
+    padding: 1.25rem 2.5rem;
+    border-radius: 2rem;
+    background: linear-gradient(135deg, #2563EB 0%, #10B981 100%);
+    color: white;
+    font-weight: 700;
+    font-size: 1.1rem;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.875rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(37, 99, 235, 0.4);
+    margin-top: 0.5rem;
+}
+
+.tools-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.25);
+    transform: translate(-50%, -50%);
+    transition: width 0.7s, height 0.7s;
+}
+
+.tools-btn:hover::before {
+    width: 350px;
+    height: 350px;
+}
+
+.tools-btn:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(37, 99, 235, 0.5), 0 0 30px rgba(16, 185, 129, 0.3);
+    background: linear-gradient(135deg, #10B981 0%, #2563EB 100%);
+}
+
+.tools-btn:active {
+    transform: translateY(-2px);
+}
+
+.tools-btn i {
+    font-size: 1.3rem;
+    position: relative;
+    z-index: 1;
+}
+
+.tools-btn span {
+    position: relative;
+    z-index: 1;
+}
+
+/* Result Panel */
+.tools-result {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(16, 185, 129, 0.1));
+    border-radius: 1.5rem;
+    padding: 2.5rem;
+    border: 2px solid rgba(37, 99, 235, 0.3);
+    animation: scaleIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    position: sticky;
+    top: 2rem;
+    backdrop-filter: blur(10px);
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.85);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.tools-result-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+
+.tools-result-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #F8FAFC;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+}
+
+.tools-result-title i {
+    color: var(--primary);
+}
+
+.tools-result-amount {
+    font-size: 3.5rem;
+    font-weight: 900;
+    text-align: center;
+    margin: 1.5rem 0;
+    background: linear-gradient(135deg, #2563EB 0%, #10B981 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: pulseGlow 2.5s ease-in-out infinite;
+    filter: drop-shadow(0 0 20px rgba(37, 99, 235, 0.5));
+}
+
+@keyframes pulseGlow {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.85; transform: scale(1.02); }
+}
+
+.tools-result-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.tools-result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.5rem;
+    background: rgba(15, 23, 42, 0.6);
+    border-radius: 1rem;
+    border: 1px solid rgba(37, 99, 235, 0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(10px);
+}
+
+.tools-result-row:hover {
+    border-color: #2563EB;
+    transform: translateX(6px) scale(1.02);
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
+    background: rgba(37, 99, 235, 0.1);
+}
+
+.tools-result-label {
+    color: #94A3B8;
+    font-weight: 500;
+    font-size: 1rem;
+}
+
+.tools-result-value {
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: #F8FAFC;
+}
+
+.tools-positive {
+    color: var(--success);
+}
+
+.tools-negative {
+    color: var(--error);
+}
+
+.tools-neutral {
+    color: var(--text-secondary);
+}
+
+/* Empty State */
+.tools-empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #94A3B8;
+}
+
+.tools-empty-icon {
+    font-size: 5rem;
+    margin-bottom: 1.5rem;
+    opacity: 0.25;
+    animation: floatIcon 3s ease-in-out infinite;
+}
+
+@keyframes floatIcon {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-15px); }
+}
+
+.tools-empty-text {
+    font-size: 1.2rem;
+    font-weight: 500;
+}
+
+/* Crypto Selector */
+.tools-crypto-selector {
+    position: relative;
+}
+
+.tools-crypto-display {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-radius: 1rem;
+    border: 2px solid rgba(37, 99, 235, 0.2);
+    background: rgba(15, 23, 42, 0.6);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    min-height: 60px;
+    backdrop-filter: blur(10px);
+}
+
+.tools-crypto-display:hover {
+    border-color: #2563EB;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15), 0 10px 20px rgba(37, 99, 235, 0.1);
+    transform: translateY(-2px);
+}
+
+.tools-crypto-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    position: relative;
+}
+
+.tools-crypto-icon img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
+
+.tools-crypto-icon-fallback {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFFFFF;
+    font-weight: 700;
+    border-radius: 50%;
+}
+
+.tools-crypto-info {
+    flex: 1;
+}
+
+.tools-crypto-name {
+    font-weight: 600;
+    color: #F8FAFC;
+    font-size: 1.05rem;
+}
+
+.tools-crypto-symbol {
+    font-size: 0.9rem;
+    color: #94A3B8;
+    margin-top: 0.125rem;
+}
+
+.tools-crypto-arrow {
+    color: #94A3B8;
+    transition: transform 0.25s ease;
+    font-size: 0.9rem;
+}
+
+.tools-crypto-display:hover .tools-crypto-arrow {
+    transform: translateY(3px);
+}
+
+.tools-crypto-dropdown {
+    position: absolute;
+    top: calc(100% + 0.75rem);
+    left: 0;
+    right: 0;
+    max-height: 350px;
+    overflow-y: auto;
+    background: rgba(15, 23, 42, 0.98);
+    border-radius: 1rem;
+    border: 2px solid rgba(37, 99, 235, 0.3);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(59, 130, 246, 0.2);
+    z-index: 1000;
+    animation: slideDown 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    backdrop-filter: blur(20px);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tools-crypto-dropdown::-webkit-scrollbar {
+    width: 10px;
+}
+
+.tools-crypto-dropdown::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 5px;
+    margin: 0.5rem 0;
+}
+
+.tools-crypto-dropdown::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #2563EB, #10B981);
+    border-radius: 5px;
+    border: 2px solid rgba(15, 23, 42, 0.5);
+}
+
+.tools-crypto-dropdown::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #1D4ED8, #059669);
+    box-shadow: 0 0 10px rgba(37, 99, 235, 0.5);
+}
+
+.tools-crypto-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(37, 99, 235, 0.1);
+    transition: all 0.2s ease;
+    color: #E2E8F0;
+}
+
+.tools-crypto-item:last-child {
+    border-bottom: none;
+}
+
+.tools-crypto-item:hover {
+    background: linear-gradient(90deg, rgba(37, 99, 235, 0.2), rgba(16, 185, 129, 0.15));
+    padding-left: 1.5rem;
+    border-left: 3px solid #3B82F6;
+}
+
+.tools-crypto-item:active {
+    background: rgba(37, 99, 235, 0.3);
+    transform: scale(0.98);
+}
+
+/* Responsive */
+@media (max-width: 968px) {
+    #tradingToolsApp {
+        padding: 1.5rem;
+    }
+    
+    .tools-title {
+        font-size: 2.25rem;
+    }
+    
+    .tools-subtitle {
+        font-size: 1rem;
+    }
+    
+    .tools-tabs {
+        gap: 0.75rem;
+    }
+    
+    .tools-tab {
+        padding: 0.875rem 1.5rem;
+        font-size: 0.95rem;
+    }
+    
+    .tools-card-header,
+    .tools-card-body {
+        padding: 2rem;
+    }
+    
+    .tools-layout {
+        gap: 2rem;
+    }
+    
+    .tools-result {
+        position: static;
+        margin-top: 2rem;
+    }
+    
+    .tools-result-amount {
+        font-size: 2.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    #tradingToolsApp {
+        padding: 1rem;
+    }
+    
+    .tools-title {
+        font-size: 1.75rem;
+    }
+    
+    .tools-tabs {
+        gap: 0.5rem;
+    }
+    
+    .tools-tab {
+        padding: 0.75rem 1.25rem;
+        font-size: 0.875rem;
+    }
+    
+    .tools-card-header,
+    .tools-card-body {
+        padding: 1.5rem;
+    }
+    
+    .tools-result-amount {
+        font-size: 2rem;
+    }
+}
+
+/* === Overrides: стабильный тёмный вид полей внутри приложения === */
+#tradingToolsApp input,
+#tradingToolsApp select,
+#tradingToolsApp textarea {
+    background-color: rgba(15, 23, 42, 0.6) !important;
+    color: #F8FAFC !important;
+    -webkit-text-fill-color: #F8FAFC !important;
+    caret-color: #F8FAFC !important;
+    border-color: rgba(37, 99, 235, 0.18) !important;
+    box-shadow: none !important;
+    transition: none !important; /* убираем мерцание при авто-подстановке/фокусе */
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    background-clip: padding-box;
+}
+
+/* placeholder — всегда читаемый */
+#tradingToolsApp input::placeholder,
+#tradingToolsApp textarea::placeholder,
+#tradingToolsApp input::-webkit-input-placeholder,
+#tradingToolsApp textarea::-webkit-input-placeholder,
+#tradingToolsApp input::-ms-input-placeholder,
+#tradingToolsApp textarea::-ms-input-placeholder {
+    color: rgba(248, 250, 252, 0.55) !important;
+    opacity: 1 !important;
+}
+
+/* Специально для Firefox placeholder */
+#tradingToolsApp input::-moz-placeholder,
+#tradingToolsApp textarea::-moz-placeholder {
+    color: rgba(248, 250, 252, 0.55) !important;
+}
+
+/* Readonly / disabled — чуть более приглушённый цвет, но тёмный фон */
+#tradingToolsApp input[readonly],
+#tradingToolsApp input:disabled,
+#tradingToolsApp textarea[readonly],
+#tradingToolsApp textarea:disabled {
+    background-color: rgba(15, 23, 42, 0.5) !important;
+    color: rgba(248, 250, 252, 0.78) !important;
+    -webkit-text-fill-color: rgba(248, 250, 252, 0.78) !important;
+    cursor: not-allowed;
+}
+
+/* Устранение белого фона при автозаполнении (Chrome / WebKit) */
+#tradingToolsApp input:-webkit-autofill,
+#tradingToolsApp input:-webkit-autofill:hover,
+#tradingToolsApp input:-webkit-autofill:focus,
+#tradingToolsApp textarea:-webkit-autofill,
+#tradingToolsApp textarea:-webkit-autofill:hover,
+#tradingToolsApp textarea:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0px 1000px rgba(15, 23, 42, 0.6) inset !important;
+    box-shadow: 0 0 0px 1000px rgba(15, 23, 42, 0.6) inset !important;
+    -webkit-text-fill-color: #F8FAFC !important;
+}
+
+/* Firefox autofill */
+#tradingToolsApp input:-moz-autofill,
+#tradingToolsApp textarea:-moz-autofill {
+    box-shadow: 0 0 0px 1000px rgba(15, 23, 42, 0.6) inset !important;
+    -moz-text-fill-color: #F8FAFC !important;
+}
+
+/* Специально для number inputs: убрать встроенное подсветы/специфику */
+#tradingToolsApp input[type="number"] {
+    -webkit-appearance: none !important;
+    -moz-appearance: textfield !important;
+    appearance: none !important;
+    background-color: rgba(15, 23, 42, 0.6) !important;
+    color: #F8FAFC !important;
+}
+
+/* Плейсхолдер-шоу: чтобы пустое поле выглядело так же (предотвращает смену стиля) */
+#tradingToolsApp input:placeholder-shown,
+#tradingToolsApp textarea:placeholder-shown {
+    background-color: rgba(15, 23, 42, 0.6) !important;
+    color: rgba(248, 250, 252, 0.9) !important;
+}
+
+/* Ещё меньшие кнопки шагов (стрелки) для number inputs */
+#tradingToolsApp .step-btn {
+    width: 34px !important;   /* восстановлено оригинальное значение */
+    height: 28px !important;  /* восстановлено оригинальное значение */
+    border-radius: 8px !important;
+    background: rgba(255,255,255,0.03) !important;
+    color: #CBD5E1 !important;
+}
+
+#tradingToolsApp .step-btn i {
+    font-size: 0.85rem !important;
+}
+
+/* Кастомный селектор типа сделки наследует те же правила */
+#tradingToolsApp .tools-select-replacement .tools-crypto-display {
+    background-color: rgba(15, 23, 42, 0.6) !important;
+    color: #F8FAFC !important;
+    border-color: rgba(37, 99, 235, 0.18) !important;
+}
+
+/* Малый хак: убрать возможные внутренние белые слои у input в некоторых движках */
+#tradingToolsApp input, #tradingToolsApp textarea { background-image: none !important; }

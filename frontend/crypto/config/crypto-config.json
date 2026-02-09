@@ -1,0 +1,913 @@
+{
+  "cryptoAssets": {
+    "tier1": {
+      "name": "Top 10 - Основные",
+      "weight": "high",
+      "assets": [
+        {
+          "symbol": "BTC",
+          "pair": "BTCUSDT",
+          "name": "Bitcoin",
+          "icon": "bitcoin",
+          "color": "#F7931A",
+          "rank": 1,
+          "marketCap": 1320,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "ETH",
+          "pair": "ETHUSDT",
+          "name": "Ethereum",
+          "icon": "ethereum",
+          "color": "#627EEA",
+          "rank": 2,
+          "marketCap": 430,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "BNB",
+          "pair": "BNBUSDT",
+          "name": "Binance Coin",
+          "icon": null,
+          "color": "#F3BA2F",
+          "rank": 4,
+          "marketCap": 90,
+          "category": "Exchange"
+        },
+        {
+          "symbol": "SOL",
+          "pair": "SOLUSDT",
+          "name": "Solana",
+          "icon": null,
+          "color": "#14F195",
+          "rank": 5,
+          "marketCap": 82,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "XRP",
+          "pair": "XRPUSDT",
+          "name": "Ripple",
+          "icon": null,
+          "color": "#00AAE4",
+          "rank": 6,
+          "marketCap": 34,
+          "category": "Payment"
+        },
+        {
+          "symbol": "ADA",
+          "pair": "ADAUSDT",
+          "name": "Cardano",
+          "icon": null,
+          "color": "#0033AD",
+          "rank": 8,
+          "marketCap": 23,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "DOGE",
+          "pair": "DOGEUSDT",
+          "name": "Dogecoin",
+          "icon": null,
+          "color": "#C2A633",
+          "rank": 9,
+          "marketCap": 22,
+          "category": "Meme"
+        },
+        {
+          "symbol": "TRX",
+          "pair": "TRXUSDT",
+          "name": "TRON",
+          "icon": null,
+          "color": "#FF0013",
+          "rank": 11,
+          "marketCap": 12,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "AVAX",
+          "pair": "AVAXUSDT",
+          "name": "Avalanche",
+          "icon": null,
+          "color": "#E84142",
+          "rank": 12,
+          "marketCap": 16,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "SHIB",
+          "pair": "SHIBUSDT",
+          "name": "Shiba Inu",
+          "icon": null,
+          "color": "#FFA409",
+          "rank": 13,
+          "marketCap": 10,
+          "category": "Meme"
+        }
+      ]
+    },
+    "tier2": {
+      "name": "Top 11-30 - Популярные",
+      "weight": "medium",
+      "assets": [
+        {
+          "symbol": "MATIC",
+          "pair": "MATICUSDT",
+          "name": "Polygon",
+          "icon": null,
+          "color": "#8247E5",
+          "rank": 14,
+          "marketCap": 9,
+          "category": "Layer 2"
+        },
+        {
+          "symbol": "DOT",
+          "pair": "DOTUSDT",
+          "name": "Polkadot",
+          "icon": null,
+          "color": "#E6007A",
+          "rank": 15,
+          "marketCap": 12,
+          "category": "Layer 0"
+        },
+        {
+          "symbol": "LTC",
+          "pair": "LTCUSDT",
+          "name": "Litecoin",
+          "icon": null,
+          "color": "#345D9D",
+          "rank": 16,
+          "marketCap": 7,
+          "category": "Payment"
+        },
+        {
+          "symbol": "LINK",
+          "pair": "LINKUSDT",
+          "name": "Chainlink",
+          "icon": null,
+          "color": "#2A5ADA",
+          "rank": 18,
+          "marketCap": 8,
+          "category": "Oracle"
+        },
+        {
+          "symbol": "UNI",
+          "pair": "UNIUSDT",
+          "name": "Uniswap",
+          "icon": null,
+          "color": "#FF007A",
+          "rank": 19,
+          "marketCap": 6,
+          "category": "DeFi"
+        },
+        {
+          "symbol": "ATOM",
+          "pair": "ATOMUSDT",
+          "name": "Cosmos",
+          "icon": null,
+          "color": "#2E3148",
+          "rank": 20,
+          "marketCap": 4,
+          "category": "Layer 0"
+        },
+        {
+          "symbol": "ARB",
+          "pair": "ARBUSDT",
+          "name": "Arbitrum",
+          "icon": null,
+          "color": "#12AAFF",
+          "rank": 21,
+          "marketCap": 5,
+          "category": "Layer 2"
+        },
+        {
+          "symbol": "BCH",
+          "pair": "BCHUSDT",
+          "name": "Bitcoin Cash",
+          "icon": "bitcoin",
+          "color": "#8DC351",
+          "rank": 22,
+          "marketCap": 5,
+          "category": "Payment"
+        },
+        {
+          "symbol": "NEAR",
+          "pair": "NEARUSDT",
+          "name": "NEAR Protocol",
+          "icon": null,
+          "color": "#00C1DE",
+          "rank": 23,
+          "marketCap": 4,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "APT",
+          "pair": "APTUSDT",
+          "name": "Aptos",
+          "icon": null,
+          "color": "#00D4AA",
+          "rank": 24,
+          "marketCap": 4,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "XLM",
+          "pair": "XLMUSDT",
+          "name": "Stellar",
+          "icon": null,
+          "color": "#14B6E7",
+          "rank": 25,
+          "marketCap": 3,
+          "category": "Payment"
+        },
+        {
+          "symbol": "OP",
+          "pair": "OPUSDT",
+          "name": "Optimism",
+          "icon": null,
+          "color": "#FF0420",
+          "rank": 26,
+          "marketCap": 3,
+          "category": "Layer 2"
+        },
+        {
+          "symbol": "ICP",
+          "pair": "ICPUSDT",
+          "name": "Internet Computer",
+          "icon": null,
+          "color": "#F15A24",
+          "rank": 27,
+          "marketCap": 3,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "ETC",
+          "pair": "ETCUSDT",
+          "name": "Ethereum Classic",
+          "icon": "ethereum",
+          "color": "#328332",
+          "rank": 28,
+          "marketCap": 4,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "FIL",
+          "pair": "FILUSDT",
+          "name": "Filecoin",
+          "icon": null,
+          "color": "#0090FF",
+          "rank": 30,
+          "marketCap": 3,
+          "category": "Storage"
+        }
+      ]
+    },
+    "tier3": {
+      "name": "Top 31-60 - Перспективные",
+      "weight": "low",
+      "assets": [
+        {
+          "symbol": "ALGO",
+          "pair": "ALGOUSDT",
+          "name": "Algorand",
+          "icon": null,
+          "color": "#171717",
+          "rank": 32,
+          "marketCap": 2,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "HBAR",
+          "pair": "HBARUSDT",
+          "name": "Hedera",
+          "icon": null,
+          "color": "#222222",
+          "rank": 33,
+          "marketCap": 2,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "XTZ",
+          "pair": "XTZUSDT",
+          "name": "Tezos",
+          "icon": null,
+          "color": "#A6E000",
+          "rank": 35,
+          "marketCap": 2,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "INJ",
+          "pair": "INJUSDT",
+          "name": "Injective",
+          "icon": null,
+          "color": "#00F2FE",
+          "rank": 36,
+          "marketCap": 2,
+          "category": "DeFi"
+        },
+        {
+          "symbol": "VET",
+          "pair": "VETUSDT",
+          "name": "VeChain",
+          "icon": null,
+          "color": "#15BDFF",
+          "rank": 38,
+          "marketCap": 2,
+          "category": "Supply Chain"
+        },
+        {
+          "symbol": "EOS",
+          "pair": "EOSUSDT",
+          "name": "EOS",
+          "icon": null,
+          "color": "#443f54",
+          "rank": 40,
+          "marketCap": 2,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "FTM",
+          "pair": "FTMUSDT",
+          "name": "Fantom",
+          "icon": null,
+          "color": "#1969FF",
+          "rank": 42,
+          "marketCap": 2,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "AAVE",
+          "pair": "AAVEUSDT",
+          "name": "Aave",
+          "icon": null,
+          "color": "#B6509E",
+          "rank": 45,
+          "marketCap": 2,
+          "category": "DeFi"
+        },
+        {
+          "symbol": "FLOW",
+          "pair": "FLOWUSDT",
+          "name": "Flow",
+          "icon": null,
+          "color": "#00EF8B",
+          "rank": 46,
+          "marketCap": 1,
+          "category": "NFT"
+        },
+        {
+          "symbol": "EGLD",
+          "pair": "EGLDUSDT",
+          "name": "MultiversX",
+          "icon": null,
+          "color": "#23f7dd",
+          "rank": 48,
+          "marketCap": 1,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "GRT",
+          "pair": "GRTUSDT",
+          "name": "The Graph",
+          "icon": null,
+          "color": "#6747ED",
+          "rank": 49,
+          "marketCap": 1,
+          "category": "Indexing"
+        },
+        {
+          "symbol": "SAND",
+          "pair": "SANDUSDT",
+          "name": "The Sandbox",
+          "icon": null,
+          "color": "#00ADEF",
+          "rank": 50,
+          "marketCap": 1,
+          "category": "Metaverse"
+        },
+        {
+          "symbol": "THETA",
+          "pair": "THETAUSDT",
+          "name": "Theta Network",
+          "icon": null,
+          "color": "#2AB8E6",
+          "rank": 51,
+          "marketCap": 1,
+          "category": "Video"
+        },
+        {
+          "symbol": "MANA",
+          "pair": "MANAUSDT",
+          "name": "Decentraland",
+          "icon": null,
+          "color": "#FF2D55",
+          "rank": 52,
+          "marketCap": 1,
+          "category": "Metaverse"
+        },
+        {
+          "symbol": "AXS",
+          "pair": "AXSUSDT",
+          "name": "Axie Infinity",
+          "icon": null,
+          "color": "#0055D5",
+          "rank": 55,
+          "marketCap": 1,
+          "category": "Gaming"
+        }
+      ]
+    },
+    "emerging": {
+      "name": "Новые проекты",
+      "weight": "experimental",
+      "assets": [
+        {
+          "symbol": "SUI",
+          "pair": "SUIUSDT",
+          "name": "Sui",
+          "icon": null,
+          "color": "#4DA2FF",
+          "rank": 29,
+          "marketCap": 3,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "SEI",
+          "pair": "SEIUSDT",
+          "name": "Sei Network",
+          "icon": null,
+          "color": "#B91C1C",
+          "rank": 43,
+          "marketCap": 2,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "TIA",
+          "pair": "TIAUSDT",
+          "name": "Celestia",
+          "icon": null,
+          "color": "#7B2BF9",
+          "rank": 47,
+          "marketCap": 1,
+          "category": "Modular"
+        },
+        {
+          "symbol": "WLD",
+          "pair": "WLDUSDT",
+          "name": "Worldcoin",
+          "icon": null,
+          "color": "#000000",
+          "rank": 60,
+          "marketCap": 1,
+          "category": "Identity"
+        },
+        {
+          "symbol": "PEPE",
+          "pair": "PEPEUSDT",
+          "name": "Pepe",
+          "icon": null,
+          "color": "#7CC45A",
+          "rank": 31,
+          "marketCap": 3,
+          "category": "Meme"
+        },
+        {
+          "symbol": "WIF",
+          "pair": "WIFUSDT",
+          "name": "dogwifhat",
+          "icon": null,
+          "color": "#FF8A3D",
+          "rank": 54,
+          "marketCap": 1,
+          "category": "Meme"
+        },
+        {
+          "symbol": "BONK",
+          "pair": "BONKUSDT",
+          "name": "Bonk",
+          "icon": null,
+          "color": "#F4900C",
+          "rank": 65,
+          "marketCap": 0.8,
+          "category": "Meme"
+        },
+        {
+          "symbol": "RENDER",
+          "pair": "RENDERUSDT",
+          "name": "Render Token",
+          "icon": null,
+          "color": "#000000",
+          "rank": 44,
+          "marketCap": 2,
+          "category": "AI"
+        },
+        {
+          "symbol": "FET",
+          "pair": "FETUSDT",
+          "name": "Fetch.ai",
+          "icon": null,
+          "color": "#0714CE",
+          "rank": 58,
+          "marketCap": 1,
+          "category": "AI"
+        },
+        {
+          "symbol": "RNDR",
+          "pair": "RNDRUSDT",
+          "name": "Render",
+          "icon": null,
+          "color": "#000000",
+          "rank": 53,
+          "marketCap": 1,
+          "category": "AI"
+        }
+      ]
+    },
+    "defi": {
+      "name": "DeFi токены",
+      "weight": "medium",
+      "assets": [
+        {
+          "symbol": "CRV",
+          "pair": "CRVUSDT",
+          "name": "Curve DAO",
+          "icon": null,
+          "color": "#FF0000",
+          "rank": 66,
+          "marketCap": 0.8,
+          "category": "DeFi"
+        },
+        {
+          "symbol": "MKR",
+          "pair": "MKRUSDT",
+          "name": "Maker",
+          "icon": null,
+          "color": "#1AAB9B",
+          "rank": 67,
+          "marketCap": 0.7,
+          "category": "DeFi"
+        },
+        {
+          "symbol": "COMP",
+          "pair": "COMPUSDT",
+          "name": "Compound",
+          "icon": null,
+          "color": "#00D395",
+          "rank": 68,
+          "marketCap": 0.6,
+          "category": "DeFi"
+        },
+        {
+          "symbol": "SNX",
+          "pair": "SNXUSDT",
+          "name": "Synthetix",
+          "icon": null,
+          "color": "#5FCDF9",
+          "rank": 70,
+          "marketCap": 0.5,
+          "category": "DeFi"
+        },
+        {
+          "symbol": "1INCH",
+          "pair": "1INCHUSDT",
+          "name": "1inch",
+          "icon": null,
+          "color": "#D82122",
+          "rank": 75,
+          "marketCap": 0.4,
+          "category": "DeFi"
+        }
+      ]
+    },
+    "gaming": {
+      "name": "Gaming & Metaverse",
+      "weight": "medium",
+      "assets": [
+        {
+          "symbol": "IMX",
+          "pair": "IMXUSDT",
+          "name": "Immutable X",
+          "icon": null,
+          "color": "#0D0D0D",
+          "rank": 71,
+          "marketCap": 0.5,
+          "category": "Gaming"
+        },
+        {
+          "symbol": "GALA",
+          "pair": "GALAUSDT",
+          "name": "Gala",
+          "icon": null,
+          "color": "#000000",
+          "rank": 72,
+          "marketCap": 0.5,
+          "category": "Gaming"
+        },
+        {
+          "symbol": "ENJ",
+          "pair": "ENJUSDT",
+          "name": "Enjin Coin",
+          "icon": null,
+          "color": "#7866D5",
+          "rank": 73,
+          "marketCap": 0.4,
+          "category": "Gaming"
+        },
+        {
+          "symbol": "APE",
+          "pair": "APEUSDT",
+          "name": "ApeCoin",
+          "icon": null,
+          "color": "#0050FF",
+          "rank": 69,
+          "marketCap": 0.6,
+          "category": "NFT"
+        }
+      ]
+    },
+    "layer2": {
+      "name": "Layer 2 & Scaling",
+      "weight": "medium",
+      "assets": [
+        {
+          "symbol": "LRC",
+          "pair": "LRCUSDT",
+          "name": "Loopring",
+          "icon": null,
+          "color": "#1C60FF",
+          "rank": 76,
+          "marketCap": 0.3,
+          "category": "Layer 2"
+        },
+        {
+          "symbol": "METIS",
+          "pair": "METISUSDT",
+          "name": "Metis",
+          "icon": null,
+          "color": "#00DACC",
+          "rank": 78,
+          "marketCap": 0.3,
+          "category": "Layer 2"
+        }
+      ]
+    },
+    "memecoins": {
+      "name": "Популярные мемы",
+      "weight": "low",
+      "assets": [
+        {
+          "symbol": "FLOKI",
+          "pair": "FLOKIUSDT",
+          "name": "Floki Inu",
+          "icon": null,
+          "color": "#FF4500",
+          "rank": 80,
+          "marketCap": 0.3,
+          "category": "Meme"
+        }
+      ]
+    },
+    "infrastructure": {
+      "name": "Infrastructure",
+      "weight": "medium",
+      "assets": [
+        {
+          "symbol": "CHZ",
+          "pair": "CHZUSDT",
+          "name": "Chiliz",
+          "icon": null,
+          "color": "#CD0124",
+          "rank": 74,
+          "marketCap": 0.4,
+          "category": "NFT"
+        },
+        {
+          "symbol": "ROSE",
+          "pair": "ROSEUSDT",
+          "name": "Oasis Network",
+          "icon": null,
+          "color": "#0092F6",
+          "rank": 77,
+          "marketCap": 0.3,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "KSM",
+          "pair": "KSMUSDT",
+          "name": "Kusama",
+          "icon": null,
+          "color": "#000000",
+          "rank": 79,
+          "marketCap": 0.3,
+          "category": "Layer 0"
+        },
+        {
+          "symbol": "KAVA",
+          "pair": "KAVAUSDT",
+          "name": "Kava",
+          "icon": null,
+          "color": "#FF433E",
+          "rank": 81,
+          "marketCap": 0.3,
+          "category": "DeFi"
+        },
+        {
+          "symbol": "WAVES",
+          "pair": "WAVESUSDT",
+          "name": "Waves",
+          "icon": null,
+          "color": "#0055FF",
+          "rank": 82,
+          "marketCap": 0.2,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "ZIL",
+          "pair": "ZILUSDT",
+          "name": "Zilliqa",
+          "icon": null,
+          "color": "#49C1BF",
+          "rank": 83,
+          "marketCap": 0.2,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "ONE",
+          "pair": "ONEUSDT",
+          "name": "Harmony",
+          "icon": null,
+          "color": "#00ADE8",
+          "rank": 84,
+          "marketCap": 0.2,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "CELO",
+          "pair": "CELOUSDT",
+          "name": "Celo",
+          "icon": null,
+          "color": "#35D07F",
+          "rank": 86,
+          "marketCap": 0.2,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "AR",
+          "pair": "ARUSDT",
+          "name": "Arweave",
+          "icon": null,
+          "color": "#222326",
+          "rank": 87,
+          "marketCap": 0.2,
+          "category": "Storage"
+        },
+        {
+          "symbol": "STX",
+          "pair": "STXUSDT",
+          "name": "Stacks",
+          "icon": null,
+          "color": "#5546FF",
+          "rank": 88,
+          "marketCap": 0.2,
+          "category": "Layer 2"
+        },
+        {
+          "symbol": "MINA",
+          "pair": "MINAUSDT",
+          "name": "Mina Protocol",
+          "icon": null,
+          "color": "#E86E51",
+          "rank": 89,
+          "marketCap": 0.2,
+          "category": "Layer 1"
+        },
+        {
+          "symbol": "MASK",
+          "pair": "MASKUSDT",
+          "name": "Mask Network",
+          "icon": null,
+          "color": "#1C68F3",
+          "rank": 90,
+          "marketCap": 0.2,
+          "category": "Web3"
+        },
+        {
+          "symbol": "LDO",
+          "pair": "LDOUSDT",
+          "name": "Lido DAO",
+          "icon": null,
+          "color": "#00A3FF",
+          "rank": 91,
+          "marketCap": 0.2,
+          "category": "DeFi"
+        },
+        {
+          "symbol": "DYDX",
+          "pair": "DYDXUSDT",
+          "name": "dYdX",
+          "icon": null,
+          "color": "#6966FF",
+          "rank": 92,
+          "marketCap": 0.2,
+          "category": "DeFi"
+        },
+        {
+          "symbol": "GMX",
+          "pair": "GMXUSDT",
+          "name": "GMX",
+          "icon": null,
+          "color": "#2C3DDC",
+          "rank": 93,
+          "marketCap": 0.2,
+          "category": "DeFi"
+        },
+        {
+          "symbol": "RPL",
+          "pair": "RPLUSDT",
+          "name": "Rocket Pool",
+          "icon": null,
+          "color": "#FF6B4A",
+          "rank": 94,
+          "marketCap": 0.1,
+          "category": "DeFi"
+        },
+        {
+          "symbol": "BAT",
+          "pair": "BATUSDT",
+          "name": "Basic Attention",
+          "icon": null,
+          "color": "#FF5000",
+          "rank": 95,
+          "marketCap": 0.1,
+          "category": "Web3"
+        },
+        {
+          "symbol": "ENS",
+          "pair": "ENSUSDT",
+          "name": "Ethereum Name Service",
+          "icon": null,
+          "color": "#5298FF",
+          "rank": 96,
+          "marketCap": 0.1,
+          "category": "Web3"
+        },
+        {
+          "symbol": "QNT",
+          "pair": "QNTUSDT",
+          "name": "Quant",
+          "icon": null,
+          "color": "#000000",
+          "rank": 97,
+          "marketCap": 0.1,
+          "category": "Layer 0"
+        },
+        {
+          "symbol": "BLUR",
+          "pair": "BLURUSDT",
+          "name": "Blur",
+          "icon": null,
+          "color": "#FF8700",
+          "rank": 98,
+          "marketCap": 0.1,
+          "category": "NFT"
+        }
+      ]
+    }
+  },
+  "settings": {
+    "batchSize": 25,
+    "requestDelay": 50,
+    "cacheTime": 30000,
+    "maxRetries": 3,
+    "defaultView": ["tier1", "tier2"],
+    "features": {
+      "sparklines": true,
+      "priceAlerts": true,
+      "favorites": true,
+      "sorting": true,
+      "filtering": true
+    }
+  },
+  "categories": {
+    "Layer 1": { "color": "#3B82F6", "description": "Основные блокчейны" },
+    "Layer 2": { "color": "#8B5CF6", "description": "Решения масштабирования" },
+    "Layer 0": { "color": "#EC4899", "description": "Межсетевые протоколы" },
+    "DeFi": { "color": "#10B981", "description": "Децентрализованные финансы" },
+    "NFT": { "color": "#F59E0B", "description": "Невзаимозаменяемые токены" },
+    "Metaverse": { "color": "#EF4444", "description": "Виртуальные миры" },
+    "Gaming": { "color": "#8B5CF6", "description": "Игровые токены" },
+    "Meme": { "color": "#FBBF24", "description": "Мем-коины" },
+    "AI": { "color": "#06B6D4", "description": "Искусственный интеллект" },
+    "Exchange": { "color": "#F59E0B", "description": "Биржевые токены" },
+    "Payment": { "color": "#10B981", "description": "Платежные системы" },
+    "Oracle": { "color": "#3B82F6", "description": "Оракулы данных" },
+    "Storage": { "color": "#6366F1", "description": "Децентрализованное хранение" },
+    "Indexing": { "color": "#8B5CF6", "description": "Индексация данных" },
+    "Supply Chain": { "color": "#06B6D4", "description": "Цепи поставок" },
+    "Video": { "color": "#EC4899", "description": "Видео платформы" },
+    "Identity": { "color": "#14B8A6", "description": "Цифровая идентичность" },
+    "Modular": { "color": "#A855F7", "description": "Модульные блокчейны" },
+    "Web3": { "color": "#10B981", "description": "Web3 инфраструктура" }
+  }
+}

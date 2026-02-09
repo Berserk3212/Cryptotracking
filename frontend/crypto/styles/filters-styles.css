@@ -1,0 +1,386 @@
+/* ===== СОВРЕМЕННЫЕ ФИЛЬТРЫ КАК НА ДАШБОРДЕ ===== */
+
+/* Header с кнопками фильтров */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.section-header h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.header-filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Стили для селектов в header */
+.filter-select, .sort-select {
+  background: linear-gradient(135deg, #2563EB, #10B981) !important;
+  color: white !important;
+  border: 1px solid rgba(37, 99, 235, 0.3) !important;
+  border-radius: 10px;
+  padding: 10px 36px 10px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  appearance: none;
+  min-width: 180px;
+  position: relative;
+  background-image: linear-gradient(135deg, #2563EB, #10B981), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat;
+  background-position: 0 0, right 12px center;
+  background-size: 100%, 14px;
+}
+
+.filter-select:hover, .sort-select:hover {
+  background: linear-gradient(135deg, #1D4ED8, #059669) !important;
+  background-image: linear-gradient(135deg, #1D4ED8, #059669), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat;
+  background-position: 0 0, right 12px center;
+  background-size: 100%, 14px;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3), 0 0 30px rgba(16, 185, 129, 0.2);
+}
+
+.filter-select:focus, .sort-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+}
+
+.filter-select option, .sort-select option {
+  background: white;
+  color: #1e293b;
+  padding: 8px;
+}
+
+/* Компактная панель фильтров по цене */
+.price-filters-bar {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 2px solid #3B82F6;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.price-filter-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+}
+
+.price-filter-label i {
+  font-size: 1.1rem;
+  color: #10b981;
+}
+
+.price-inputs-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.filter-input {
+  background: white;
+  border: 2px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1e293b;
+  width: 120px;
+  transition: all 0.2s ease;
+}
+
+.filter-input:hover {
+  border-color: #3B82F6;
+}
+
+.filter-input:focus {
+  outline: none;
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.filter-input::placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.price-separator {
+  color: #64748b;
+  font-weight: 600;
+  font-size: 1.2rem;
+}
+
+/* Кнопка сброса */
+.btn-reset-filters {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.btn-reset-filters:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+}
+
+.btn-reset-filters:active {
+  transform: translateY(0);
+}
+
+.btn-reset-filters i {
+  font-size: 0.95rem;
+}
+
+/* Custom Select Dropdown */
+.custom-select-wrapper {
+    position: relative;
+    flex: 1;
+    z-index: 1;
+}
+
+.custom-select {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, #2563EB, #10B981);
+    color: white;
+    border: 1px solid rgba(37, 99, 235, 0.3);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    min-width: 180px;
+    position: relative;
+    z-index: 1;
+}
+
+.custom-select:hover {
+    background: linear-gradient(135deg, #1D4ED8, #059669);
+    transform: translateY(-2px);
+    box-shadow: 
+        0 10px 25px rgba(37, 99, 235, 0.3), 
+        0 0 30px rgba(16, 185, 129, 0.2);
+}
+
+.custom-select:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+}
+
+.custom-select-value {
+    flex: 1;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.custom-select-arrow {
+    font-size: 12px;
+    transition: transform 0.3s ease;
+    opacity: 0.8;
+}
+
+.custom-select.open .custom-select-arrow {
+    transform: rotate(180deg);
+}
+
+.custom-select.open {
+    z-index: 11;
+}
+
+.custom-select-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, rgba(26, 29, 40, 0.98), rgba(30, 35, 50, 0.98));
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 12px;
+    box-shadow: 
+        0 10px 40px rgba(0, 0, 0, 0.3),
+        0 0 20px rgba(37, 99, 235, 0.1);
+    backdrop-filter: blur(10px);
+    z-index: 12;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.custom-select-dropdown.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.custom-select-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.custom-select-option:last-child {
+    border-bottom: none;
+}
+
+.custom-select-option i {
+    width: 18px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.6);
+    transition: all 0.2s ease;
+}
+
+.custom-select-option span {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.custom-select-option:hover {
+    background: linear-gradient(90deg, rgba(37, 99, 235, 0.15), rgba(16, 185, 129, 0.15));
+    padding-left: 20px;
+}
+
+.custom-select-option:hover i {
+    color: #3b82f6;
+    transform: scale(1.2);
+}
+
+.custom-select-option.selected {
+    background: linear-gradient(90deg, rgba(37, 99, 235, 0.2), rgba(16, 185, 129, 0.2));
+    border-left: 3px solid #3b82f6;
+}
+
+.custom-select-option.selected i {
+    color: #10b981;
+}
+
+/* Scrollbar для dropdown */
+.custom-select-dropdown::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-select-dropdown::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+}
+
+.custom-select-dropdown::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #2563EB, #10B981);
+    border-radius: 3px;
+}
+
+.custom-select-dropdown::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #1D4ED8, #059669);
+}
+
+/* Адаптивность */
+@media (max-width: 968px) {
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .header-filters {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .filter-select, .sort-select {
+    flex: 1;
+    min-width: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .price-filters-bar {
+    padding: 12px 16px;
+  }
+  
+  .price-inputs-group {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+  
+  .filter-input {
+    width: 100%;
+  }
+  
+  .price-separator {
+    display: none;
+  }
+  
+  .btn-reset-filters {
+    width: 100%;
+    justify-content: center;
+    margin-left: 0;
+  }
+}
+
+/* Анимация появления */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.price-filters-bar {
+  animation: slideDown 0.3s ease-out;
+}
+

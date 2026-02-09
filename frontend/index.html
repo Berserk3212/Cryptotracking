@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Главная — InvestApp</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="main-styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="main-page">
+  <!-- Декоративный фон из login.html -->
+  <div class="background-container">
+    <div class="trading-charts">
+      <svg class="chart chart-1" viewBox="0 0 400 200">
+        <path class="chart-line" d="M0,150 C50,100 100,180 150,120 C200,60 250,140 300,80 C350,20 400,100 400,50" />
+      </svg>
+      <svg class="chart chart-2" viewBox="0 0 400 200">
+        <path class="chart-line" d="M0,100 C50,50 100,130 150,70 C200,10 250,90 300,30 C350,-30 400,50 400,0" />
+      </svg>
+    </div>
+    <div class="crypto-icons">
+      <div class="crypto-icon btc"><i class="fab fa-bitcoin"></i></div>
+      <div class="crypto-icon eth"><i class="fab fa-ethereum"></i></div>
+      <div class="crypto-icon ada"><i class="fab fa-connectdevelop"></i></div>
+      <div class="crypto-icon xrp"><i class="fas fa-bolt"></i></div>
+    </div>
+    <div class="stock-bars">
+      <div class="bar bar-1"></div>
+      <div class="bar bar-2"></div>
+      <div class="bar bar-3"></div>
+      <div class="bar bar-4"></div>
+      <div class="bar bar-5"></div>
+      <div class="bar bar-6"></div>
+    </div>
+    <div class="financial-symbols">
+      <div class="symbol symbol-1">₿</div>
+      <div class="symbol symbol-2">€</div>
+      <div class="symbol symbol-3">£</div>
+      <div class="symbol symbol-4">$</div>
+    </div>
+    <div class="grid-overlay"></div>
+    <div class="particles"></div>
+    <div class="gradient-overlay"></div>
+  </div>
+
+  <div id="app" class="main-container" v-cloak>
+    <!-- Theme toggle (fixed top-right) -->
+    <div class="theme-switcher" v-cloak>
+      <button class="theme-toggle" @click="toggleTheme" :title="theme === 'light' ? 'Светлая тема' : 'Тёмная тема'">
+        <i class="fas fa-sun"></i>
+        <i class="fas fa-moon"></i>
+      </button>
+    </div>
+
+    <!-- Toast notifications (как в login.html) -->
+    <transition name="toast-slide">
+      <div v-if="toast.show" :class="['toast', toast.type]" :key="toast.id">
+        <div class="toast-icon"><i :class="toast.icon"></i></div>
+        <div class="toast-content">
+          <h4>{{ toast.title }}</h4>
+          <p>{{ toast.message }}</p>
+        </div>
+        <button class="toast-close" @click="toast.show = false"><i class="fas fa-times"></i></button>
+      </div>
+    </transition>
+
+    <div class="main-card">
+      <!-- Левая панель -->
+      <div class="card-left">
+        <div class="logo-container">
+          <div class="logo">
+            <div class="logo-icon">
+              <svg width="72" height="72" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <filter id="chartGlow">
+                    <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+                    <feMerge>
+                      <feMergeNode in="coloredBlur"/>
+                      <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                  </filter>
+                  <filter id="chartShadow">
+                    <feGaussianBlur in="SourceAlpha" stdDeviation="1.5"/>
+                    <feOffset dx="0" dy="1.5" result="offsetblur"/>
+                    <feComponentTransfer>
+                      <feFuncA type="linear" slope="0.3"/>
+                    </feComponentTransfer>
+                    <feMerge>
+                      <feMergeNode/>
+                      <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                  </filter>
+                </defs>
+                <rect x="8" y="8" width="40" height="40" rx="8" fill="#FFFFFF" opacity="0.08" filter="url(#chartShadow)"/>
+                <g stroke="#FFFFFF" stroke-width="1" opacity="0.3">
+                  <line x1="12" y1="38" x2="44" y2="38" class="axis-x"/>
+                  <line x1="12" y1="15" x2="12" y2="38" class="axis-y"/>
+                </g>
+                <g filter="url(#chartGlow)">
+                  <defs>
+                    <linearGradient id="fillGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.25"/>
+                      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.02"/>
+                    </linearGradient>
+                  </defs>
+                  <polygon points="12,38 18,32 24,26 30,20 36,18 42,22 42,38" fill="url(#fillGradient)"/>
+                  <polyline points="12,38 18,32 24,26 30,20 36,18 42,22" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="45" stroke-dashoffset="45" filter="url(#chartShadow)"/>
+                </g>
+                <g filter="url(#chartGlow)">
+                  <circle cx="12" cy="38" r="1.8" fill="#FFFFFF" opacity="0.9" class="chart-dot"/>
+                  <circle cx="18" cy="32" r="1.8" fill="#FFFFFF" opacity="0.9" class="chart-dot"/>
+                  <circle cx="24" cy="26" r="1.8" fill="#FFFFFF" opacity="0.9" class="chart-dot"/>
+                  <circle cx="30" cy="20" r="2.2" fill="#FFFFFF" opacity="1" class="chart-dot peak"/>
+                  <circle cx="36" cy="18" r="2" fill="#FFFFFF" opacity="0.95" class="chart-dot"/>
+                  <circle cx="42" cy="22" r="1.8" fill="#FFFFFF" opacity="0.9" class="chart-dot"/>
+                </g>
+                <g stroke="#FFFFFF" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85" filter="url(#chartGlow)">
+                  <path d="M 45 26 L 48 23 L 45 20" class="growth-arrow"/>
+                </g>
+                <circle cx="30" cy="20" r="4" fill="none" stroke="#FFFFFF" stroke-width="1" opacity="0.4" class="peak-glow"/>
+              </svg>
+            </div>
+            <div class="logo-text">
+              <h1>InvestApp</h1>
+              <p class="tagline">Инвестируй с умом</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="welcome">
+          <h2>Добро пожаловать!</h2>
+          <p>Управляйте портфелем уверенно — аналитика и транзакции под рукой.</p>
+        </div>
+        
+        <div class="features-list">
+          <div class="feature-item">
+            <div class="feature-icon-small">
+              <i class="fas fa-coins"></i>
+            </div>
+            <div class="feature-text">
+              <h4>Симуляция криптовалют</h4>
+              <p>Виртуальная торговля без рисков</p>
+            </div>
+          </div>
+          
+          <div class="feature-item">
+            <div class="feature-icon-small">
+              <i class="fas fa-chart-pie"></i>
+            </div>
+            <div class="feature-text">
+              <h4>Отслеживание портфеля</h4>
+              <p>Мониторинг активов в реальном времени</p>
+            </div>
+          </div>
+          
+          <div class="feature-item">
+            <div class="feature-icon-small">
+              <i class="fas fa-newspaper"></i>
+            </div>
+            <div class="feature-text">
+              <h4>Новости рынка</h4>
+              <p>Актуальная информация о криптовалютах</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Правая панель -->
+      <div class="card-right">
+        <!-- User Info -->
+        <div class="user-card">
+          <div class="user-avatar" id="userAvatar">
+            <i class="fas fa-user-circle"></i>
+          </div>
+          <div class="user-info">
+            <div v-if="loading" class="loading-spinner"></div>
+            <div v-else>
+              <div class="user-name">{{ user.fullName }}</div>
+              <div class="user-email">{{ user.email }}</div>
+              <div class="user-id">ID: {{ user.shortId }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions-grid">
+          <button class="action-btn primary" id="btnPortfolio">
+            <i class="fas fa-chart-pie"></i>
+            <span>Инвестиционный портфель</span>
+          </button>
+          
+          <button class="action-btn secondary" id="btnProfile">
+            <i class="fas fa-user-edit"></i>
+            <span>Редактировать профиль</span>
+          </button>
+          
+          <button class="action-btn secondary" id="btnSettings">
+            <i class="fas fa-cog"></i>
+            <span>Настройки</span>
+          </button>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon">
+              <i class="fas fa-wallet"></i>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value" id="totalBalance">{{ balanceDisplay }}</div>
+              <div class="stat-label">Общий баланс</div>
+            </div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon">
+              <i class="fas fa-trending-up"></i>
+            </div>
+            <div class="stat-info">
+              <div class="stat-value" id="totalProfit" :style="{ color: profitColor }">{{ profitDisplay }}</div>
+              <div class="stat-label">Доходность</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Logout -->
+        <button class="logout-btn" id="btnLogout">
+          <i class="fas fa-sign-out-alt"></i>
+          Выйти из аккаунта
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile Modal -->
+  <div class="modal-overlay" id="profileModal" style="display: none;">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3>
+          <i class="fas fa-user-edit"></i>
+          Редактирование профиля
+        </h3>
+        <button class="modal-close-news" id="closeProfileModal" onclick="closeModal('profileModal')">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <form class="modal-body" id="profileForm">
+        <!-- Avatar Upload Section -->
+        <div class="form-group avatar-section">
+          <label>Аватар</label>
+          <div class="avatar-upload-wrapper">
+            <div class="avatar-preview-large" id="avatarPreviewModal">
+              <i class="fas fa-user-circle"></i>
+            </div>
+            <div class="avatar-controls">
+              <input type="file" id="avatarFileInput" accept="image/*" style="display: none;">
+              <button type="button" class="btn-upload" onclick="document.getElementById('avatarFileInput').click()">
+                <i class="fas fa-camera"></i>
+                Загрузить фото
+              </button>
+              <small class="hint">JPG, PNG или GIF. Макс. 2MB</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="profileNameInput">
+            <i class="fas fa-user"></i>
+            Полное имя
+          </label>
+          <input type="text" id="profileNameInput" placeholder="Введите ваше имя" required>
+        </div>
+
+        <div class="form-group">
+          <label for="profileEmailInput">
+            <i class="fas fa-envelope"></i>
+            Email
+          </label>
+          <input type="email" id="profileEmailInput" disabled>
+          <small class="hint">Email изменить нельзя</small>
+        </div>
+
+        <input type="hidden" id="profileAvatarInput">
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="cancelProfileBtn">
+            <i class="fas fa-times"></i>
+            Отмена
+          </button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-check"></i>
+            Сохранить изменения
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="main-script.js"></script>
+</body>
+</html>

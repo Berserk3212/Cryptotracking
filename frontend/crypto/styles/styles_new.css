@@ -89,6 +89,10 @@
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
+html {
+    /* No background — let body gradient cover the entire canvas */
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
     background: linear-gradient(135deg, var(--bg-primary) 0%, var(--border) 100%);
@@ -172,6 +176,10 @@ body {
     z-index: 1000;
     overflow-y: auto;
     box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
+    /* GPU compositing для плавной slide-анимации (через will-change, без override transform) */
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 
 /* Scrollbar для боковой панели */
@@ -197,14 +205,18 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 1rem; /* Добавляем отступ между логотипом и кнопкой */
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     background: linear-gradient(135deg, rgba(37, 99, 235, 0.2), rgba(5, 150, 105, 0.2));
+    overflow: visible; /* Убеждаемся, что кнопка не обрезается */
 }
 
 .logo {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    flex: 1; /* Логотип занимает доступное пространство */
+    min-width: 0; /* Позволяет flex-элементу сжиматься */
 }
 
 .logo-icon {
@@ -371,23 +383,38 @@ body {
 }
 
 .close-sidebar {
-    display: none;
+    display: none; /* Скрыта по умолчанию на десктопе */
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.15);
     color: white;
     font-size: 1.25rem;
     cursor: pointer;
-    padding: 0.5rem;
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 50%;
     transition: all 0.3s ease;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    pointer-events: auto;
+}
+
+.close-sidebar i {
+    font-size: 1.25rem;
+    margin: 0;
+    line-height: 1;
 }
 
 .close-sidebar:hover {
-    background: rgba(239, 68, 68, 0.8);
+    background: rgba(239, 68, 68, 0.9);
     border-color: #EF4444;
-    transform: rotate(90deg);
+    transform: scale(1.1) rotate(90deg);
 }
 
 .sidebar-nav {
@@ -490,11 +517,13 @@ body {
     align-items: center;
     gap: 0.75rem;
     flex: 1;
+    min-width: 0;
     cursor: pointer;
     padding: 0.5rem;
     border-radius: 12px;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     background: rgba(255, 255, 255, 0.05);
+    overflow: hidden;
 }
 
 .user-profile:hover {
@@ -506,6 +535,8 @@ body {
 .user-avatar {
     width: 40px;
     height: 40px;
+    min-width: 40px;
+    flex-shrink: 0;
     border-radius: 50%;
     background: linear-gradient(135deg, #2563EB, #10B981);
     display: flex;
@@ -541,6 +572,8 @@ body {
 .logout-btn {
     width: 40px;
     height: 40px;
+    min-width: 40px;
+    flex-shrink: 0;
     border-radius: 12px;
     background: rgba(239, 68, 68, 0.1);
     border: 1px solid rgba(239, 68, 68, 0.3);
@@ -573,7 +606,7 @@ body {
 }
 
 .top-bar {
-    background: rgba(15, 23, 42, 0.95);
+    background: rgba(15, 23, 42, 0.98);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -582,9 +615,13 @@ body {
     align-items: center;
     gap: 1rem;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-    position: sticky;
+    /* fixed — гарантированно прихвачен к y=0 вьюпорта */
+    position: fixed;
     top: 0;
-    z-index: 100;
+    left: 280px;   /* ширина сайдбара */
+    right: 0;
+    z-index: 200;
+    isolation: isolate;
 }
 
 .menu-btn {
@@ -648,6 +685,7 @@ body {
 .content {
     flex: 1;
     padding: 2rem;
+    padding-top: calc(2rem + 73px); /* 73px = высота fixed top-bar */
     position: relative;
 }
 
@@ -794,8 +832,84 @@ body {
 }
 
 .welcome-chart {
-    width: 200px;
-    height: 120px;
+    width: 320px;
+    min-width: 260px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: 18px;
+    padding: 1.1rem 1.2rem 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+#miniChart {
+    width: 100%;
+    min-height: 108px;
+}
+
+.mini-chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.mini-chart-label {
+    font-size: 0.67rem;
+    color: rgba(255, 255, 255, 0.45);
+    text-transform: uppercase;
+    letter-spacing: 0.9px;
+    font-weight: 600;
+}
+
+.mini-chart-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 11px;
+    border-radius: 100px;
+    background: rgba(16, 185, 129, 0.18);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.32);
+    transition: background 0.3s, color 0.3s, border-color 0.3s;
+    letter-spacing: 0.2px;
+}
+
+.mini-chart-badge.negative {
+    background: rgba(239, 68, 68, 0.18);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.32);
+}
+
+.mini-chart-footer {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mini-chart-stat {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.68rem;
+    font-weight: 600;
+}
+
+.mini-chart-stat i {
+    font-size: 0.6rem;
+}
+
+.mini-chart-stat.mini-start {
+    color: rgba(148, 163, 184, 0.8);
+}
+
+.mini-chart-stat.mini-current {
+    color: rgba(226, 232, 240, 0.9);
+    font-weight: 700;
 }
 
 /* ============================================
@@ -1116,7 +1230,7 @@ body {
    ============================================ */
 .charts-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(400px, 100%), 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
 }
@@ -1217,6 +1331,7 @@ body {
     padding: 0.5rem;
     background: rgba(10, 14, 23, 0.95);
     border-radius: 12px;
+    overflow: hidden;
 }
 
 /* Canvas графиков */
@@ -1229,17 +1344,12 @@ body {
     padding: 1rem;
 }
 
-/* Lightweight Charts контейнер - единый блок без границ */
-.card-body > div {
-    width: 100% !important;
-    height: 100% !important;
-}
-
+/* Lightweight Charts контейнер — только ширина, высота фиксирована у конкретного контейнера */
 #historyChart {
     width: 100%;
-    height: 100%;
-    min-height: 400px;
+    height: 400px;
     position: relative;
+    flex-shrink: 0;
 }
 
 /* Убираем все границы и отступы внутри графика */
@@ -1283,7 +1393,7 @@ body {
    ============================================ */
 .portfolios-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(350px, 100%), 1fr));
     grid-auto-rows: auto;
     grid-auto-flow: row;
     gap: 1.25rem 1.5rem;
@@ -1809,7 +1919,7 @@ body {
    ============================================ */
 .crypto-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
     gap: 1.5rem;
 }
 
@@ -1857,6 +1967,7 @@ body {
     cursor: pointer;
     position: relative;
     overflow: hidden;
+    container-type: inline-size;
 }
 
 .crypto-card::before {
@@ -1899,6 +2010,73 @@ body {
     transform: translateY(-4px) scale(1.01);
 }
 
+/* Темная тема - элегантный темный дизайн */
+[data-theme="dark"] .crypto-card,
+[data-theme="system"] .crypto-card {
+    background: linear-gradient(145deg, #0a0e1a 0%, #020617 100%) !important;
+    border: 1px solid rgba(96, 165, 250, 0.15) !important;
+    box-shadow: 
+        0 4px 16px rgba(0, 0, 0, 0.6),
+        inset 0 1px 0 rgba(96, 165, 250, 0.08) !important;
+}
+
+[data-theme="dark"] .crypto-card::before,
+[data-theme="system"] .crypto-card::before {
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.12) 0%, rgba(96, 165, 250, 0.04) 50%, transparent 100%);
+    animation: none;
+}
+
+[data-theme="dark"] .crypto-card:hover,
+[data-theme="system"] .crypto-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 
+        0 20px 40px rgba(0, 0, 0, 0.7),
+        0 0 0 1px rgba(96, 165, 250, 0.5),
+        0 0 30px rgba(96, 165, 250, 0.3),
+        inset 0 1px 0 rgba(96, 165, 250, 0.2);
+    border-color: rgba(96, 165, 250, 0.6);
+    background: linear-gradient(145deg, #0f1624 0%, #030b1f 100%);
+}
+
+[data-theme="dark"] .crypto-card:hover::before,
+[data-theme="system"] .crypto-card:hover::before {
+    opacity: 1;
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.2) 0%, rgba(96, 165, 250, 0.08) 50%, transparent 100%);
+}
+
+[data-theme="dark"] .crypto-card:hover .crypto-icon,
+[data-theme="system"] .crypto-card:hover .crypto-icon {
+    transform: scale(1.15) rotate(5deg);
+    box-shadow: 
+        0 10px 30px rgba(96, 165, 250, 0.6),
+        0 0 40px rgba(96, 165, 250, 0.4),
+        inset 0 2px 0 rgba(255, 255, 255, 0.2);
+    filter: brightness(1.2) saturate(1.3);
+    border-color: rgba(96, 165, 250, 0.5);
+}
+
+[data-theme="dark"] .crypto-card:hover .crypto-info h4,
+[data-theme="system"] .crypto-card:hover .crypto-info h4 {
+    color: #60a5fa;
+    text-shadow: 
+        0 0 20px rgba(96, 165, 250, 0.8),
+        0 2px 10px rgba(0, 0, 0, 0.5);
+    transform: translateX(2px);
+}
+
+[data-theme="dark"] .crypto-card:hover .stat-mini,
+[data-theme="system"] .crypto-card:hover .stat-mini {
+    transform: translateY(-4px);
+    box-shadow: 
+        0 4px 12px rgba(0, 0, 0, 0.5),
+        0 0 20px rgba(96, 165, 250, 0.2);
+}
+
+[data-theme="dark"] .crypto-card:active,
+[data-theme="system"] .crypto-card:active {
+    transform: translateY(-4px) scale(1.01);
+}
+
 .crypto-header {
     display: flex;
     align-items: center;
@@ -1918,6 +2096,16 @@ body {
     overflow: hidden;
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     position: relative;
+}
+
+/* Темные эффекты для иконок */
+[data-theme="dark"] .crypto-icon,
+[data-theme="system"] .crypto-icon {
+    box-shadow: 
+        0 4px 16px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(96, 165, 250, 0.1);
+    border: 1px solid rgba(96, 165, 250, 0.2);
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.8) 0%, rgba(2, 6, 23, 0.8) 100%);
 }
 
 .crypto-icon::after {
@@ -1941,6 +2129,28 @@ body {
     }
 }
 
+@keyframes priceGlow {
+    0%, 100% {
+        text-shadow: 
+            0 0 20px rgba(96, 165, 250, 0.6),
+            0 2px 10px rgba(0, 0, 0, 0.5),
+            0 0 40px rgba(96, 165, 250, 0.3);
+    }
+    50% {
+        text-shadow: 
+            0 0 30px rgba(96, 165, 250, 0.8),
+            0 2px 10px rgba(0, 0, 0, 0.5),
+            0 0 60px rgba(96, 165, 250, 0.5);
+    }
+}
+
+/* Светлое сияние для темной темы */
+[data-theme="dark"] .crypto-icon::after,
+[data-theme="system"] .crypto-icon::after {
+    background: linear-gradient(45deg, transparent, rgba(96, 165, 250, 0.4), rgba(255, 255, 255, 0.2), transparent);
+    animation: shine 4s infinite;
+}
+
 .crypto-icon img {
     width: 88%;
     height: 88%;
@@ -1960,7 +2170,15 @@ body {
     font-weight: 600;
     color: #111827;
     margin: 0 0 2px 0;
-    transition: color 0.3s ease;
+    transition: all 0.3s ease;
+}
+
+[data-theme="dark"] .crypto-info h4,
+[data-theme="system"] .crypto-info h4 {
+    color: #ffffff !important;
+    text-shadow: 0 2px 10px rgba(96, 165, 250, 0.3);
+    font-weight: 700;
+    letter-spacing: 0.3px;
 }
 
 .crypto-symbol {
@@ -1973,20 +2191,42 @@ body {
     margin-top: 2px;
 }
 
+[data-theme="dark"] .crypto-symbol,
+[data-theme="system"] .crypto-symbol {
+    color: #cbd5e1 !important;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
 .crypto-price-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin: 1rem 0 0.5rem 0;
+    flex-wrap: wrap;
+    gap: 0.25rem;
 }
 
 .crypto-price {
-    font-size: 1.5rem;
+    font-size: clamp(1rem, 3.5cqi, 1.5rem);
     font-weight: 700;
+    min-width: 0;
+    flex: 1;
     background: linear-gradient(135deg, currentColor, currentColor);
     background-clip: text;
     -webkit-background-clip: text;
     animation: pulse 2s ease-in-out infinite;
+}
+
+[data-theme="dark"] .crypto-price,
+[data-theme="system"] .crypto-price {
+    color: #60a5fa !important;
+    text-shadow: 
+        0 0 20px rgba(96, 165, 250, 0.6),
+        0 2px 10px rgba(0, 0, 0, 0.5);
+    font-weight: 800;
+    animation: priceGlow 2s ease-in-out infinite;
 }
 
 .crypto-change {
@@ -1996,6 +2236,8 @@ body {
     border-radius: 8px;
     transition: all 0.2s ease;
     backdrop-filter: blur(10px);
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .crypto-change:hover {
@@ -2008,10 +2250,36 @@ body {
     box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
 }
 
+[data-theme="dark"] .crypto-change.price-positive,
+[data-theme="system"] .crypto-change.price-positive {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(16, 185, 129, 0.15));
+    color: #6ee7b7 !important;
+    box-shadow: 
+        0 0 15px rgba(16, 185, 129, 0.4),
+        0 4px 12px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    font-weight: 700;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
 .crypto-change.price-negative {
     background: linear-gradient(135deg, #ef444430, #ef444420);
     color: #dc2626;
     box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+}
+
+[data-theme="dark"] .crypto-change.price-negative,
+[data-theme="system"] .crypto-change.price-negative {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(239, 68, 68, 0.15));
+    color: #fca5a5 !important;
+    box-shadow: 
+        0 0 15px rgba(239, 68, 68, 0.4),
+        0 4px 12px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    font-weight: 700;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .crypto-sparkline {
@@ -2027,6 +2295,13 @@ body {
     overflow: visible;
 }
 
+[data-theme="dark"] .crypto-sparkline,
+[data-theme="system"] .crypto-sparkline {
+    border-radius: 8px;
+    background: rgba(96, 165, 250, 0.05);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
 .crypto-sparkline::before {
     display: none;
 }
@@ -2035,6 +2310,11 @@ body {
     width: 100%;
     height: 100%;
     filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.08));
+}
+
+[data-theme="dark"] .crypto-sparkline svg,
+[data-theme="system"] .crypto-sparkline svg {
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
 }
 
 .crypto-card:hover .hover-indicator {
@@ -2050,6 +2330,11 @@ body {
     border-top: 1px solid var(--border);
 }
 
+[data-theme="dark"] .crypto-stats,
+[data-theme="system"] .crypto-stats {
+    border-top: 1px solid rgba(96, 165, 250, 0.15);
+}
+
 .crypto-stats div {
     display: flex;
     gap: 0.25rem;
@@ -2057,9 +2342,23 @@ body {
     color: #374151;
 }
 
+[data-theme="dark"] .crypto-stats div,
+[data-theme="system"] .crypto-stats div {
+    color: #f1f5f9 !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    font-weight: 600;
+}
+
 .crypto-stats small {
     font-weight: 600;
     color: #6b7280;
+}
+
+[data-theme="dark"] .crypto-stats small,
+[data-theme="system"] .crypto-stats small {
+    color: #cbd5e1 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    font-weight: 600;
 }
 
 /* Расширенная статистика карточки */
@@ -2070,6 +2369,35 @@ body {
     margin-top: 1rem;
     padding-top: 1rem;
     border-top: 1px solid #e5e7eb;
+}
+
+[data-theme="dark"] .crypto-stats-extended,
+[data-theme="system"] .crypto-stats-extended {
+    border-top: 1px solid rgba(96, 165, 250, 0.15);
+}
+
+.stat-mini {
+    transition: all 0.3s ease;
+}
+
+.stat-mini:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+}
+
+[data-theme="dark"] .stat-mini,
+[data-theme="system"] .stat-mini {
+    box-shadow: 
+        0 2px 8px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(96, 165, 250, 0.1);
+}
+
+[data-theme="dark"] .stat-mini:hover,
+[data-theme="system"] .stat-mini:hover {
+    box-shadow: 
+        0 4px 12px rgba(0, 0, 0, 0.5),
+        0 0 20px rgba(96, 165, 250, 0.2),
+        inset 0 1px 0 rgba(96, 165, 250, 0.15);
 }
 
 .stat-icon {
@@ -2095,10 +2423,25 @@ body {
     letter-spacing: 0.5px;
 }
 
+[data-theme="dark"] .stat-mini-label,
+[data-theme="system"] .stat-mini-label {
+    color: #cbd5e1 !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    font-weight: 600;
+}
+
 .stat-mini-value {
     font-size: 0.875rem;
     color: #111827;
     font-weight: 600;
+}
+
+[data-theme="dark"] .stat-mini-value,
+[data-theme="system"] .stat-mini-value {
+    color: #ffffff !important;
+    text-shadow: 0 2px 8px rgba(96, 165, 250, 0.4);
+    font-weight: 700;
+    font-size: 0.95rem;
 }
 
 /* ============================================
@@ -2597,56 +2940,104 @@ body {
    ============================================ */
 .empty-state {
     text-align: center;
-    padding: 4rem 2rem;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    border-radius: 16px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    padding: 4.5rem 2rem 4rem;
+    background: linear-gradient(160deg, rgba(30,41,59,0.95) 0%, rgba(15,23,42,0.98) 100%);
+    border-radius: 20px;
+    border: 1px solid rgba(99,102,241,0.2);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06);
     grid-column: 1 / -1;
+    position: relative;
+    overflow: hidden;
 }
 
-.empty-state i {
-    font-size: 5rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.empty-state::before {
+    content: '';
+    position: absolute;
+    top: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 280px;
+    height: 280px;
+    background: radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.empty-state .empty-icon-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 88px;
+    height: 88px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, rgba(99,102,241,0.2) 0%, rgba(139,92,246,0.15) 100%);
+    border: 1px solid rgba(99,102,241,0.3);
+    box-shadow: 0 8px 32px rgba(99,102,241,0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+    margin-bottom: 1.75rem;
+    animation: float 3.5s ease-in-out infinite;
+}
+
+.empty-state .empty-icon-wrap i {
+    font-size: 2.4rem;
+    background: linear-gradient(135deg, #818cf8 0%, #a78bfa 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+}
+
+/* Fallback for old markup without wrap */
+.empty-state > i {
+    font-size: 5rem;
+    background: linear-gradient(135deg, #818cf8 0%, #a78bfa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    display: block;
     margin-bottom: 1.5rem;
-    animation: float 3s ease-in-out infinite;
+    animation: float 3.5s ease-in-out infinite;
 }
 
 @keyframes float {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-10px);
-    }
+    0%, 100% { transform: translateY(0);   }
+    50%       { transform: translateY(-10px); }
 }
 
 .empty-state h3 {
-    font-size: 1.75rem;
-    margin-bottom: 0.75rem;
-    color: #2d3748;
+    font-size: 1.6rem;
+    margin-bottom: 0.6rem;
+    color: #e2e8f0;
     font-weight: 700;
+    letter-spacing: -0.3px;
 }
 
 .empty-state p {
-    margin-bottom: 2rem;
-    color: #4a5568;
-    font-size: 1.05rem;
+    margin-bottom: 2.25rem;
+    color: #64748b;
+    font-size: 1rem;
+    max-width: 340px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.6;
 }
 
 .empty-state .btn {
-    padding: 0.875rem 2rem;
-    font-size: 1rem;
-    border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-    transition: all 0.3s ease;
+    padding: 0.8rem 2rem;
+    font-size: 0.95rem;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+    transition: all 0.25s ease;
+    font-weight: 600;
+    gap: 8px;
+    display: inline-flex;
+    align-items: center;
 }
 
 .empty-state .btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 8px 28px rgba(99,102,241,0.55);
+    background: linear-gradient(135deg, #4f52e0 0%, #7c3aed 100%);
 }
 
 /* ============================================
@@ -2672,6 +3063,24 @@ body {
     gap: 1rem;
     min-width: 300px;
     animation: slideInRight 0.3s ease;
+    color: #1e293b !important;
+}
+
+.notification .notification-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #1e293b !important;
+}
+
+.notification .notification-content i {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.notification .notification-content span {
+    color: #1e293b !important;
+    font-weight: 500;
 }
 
 @keyframes slideInRight {
@@ -2689,12 +3098,32 @@ body {
     border-left: 4px solid var(--success);
 }
 
+.notification.success .notification-content i {
+    color: var(--success);
+}
+
 .notification.error {
     border-left: 4px solid var(--danger);
 }
 
+.notification.error .notification-content i {
+    color: var(--danger);
+}
+
 .notification.info {
     border-left: 4px solid var(--info);
+}
+
+.notification.info .notification-content i {
+    color: var(--info);
+}
+
+.notification.warning {
+    border-left: 4px solid #f59e0b;
+}
+
+.notification.warning .notification-content i {
+    color: #f59e0b;
 }
 
 /* ============================================
@@ -3127,8 +3556,8 @@ body {
 
 .analytics-summary {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.875rem;
     margin-bottom: 2rem;
 }
 
@@ -3139,6 +3568,42 @@ body {
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    /* compact layout for 6-in-a-row */
+    padding: 1rem 0.9rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+}
+
+.analytics-summary .stat-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    font-size: 1.2rem;
+    animation: none;
+    flex-shrink: 0;
+}
+
+.analytics-summary .stat-icon::before,
+.analytics-summary .stat-icon::after {
+    animation: none;
+}
+
+.analytics-summary .stat-value {
+    font-size: 1.25rem;
+    letter-spacing: -0.3px;
+}
+
+.analytics-summary .stat-label {
+    font-size: 0.72rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.analytics-summary .stat-sublabel {
+    font-size: 0.68rem !important;
 }
 
 .analytics-summary .stat-card.gradient {
@@ -3173,15 +3638,60 @@ body {
 
 .charts-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
 }
 
-@media (max-width: 768px) {
-    .charts-grid {
-        grid-template-columns: 1fr;
-    }
+/* Развёрнутая карточка занимает всю ширину */
+.charts-grid .card.chart-expanded {
+    grid-column: 1 / -1;
+}
+
+/* Шапка маленьких карточек — переносим title и кнопки на разные строки при нехватке места */
+.charts-grid .card:not(.chart-card-large) .card-header {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+}
+
+.charts-grid .card:not(.chart-card-large) .card-header h3 {
+    font-size: 0.9rem;
+    min-width: 0;
+    flex: 1 1 100%;
+}
+
+/* Кнопка раскрытия */
+.chart-expand-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 6px;
+    background: #f1f5f9;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+    margin-left: auto;
+}
+
+.chart-expand-btn:hover {
+    background: #3b82f6;
+    color: #fff;
+}
+
+.charts-grid .card.chart-expanded .chart-expand-btn {
+    background: #3b82f6;
+    color: #fff;
+}
+
+.charts-grid .card.chart-expanded .card-body canvas {
+    max-height: 420px;
 }
 
 .chart-card-large {
@@ -3229,6 +3739,23 @@ body {
     font-size: 0.875rem;
     cursor: pointer;
 }
+
+/* ── per-chart period tabs ──────────────────────────────────────────────── */
+.chart-period-tabs {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.chart-period-tabs .period-btn {
+    padding: 0.25rem 0.6rem;
+    font-size: 0.75rem;
+    border-radius: 6px;
+    line-height: 1.4;
+    color: #ffffff;
+}
+/* ───────────────────────────────────────────────────────────────────────── */
 
 .chart-body-large {
     height: 400px;
@@ -3314,6 +3841,14 @@ body {
 
 .assets-table tbody tr.asset-row:hover {
     border-left-color: rgba(37,99,235,0.45);
+}
+
+.assets-table tbody tr.asset-row-clickable {
+    cursor: pointer;
+}
+
+.assets-table tbody tr.asset-row-clickable:hover td {
+    background: rgba(59, 130, 246, 0.06);
 }
 
 .assets-table tbody tr.total-row {
@@ -3523,7 +4058,7 @@ body {
    ============================================ */
 .indices-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
     gap: 1.5rem;
 }
 
@@ -3570,10 +4105,14 @@ body {
 }
 
 .index-value {
-    font-size: 1.8rem;
+    font-size: clamp(0.85rem, 5.5cqi, 1.45rem);
     font-weight: 700;
     margin-bottom: 0.4rem;
     color: #E2E8F0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
 }
 .index-change {
     font-size: 1rem;
@@ -3606,7 +4145,7 @@ body {
 .index-meta { display:flex; flex-direction:column; }
 .index-name { font-size:1rem; font-weight:700; color:#E2E8F0; }
 .index-symbol { font-size:0.85rem; color:#94a3b8; }
-.index-right { text-align:right; min-width:110px; }
+.index-right { text-align:right; min-width:0; flex-shrink:1; }
 .index-change.positive { color:#10B981; background: rgba(16,185,129,0.06); padding:6px 10px; border-radius:999px; display:inline-block; font-weight:700; }
 .index-change.negative { color:#EF4444; background: rgba(239,68,68,0.06); padding:6px 10px; border-radius:999px; display:inline-block; font-weight:700; }
 .index-body { margin-top:12px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
@@ -3704,6 +4243,7 @@ body {
 
 .index-card {
     z-index: 1;
+    container-type: inline-size;
     /* keep existing values but add subtle layered shadows */
     box-shadow: 0 10px 24px rgba(2,6,23,0.18), 0 2px 6px rgba(2,6,23,0.06), inset 0 -6px 24px rgba(255,255,255,0.01);
     transition: transform 260ms cubic-bezier(.2,.9,.2,1), box-shadow 260ms cubic-bezier(.2,.9,.2,1), filter 260ms ease;
@@ -3754,6 +4294,75 @@ body {
 /* Make sparkline smoother-looking at small sizes */
 .index-sparkline svg{ image-rendering: optimizeQuality; }
 
+/* ── Index cards: senior design refinements ── */
+
+/* Left column: let it shrink and truncate */
+.index-left {
+    min-width: 0;
+    flex: 1 1 0;
+    overflow: hidden;
+}
+
+/* Name truncation */
+.index-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+}
+
+/* Icon: hover micro-animation */
+.index-icon {
+    transition: transform 240ms cubic-bezier(.2,.9,.2,1), box-shadow 240ms ease;
+    font-size: 1.25rem;
+    letter-spacing: -0.02em;
+    flex-shrink: 0;
+    user-select: none;
+}
+.index-card:hover .index-icon {
+    transform: rotate(-5deg) scale(1.12);
+    box-shadow: 0 12px 28px rgba(2,6,23,0.38);
+}
+
+/* Change badge: tighter padding, sharper corners */
+.index-change.positive,
+.index-change.negative {
+    font-size: 0.78rem;
+    padding: 4px 9px;
+    letter-spacing: 0.04em;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+/* Details column: stack vertically, right-aligned */
+.index-details {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    border-top: none;
+    margin-top: 0;
+    padding-top: 0;
+    flex: 0 0 auto;
+}
+.index-details div {
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem;
+}
+.index-details small {
+    color: rgba(148,163,184,0.6);
+    font-size: 0.74em;
+    font-weight: 500;
+}
+
+/* Subtle glow on the gradient top border on hover */
+.index-card:hover::after {
+    opacity: 1;
+    filter: drop-shadow(0 0 6px rgba(37,99,235,0.5));
+}
+
 /* Vue Transitions */
 .modal-fade-enter-active {
     animation: modalFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -3790,6 +4399,47 @@ body {
     animation: modalSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     position: relative;
     overflow: hidden;
+    /* reserve space for sticky footer/actions to prevent overlap */
+    padding-bottom: 96px; /* matches .crypto-detail-actions height + gap */
+}
+
+/* Stock modal: flex column so body scrolls and actions bar stays pinned at bottom */
+#stockDetailModal .modal-content {
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 0; /* buttons are outside scroll area — no padding needed */
+    height: 90vh;      /* explicit height required — max-height alone breaks flex scroll */
+    overflow: hidden;  /* clip outer, inner body scrolls */
+}
+#stockDetailModal .crypto-detail-body {
+    flex: 1 1 auto;
+    min-height: 0;     /* KEY: flex children default to min-height:auto — prevents shrink */
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: none !important;  /* override base .crypto-detail-body { max-height: 82vh } */
+    padding-bottom: 1.5rem;
+}
+#stockDetailModal .stock-actions-footer {
+    flex-shrink: 0;
+    position: static !important; /* not sticky — it's already outside the scroll area */
+    margin: 0 !important;
+    padding: 1.25rem 2rem !important;
+    background: #0f172a !important; /* exact same as modal bg — no visible "bar" */
+    border-top: 1px solid rgba(255, 255, 255, 0.10) !important;
+    z-index: auto !important;
+    justify-content: center;
+}
+
+@media (max-width: 768px) {
+    #stockDetailModal .stock-actions-footer {
+        padding: 0.75rem calc(0.75rem + env(safe-area-inset-bottom, 0px)) 0.75rem 0.75rem !important;
+    }
+    #stockDetailModal .stock-actions-footer .btn {
+        flex: 1 !important;
+        padding: 0.75rem 0.5rem !important;
+        font-size: 0.8125rem !important;
+        min-height: 44px !important;
+    }
 }
 
 /* Portfolio list Vue transitions */
@@ -3957,10 +4607,852 @@ body {
 }
 
 @media (max-width: 768px) {
-    .crypto-detail-modal .chart-tab,
+    /* =============================================
+       МОДАЛЬНОЕ ОКНО КРИПТО/АКЦИЙ — МОБИЛЬНАЯ ВЕРСИЯ
+       Fullscreen bottom-sheet + крупный график
+       ============================================= */
+    
+    /* --- Модальное окно — fullscreen --- */
+    .crypto-detail-modal {
+        padding: 0 !important;
+        align-items: flex-end !important;
+    }
+    
+    .crypto-detail-modal .modal-content {
+        max-width: 100% !important;
+        width: 100% !important;
+        max-height: 100vh !important;
+        height: 100vh !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: visible !important; /* Снимаем base overflow:hidden — скролл через .crypto-detail-body */
+    }
+    
+    /* --- Хедер — sticky, компактный --- */
+    .crypto-detail-modal .modal-header {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 100 !important;
+        padding: 0.75rem 1rem !important;
+        flex-wrap: nowrap !important;
+        flex-shrink: 0 !important;
+        background: inherit !important;
+        backdrop-filter: blur(20px) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-header {
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 0.75rem !important;
+        flex: 1 !important;
+        min-width: 0 !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-icon {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        font-size: 1.25rem !important;
+        border-radius: 12px !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-title-section {
+        gap: 0.125rem !important;
+        min-width: 0 !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-title-section h3 {
+        font-size: 1rem !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-subtitle {
+        gap: 0.5rem !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-symbol,
+    .crypto-detail-modal .crypto-detail-rank {
+        font-size: 0.7rem !important;
+        padding: 0.125rem 0.5rem !important;
+    }
+    
+    /* Кнопки хедера (dock, close) */
+    .crypto-detail-modal .modal-header-actions {
+        display: flex !important;
+        gap: 0.5rem !important;
+        flex-shrink: 0 !important;
+    }
+    
+    .crypto-detail-modal .modal-dock-btn {
+        display: none !important; /* Dock не нужен на мобильных */
+    }
+    
+    .crypto-detail-modal .modal-close-news {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        min-height: 40px !important;
+        font-size: 18px !important;
+        flex-shrink: 0 !important;
+    }
+    
+    /* --- Боди — scroll container --- */
+    .crypto-detail-modal .crypto-detail-body {
+        flex: 1 !important;
+        padding: 0.75rem !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch !important;
+        max-height: none !important;
+        overscroll-behavior-y: contain !important; /* Не даём прокручивать body */
+        /* reserve space at the bottom so sticky/absolute actions are not overlapped by large charts */
+        padding-bottom: 160px !important;
+    }
+
+    /* stock modal: buttons are outside body — no bottom padding reservation needed */
+    #stockDetailModal .crypto-detail-body {
+        padding-bottom: 1rem !important;
+        min-height: 0 !important;
+    }
+
+    #stockDetailModal .modal-content {
+        height: 100dvh !important;
+        height: 100vh !important; /* fallback */
+        overflow: hidden !important; /* override .crypto-detail-modal .modal-content { overflow: visible !important } above */
+    }
+    
+    .crypto-detail-modal .crypto-detail-body::-webkit-scrollbar {
+        width: 3px !important;
+    }
+    .crypto-detail-modal .crypto-detail-body::-webkit-scrollbar-thumb {
+        background: rgba(59, 130, 246, 0.4) !important;
+        border-radius: 2px !important;
+    }
+    
+    /* Скрываем resize handle на мобильных */
+    .crypto-detail-modal .modal-resize-handle {
+        display: none !important;
+    }
+    
+    /* --- Секция цены — компактная --- */
+    .crypto-detail-modal .crypto-detail-price-section {
+        padding: 0.75rem !important;
+        margin-bottom: 0.75rem !important;
+        border-radius: 12px !important;
+    }
+    
+    .crypto-detail-modal .price-section-header {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+    }
+    
+    .crypto-detail-modal .price-value {
+        font-size: clamp(1.25rem, 4vw, 1.75rem) !important;
+        word-break: break-all !important;
+    }
+    
+    .crypto-detail-modal .price-change {
+        font-size: 0.9rem !important;
+        padding: 0.25rem 0.625rem !important;
+        flex-shrink: 0 !important;
+        white-space: nowrap !important;
+    }
+    
+    .crypto-detail-modal .price-meta {
+        display: flex !important;
+        gap: 0.75rem !important;
+        flex-wrap: wrap !important;
+        font-size: 0.8rem !important;
+    }
+    
+    .crypto-detail-modal .price-meta-item {
+        font-size: 0.8rem !important;
+    }
+    
+    /* Community Sentiment */
+    .crypto-detail-modal .community-sentiment {
+        padding: 0.625rem !important;
+        margin-top: 0.5rem !important;
+    }
+    
+    .crypto-detail-modal .sentiment-header {
+        font-size: 0.8rem !important;
+        margin-bottom: 0.375rem !important;
+    }
+    
+    .crypto-detail-modal .sentiment-bar {
+        padding: 0.375rem !important;
+        font-size: 0.7rem !important;
+    }
+    
+    /* Статистика — сетка 2 колонки */
+    .crypto-detail-modal .crypto-detail-stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.5rem !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-stats-grid .stat-item {
+        padding: 0.625rem !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.375rem !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-stats-grid .stat-icon {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 0.875rem !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-stats-grid .stat-label {
+        font-size: 0.65rem !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-stats-grid .stat-value {
+        font-size: 0.85rem !important;
+        font-weight: 700 !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-stats-grid .stat-change,
+    .crypto-detail-modal .crypto-detail-stats-grid .stat-subtext {
+        font-size: 0.65rem !important;
+    }
+    
+    /* --- ГРАФИК — ключевой элемент на мобильных --- */
+    
+    /* touch-action: разрешаем вертикальный скролл через область графика */
+    .crypto-detail-modal .crypto-detail-chart-container,
+    .crypto-detail-modal .crypto-detail-chart-container.enhanced,
+    .crypto-detail-modal .chart-container,
+    .crypto-detail-modal .chart-area-wrapper,
+    .crypto-detail-modal #cryptoDetailPriceChart,
+    .crypto-detail-modal #stockPriceChartContainer,
+    .crypto-detail-modal #stockVolumeChartContainer {
+        touch-action: pan-y !important;
+    }
+    
+    .crypto-detail-modal canvas,
+    .crypto-detail-modal .chart-area-wrapper canvas {
+        touch-action: pan-y !important;
+    }
+    
+    /* Контейнер графика — 60vh, flex-column чтобы график заполнял всё пространство */
+    .crypto-detail-modal .crypto-detail-chart-container,
+    .crypto-detail-modal .crypto-detail-chart-container.enhanced {
+        height: 60vh !important;
+        min-height: 350px !important;
+        max-height: 550px !important;
+        margin-bottom: 0.75rem !important;
+        border-radius: 12px !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    
+    /* OHLC и легенда — не растягиваются */
+    .crypto-detail-modal .chart-ohlc-display,
+    .crypto-detail-modal .chart-legend {
+        flex-shrink: 0 !important;
+    }
+    
+    /* Обёртка графика — занимает всё оставшееся пространство, график внутри — absolute */
+    .crypto-detail-modal .chart-area-wrapper {
+        flex: 1 1 auto !important;
+        height: 300px !important;
+        min-height: 300px !important;
+        position: relative !important;
+        width: 100% !important;
+    }
+    
+    .crypto-detail-modal #cryptoDetailPriceChart,
+    .crypto-detail-modal #stockDetailPriceChart {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 300px !important;
+    }
+    
+    /* Контейнер графика акций */
+    .crypto-detail-modal .chart-container {
+        height: 60vh !important;
+        min-height: 350px !important;
+        max-height: 550px !important;
+        margin-bottom: 0.75rem !important;
+        border-radius: 12px !important;
+        overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    
+    .crypto-detail-modal .chart-container > div[id*="Chart"],
+    .crypto-detail-modal .chart-container > div[id*="chart"] {
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        width: 100% !important;
+        position: relative !important;
+        overflow: hidden !important; /* clip canvas so price and volume stay in their boxes */
+    }
+    
+    /* Контейнер объёма акций — поменьше */
+    .crypto-detail-modal .chart-container + .chart-container {
+        height: 200px !important;
+        min-height: 200px !important;
+        max-height: 200px !important;
+    }
+    
+    /* Легенда */
+    .crypto-detail-modal #chartLegend,
+    .crypto-detail-modal .chart-legend {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.375rem !important;
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.7rem !important;
+    }
+    
+    /* OHLC дисплей */
+    .crypto-detail-modal #chartOhlcDisplay,
+    .crypto-detail-modal .chart-ohlc-display {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) auto auto !important;
+        gap: 0.375rem !important;
+        font-size: 0.7rem !important;
+        padding: 0.375rem 0.5rem !important;
+    }
+    
+    .crypto-detail-modal .ohlc-item {
+        padding: 0.125rem 0.375rem !important;
+        font-size: 0.7rem !important;
+    }
+    
+    /* --- Контролы графика --- */
+    .crypto-detail-modal .chart-controls-wrapper {
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+        padding: 0.5rem !important;
+        margin-bottom: 0.75rem !important;
+        z-index: 10 !important;
+        position: relative !important;
+    }
+    
+    /* Вкладки типов графика — 2x2 сетка */
+    .crypto-detail-modal .chart-tabs {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 0.375rem !important;
+        width: 100% !important;
+        padding: 0 !important;
+        background: transparent !important;
+        border: none !important;
+    }
+    
+    .crypto-detail-modal .chart-tab {
+        padding: 0.625rem 0.375rem !important;
+        min-height: 44px !important;
+        font-size: 0.7rem !important;
+        white-space: nowrap !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.25rem !important;
+        border-radius: 8px !important;
+    }
+    
+    .crypto-detail-modal .chart-tab i {
+        font-size: 1rem !important;
+        margin: 0 !important;
+    }
+    
+    /* Кнопки периодов — горизонтальный скролл */
+    .crypto-detail-modal .chart-period-selector {
+        display: flex !important;
+        gap: 0.375rem !important;
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+        padding: 0.25rem 0 !important;
+    }
+    
+    .crypto-detail-modal .chart-period-selector::-webkit-scrollbar {
+        display: none !important;
+    }
+    
     .crypto-detail-modal .period-btn {
-        padding: 0.375rem 0.5rem;
-        font-size: 0.6875rem;
+        flex: 0 0 auto !important;
+        padding: 0.625rem 0.875rem !important;
+        min-height: 40px !important;
+        min-width: 52px !important;
+        font-size: 0.8125rem !important;
+        font-weight: 600 !important;
+        white-space: nowrap !important;
+        border-radius: 8px !important;
+        text-align: center !important;
+    }
+    
+    /* Скрываем второстепенные контролы */
+    .crypto-detail-modal .chart-divider,
+    .crypto-detail-modal .chart-scale-btn,
+    .crypto-detail-modal .chart-pin-btn,
+    .crypto-detail-modal .chart-download-wrapper,
+    .crypto-detail-modal .chart-compare-dropdown,
+    .crypto-detail-modal .chart-right-controls {
+        display: none !important;
+    }
+    
+    /* --- Дополнительная статистика --- */
+    .crypto-detail-modal .crypto-detail-additional-stats {
+        margin-bottom: 0.75rem !important;
+    }
+    
+    .crypto-detail-modal .stats-grid-extended {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.5rem !important;
+    }
+    
+    .crypto-detail-modal .stat-row {
+        padding: 0.5rem !important;
+        font-size: 0.8rem !important;
+    }
+    
+    .crypto-detail-modal .stat-row-label {
+        font-size: 0.7rem !important;
+    }
+    
+    .crypto-detail-modal .stat-row-value {
+        font-size: 0.8rem !important;
+    }
+    
+    /* --- Кнопки действий — sticky снизу --- */
+    .crypto-detail-modal .crypto-detail-actions {
+        position: sticky !important;
+        bottom: 0 !important;
+        padding: 0.75rem !important;
+        margin: 0 -0.75rem !important;
+        background: rgba(15, 23, 42, 0.95) !important;
+        backdrop-filter: blur(20px) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+        z-index: 200 !important; /* raised so sticky actions stay above chart tooltips */
+        gap: 0.5rem !important;
+        flex-wrap: nowrap !important;
+        justify-content: stretch !important;
+    }
+
+    /* Ensure stock tooltip doesn't cover sticky actions */
+    .crypto-detail-modal #stockPriceChartTooltip {
+        z-index: 80 !important;
+        pointer-events: none !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-actions::before {
+        display: none !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-actions .btn {
+        flex: 1 !important;
+        padding: 0.75rem 0.5rem !important;
+        font-size: 0.8125rem !important;
+        min-height: 44px !important;
+        white-space: nowrap !important;
+    }
+    
+    /* Вкладки описания */
+    .crypto-detail-modal .crypto-detail-tabs,
+    .crypto-detail-modal .detail-tabs {
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-tabs button,
+    .crypto-detail-modal .detail-tabs button {
+        flex: 1 !important;
+        min-width: max-content !important;
+        padding: 0.625rem 0.75rem !important;
+        font-size: 0.8125rem !important;
+    }
+    
+    /* Текстовое описание */
+    .crypto-detail-modal .crypto-detail-description,
+    .crypto-detail-modal .detail-description {
+        font-size: 0.8125rem !important;
+        line-height: 1.6 !important;
+        max-height: 150px !important;
+        overflow-y: auto !important;
+    }
+    
+    /* === ИНДИКАТОРЫ (Indicators tab) — мобильная версия === */
+    .crypto-detail-chart-container.indicators-mode {
+        height: auto !important;
+        min-height: auto !important;
+        max-height: none !important;
+        overflow-y: visible !important;
+        padding: 0.5rem !important;
+    }
+    
+    .crypto-detail-chart-container.indicators-mode #cryptoDetailPriceChart {
+        min-height: auto !important;
+        height: auto !important;
+    }
+    
+    /* === ТАБЛИЦА ТЕХ. ИНДИКАТОРОВ (Tech-table tab) — мобильная версия === */
+    .tech-indicators-table-wrapper {
+        padding: 0.75rem !important;
+        max-width: 100% !important;
+    }
+    
+    .tech-indicators-header h3 {
+        font-size: 1rem !important;
+        margin-bottom: 0.75rem !important;
+    }
+    
+    /* Gauges — вертикальная колонка */
+    .tech-gauges-container {
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 1.25rem !important;
+        margin: 1rem 0 !important;
+    }
+    
+    .tech-gauge {
+        min-width: unset !important;
+        width: 100% !important;
+        max-width: 280px !important;
+    }
+    
+    .tech-gauge-title {
+        font-size: 0.9rem !important;
+    }
+    
+    .gauge-chart {
+        width: 160px !important;
+        height: 100px !important;
+        margin: 0 auto !important;
+    }
+    
+    .gauge-needle {
+        height: 55px !important;
+    }
+    
+    .gauge-label-text {
+        font-size: 0.55rem !important;
+    }
+    
+    .gauge-label-text.active-sell-label {
+        left: -40px !important;
+        bottom: 20px !important;
+    }
+    
+    .gauge-label-text.sell-label {
+        left: -25px !important;
+        top: 25px !important;
+    }
+    
+    .gauge-label-text.buy-label {
+        right: -25px !important;
+        top: 25px !important;
+    }
+    
+    .gauge-label-text.active-buy-label {
+        right: -40px !important;
+        bottom: 20px !important;
+    }
+    
+    .gauge-signal {
+        font-size: 1rem !important;
+    }
+    
+    .gauge-counts {
+        gap: 0.5rem !important;
+        font-size: 0.75rem !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+    }
+    
+    .gauge-count-item strong {
+        font-size: 0.85rem !important;
+    }
+    
+    /* Секции таблиц — одна колонка */
+    .tech-sections-row {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+        margin-top: 1rem !important;
+    }
+    
+    .tech-section-header {
+        padding: 0.75rem !important;
+    }
+    
+    .tech-section-header h4 {
+        font-size: 0.9rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    .tech-section-summary {
+        gap: 0.75rem !important;
+        font-size: 0.75rem !important;
+        flex-wrap: wrap !important;
+    }
+    
+    /* Строки таблицы — компактнее */
+    .tech-table-row {
+        grid-template-columns: 1.5fr 1fr 1fr !important;
+        padding: 0.5rem 0.75rem !important;
+    }
+    
+    .tech-name {
+        font-size: 0.75rem !important;
+    }
+    
+    .tech-value {
+        font-size: 0.75rem !important;
+    }
+    
+    .tech-action {
+        font-size: 0.7rem !important;
+        padding: 0.25rem 0.5rem !important;
+    }
+    
+    .tech-table-body {
+        max-height: 300px !important;
+    }
+    
+    /* Overall signal — компактнее */
+    .tech-overall-signal {
+        padding: 1rem 1.5rem !important;
+    }
+    
+    .overall-label {
+        font-size: 0.75rem !important;
+    }
+    
+    .overall-value {
+        font-size: 1.25rem !important;
+    }
+}
+
+/* =============================================
+   МОДАЛЬНОЕ ОКНО — МАЛЫЕ ЭКРАНЫ (≤480px)
+   Уменьшаем отступы, но сохраняем высоту графика
+   ============================================= */
+@media (max-width: 480px) {
+    .crypto-detail-modal .modal-header {
+        padding: 0.5rem 0.75rem !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-body {
+        padding: 0.5rem !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-icon {
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
+        font-size: 1rem !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-title-section h3 {
+        font-size: 0.9rem !important;
+    }
+    
+    .crypto-detail-modal .price-value {
+        font-size: 1.5rem !important;
+    }
+    
+    /* График — 55vh, минимум 300px для удобной работы */
+    .crypto-detail-modal .crypto-detail-chart-container,
+    .crypto-detail-modal .crypto-detail-chart-container.enhanced,
+    .crypto-detail-modal .chart-container {
+        height: 55vh !important;
+        min-height: 300px !important;
+        max-height: 450px !important;
+    }
+    
+    /* Контейнер объёма акций */
+    .crypto-detail-modal .chart-container + .chart-container {
+        height: 150px !important;
+        min-height: 150px !important;
+        max-height: 150px !important;
+    }
+    
+    /* Статистика — одна колонка */  
+    .crypto-detail-modal .crypto-detail-stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.375rem !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-stats-grid .stat-item {
+        padding: 0.5rem !important;
+    }
+    
+    /* Вкладки типов графика — 2x2 на очень узких */
+    .crypto-detail-modal .chart-tabs {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    .crypto-detail-modal .period-btn {
+        padding: 0.5rem 0.625rem !important;
+        min-width: 44px !important;
+        font-size: 0.75rem !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-actions .btn {
+        font-size: 0.75rem !important;
+        padding: 0.625rem 0.375rem !important;
+    }
+    
+    /* Indicators mode на маленьких экранах */
+    .crypto-detail-chart-container.indicators-mode {
+        height: auto !important;
+        min-height: auto !important;
+        max-height: none !important;
+    }
+    
+    /* Тех. индикаторы — ещё компактнее */
+    .tech-indicators-table-wrapper {
+        padding: 0.5rem !important;
+    }
+    
+    .gauge-chart {
+        width: 140px !important;
+        height: 88px !important;
+    }
+    
+    .gauge-needle {
+        height: 48px !important;
+    }
+    
+    .tech-table-row {
+        grid-template-columns: 1.2fr 0.8fr 0.8fr !important;
+        padding: 0.375rem 0.5rem !important;
+        font-size: 0.7rem !important;
+    }
+    
+    .tech-name {
+        font-size: 0.65rem !important;
+    }
+    
+    .tech-value {
+        font-size: 0.65rem !important;
+    }
+    
+    .tech-action {
+        font-size: 0.6rem !important;
+        padding: 0.2rem 0.375rem !important;
+    }
+}
+
+/* =============================================
+   МОДАЛЬНОЕ ОКНО — КРОШЕЧНЫЕ ЭКРАНЫ (≤360px)
+   ============================================= */
+@media (max-width: 360px) {
+    .crypto-detail-modal .crypto-detail-chart-container,
+    .crypto-detail-modal .crypto-detail-chart-container.enhanced,
+    .crypto-detail-modal .chart-container {
+        height: 50vh !important;
+        min-height: 260px !important;
+        max-height: 400px !important;
+    }
+    
+    .crypto-detail-modal .price-value {
+        font-size: clamp(1rem, 4vw, 1.25rem) !important;
+        word-break: break-all !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-stats-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    /* Gauges ещё мельче */
+    .gauge-chart {
+        width: 120px !important;
+        height: 75px !important;
+    }
+    
+    .gauge-needle {
+        height: 42px !important;
+    }
+    
+    .gauge-label-text {
+        font-size: 0.45rem !important;
+    }
+    
+    .tech-table-row {
+        grid-template-columns: 1fr 1fr !important;
+    }
+    
+    .tech-name {
+        font-size: 0.6rem !important;
+    }
+    
+    .tech-action {
+        font-size: 0.55rem !important;
+    }
+}
+
+/* =============================================
+   МОДАЛЬНОЕ ОКНО — LANDSCAPE НА МОБИЛЬНЫХ
+   Максимум экрана под график
+   ============================================= */
+@media (max-width: 768px) and (orientation: landscape) {
+    .crypto-detail-modal .modal-header {
+        padding: 0.375rem 0.75rem !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-icon {
+        width: 28px !important;
+        height: 28px !important;
+        min-width: 28px !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-title-section h3 {
+        font-size: 0.85rem !important;
+    }
+    
+    /* В landscape — максимум высоты под график */
+    .crypto-detail-modal .crypto-detail-chart-container,
+    .crypto-detail-modal .crypto-detail-chart-container.enhanced,
+    .crypto-detail-modal .chart-container {
+        height: 55vh !important;
+        min-height: 200px !important;
+        max-height: 350px !important;
+    }
+    
+    .crypto-detail-modal .chart-container + .chart-container {
+        height: 120px !important;
+        min-height: 120px !important;
+        max-height: 120px !important;
+    }
+    
+    /* Секцию цены делаем горизонтальной */
+    .crypto-detail-modal .price-section-header {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 1rem !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-stats-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 0.375rem !important;
+    }
+    
+    .crypto-detail-modal .crypto-detail-actions .btn {
+        padding: 0.5rem 0.375rem !important;
+        min-height: 36px !important;
     }
 }
 
@@ -4101,7 +5593,7 @@ body {
     margin-bottom: 2rem;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 40px rgba(37, 99, 235, 0.15);
     position: relative;
-    overflow: hidden;
+    overflow: visible;
     animation: sectionFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -4165,28 +5657,33 @@ body {
 
 .price-value-container {
     display: flex;
-    align-items: baseline;
-    gap: 1rem;
+    align-items: center;
+    gap: 0.75rem;
     flex-wrap: wrap;
+    min-width: 0;
 }
 
 .price-value {
-    font-size: 3rem;
+    font-size: clamp(1.5rem, 3vw, 3rem);
     font-weight: 800;
     color: #F8FAFC;
-    line-height: 1;
+    line-height: 1.1;
     letter-spacing: -1px;
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    min-width: 0;
+    word-break: break-all;
 }
 
 .price-change {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     font-weight: 700;
     padding: 0.25rem 0.75rem;
     border-radius: 8px;
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .price-change.price-positive {
@@ -4822,6 +6319,8 @@ body {
     position: relative;
     border: 1px solid #2a2d3a;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .crypto-detail-chart-container.enhanced {
@@ -4837,10 +6336,46 @@ body {
     padding: 1rem;
 }
 
+/* В режиме тех. индикаторов скрываем только toolbar, но не весь wrapper (контейнер графика нужен) */
+.crypto-detail-chart-container.indicators-mode .chart-drawing-toolbar {
+    display: none !important;
+}
+
+/* Обёртка графика внутри chart-container */
+.chart-area-wrapper {
+    flex: 1 1 auto;
+    height: 500px;
+    min-height: 500px;
+    position: relative;
+    width: 100%;
+}
+
 #cryptoDetailPriceChart {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     width: 100%;
     height: 100%;
-    min-height: 550px;
+    min-height: 500px;
+}
+
+/* Ensure stock chart containers have a safe minimum height when docked (prevents 0x0 during reparent/move) */
+#stockPriceChartContainer,
+#stockVolumeChartContainer,
+[id*="stockPriceChartContainer"],
+[id*="stockVolumeChartContainer"] {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 400px;
+    overflow: hidden;
+}
+
+/* When embedded in a smaller section (volume), allow a smaller min-height for volume */
+[id*="stockVolumeChartContainer"] {
+    min-height: 220px;
 }
 
 /* Technical Indicators Table */
@@ -5228,16 +6763,18 @@ body {
 /* OHLC Display */
 .chart-ohlc-display {
     position: absolute;
-    top: 1rem;
-    left: 1rem;
-    z-index: 100;
+    top: 0.6rem;
+    /* Отступ слева: оставляем место для панели инструментов (ширина ~54пт) */
+    left: 58px;
+    z-index: 11;
     display: flex;
     gap: 1.5rem;
-    background: rgba(26, 29, 40, 0.95);
+    background: rgba(26, 29, 40, 0.90);
     backdrop-filter: blur(10px);
-    padding: 0.75rem 1.25rem;
-    border-radius: 10px;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    pointer-events: none; /* клики проходят сквозь на график */
 }
 
 .ohlc-item {
@@ -5464,15 +7001,9 @@ body {
 
 .crypto-detail-charts-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(400px, 100%), 1fr));
     gap: 1.5rem;
     margin-bottom: 2rem;
-}
-
-@media (max-width: 768px) {
-    .crypto-detail-charts-grid {
-        grid-template-columns: 1fr;
-    }
 }
 
 .crypto-detail-charts-grid .card {
@@ -5492,6 +7023,81 @@ body {
     flex-wrap: wrap;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     position: relative;
+}
+
+/* ========== POSITION PANEL (открывается из Аналитики) ========== */
+.position-panel {
+    margin-top: 1.5rem;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(16, 185, 129, 0.06) 100%);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.position-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.9rem 1.25rem;
+    background: rgba(59, 130, 246, 0.12);
+    border-bottom: 1px solid rgba(59, 130, 246, 0.15);
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #93c5fd;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+}
+
+.position-panel-header i {
+    font-size: 0.9rem;
+}
+
+.position-panel-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+}
+
+.position-stat {
+    padding: 0.9rem 1.1rem;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.position-stat:nth-child(4n) {
+    border-right: none;
+}
+
+.position-stat-label {
+    font-size: 0.68rem;
+    color: rgba(148, 163, 184, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.position-stat-value {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+
+.position-stat-value.positive { color: #34d399; }
+.position-stat-value.negative { color: #f87171; }
+
+@media (max-width: 768px) {
+    .position-panel-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .position-stat:nth-child(4n) {
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .position-stat:nth-child(2n) {
+        border-right: none;
+    }
 }
 
 .crypto-detail-actions::before {
@@ -5600,17 +7206,31 @@ body {
 /* ============================================
    RESPONSIVE
    ============================================ */
+
+/* Десктоп - кнопка закрытия sidebar скрыта */
+@media (min-width: 1025px) {
+    .close-sidebar {
+        display: none !important;
+    }
+}
+
+/* Планшеты и мобильные - показываем кнопку закрытия */
 @media (max-width: 1024px) {
     .sidebar {
-        transform: translateX(-100%);
+        transform: translate3d(-100%, 0, 0);
     }
     
     .sidebar.active {
-        transform: translateX(0);
+        transform: translate3d(0, 0, 0);
     }
     
     .main-content {
         margin-left: 0;
+    }
+    
+    /* Хедер растягивается на весь экран когда сайдбар скрыт */
+    .top-bar {
+        left: 0;
     }
     
     .menu-btn {
@@ -5618,7 +7238,7 @@ body {
     }
     
     .close-sidebar {
-        display: block;
+        display: flex !important;
     }
     
     .charts-row {
@@ -5646,6 +7266,20 @@ body {
     
     .stats-grid {
         grid-template-columns: 1fr;
+    }
+    
+    /* Оптимизация sparkline графиков в stat-card на мобильных */
+    .stat-card canvas#returnSparkline {
+        width: 60px !important;
+        height: 24px !important;
+        bottom: 4px !important;
+        right: 4px !important;
+        opacity: 0.5 !important;
+    }
+    
+    .stat-card {
+        position: relative !important;
+        min-height: 80px !important;
     }
     
     .portfolios-grid {
@@ -5676,8 +7310,8 @@ body {
     }
     
     .analytics-summary {
-        grid-template-columns: 1fr;
-        gap: 1rem;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
     }
     
     .chart-card-large {
@@ -5905,22 +7539,209 @@ body {
     #stocksSection .crypto-grid {
         grid-template-columns: 1fr;
     }
-    
-    #stockDetailModal .crypto-detail-stats {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    
-    #stockDetailModal .crypto-detail-header {
-        padding: 24px;
-    }
-    
-    #stockDetailModal .crypto-detail-current-price {
-        font-size: 32px;
-    }
-    
-    #stockDetailModal .crypto-detail-change {
-        font-size: 18px;
-    }
+}
+
+/* Базовые высоты контейнеров графиков акций (desktop) - reduced to leave space for sticky actions and axes */
+#stockDetailModal .chart-container {
+    /* docked-like card appearance inside modal */
+    background: linear-gradient(135deg, rgba(15,23,42,0.95) 0%, rgba(22,28,40,0.95) 100%) !important;
+    border: 1px solid rgba(255,255,255,0.04) !important;
+    border-radius: 14px !important;
+    padding: 0.75rem 1rem !important;
+    height: 480px !important;
+    min-height: 420px !important;
+    max-height: 540px !important;
+    position: relative !important;
+    box-sizing: border-box !important;
+    margin-bottom: 1rem !important;
+    box-shadow: 0 10px 30px rgba(2,6,23,0.45) !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+#stockDetailModal .chart-container + .chart-container {
+    /* visual separation + smaller volume chart */
+    height: 210px !important;
+    min-height: 180px !important;
+    max-height: 240px !important;
+    padding-top: 0.5rem !important;
+    margin-top: 0.75rem !important;
+    border-top: 1px solid rgba(255,255,255,0.03) !important;
+    box-sizing: border-box !important;
+    margin-bottom: 1rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* Chart title — не растягивается */
+#stockDetailModal .chart-container h4 {
+    flex-shrink: 0 !important;
+    margin: 0 0 6px 0 !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #f8fafc !important;
+    line-height: 1.4 !important;
+}
+
+/* Chart controls wrapper — не растягивается */
+#stockDetailModal .chart-container .chart-controls-wrapper {
+    flex-shrink: 0 !important;
+    margin-bottom: 8px !important;
+}
+
+/* Chart wrapper — занимает всё доступное пространство внутри flex-контейнера */
+#stockDetailModal #stockPriceChartWrapper,
+#stockDetailModal #stockVolumeChartWrapper {
+    flex: 1 1 0% !important;
+    position: relative !important;
+    width: 100% !important;
+    height: 0 !important;       /* flex будет управлять высотой */
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: hidden !important;
+}
+
+#stockPriceChartContainer, #stockVolumeChartContainer {
+    position: relative !important;
+    overflow: visible !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Внутри модального окна акций — сбрасываем min-height чтобы flex-обёртка управляла высотой */
+#stockDetailModal #stockPriceChartContainer,
+#stockDetailModal #stockVolumeChartContainer {
+    min-height: 0 !important;
+}
+
+/* Canvas elements inside chart containers - fit to wrapper */
+#stockPriceChartContainer canvas,
+#stockVolumeChartContainer canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block !important;
+}
+
+/* Chart loader - ensure visible */
+#stockDetailModal #stockPriceChartLoader,
+#stockDetailModal #stockVolumeChartLoader {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    z-index: 100 !important;
+    display: none !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    pointer-events: none !important;
+}
+
+#stockDetailModal #stockPriceChartLoader.show,
+#stockDetailModal #stockVolumeChartLoader.show,
+#stockDetailModal #stockPriceChartLoader[style*="block"],
+#stockDetailModal #stockVolumeChartLoader[style*="block"] {
+    display: flex !important;
+}
+
+/* Loader spinner */
+#stockDetailModal #stockPriceChartLoader .spinner,
+#stockDetailModal #stockVolumeChartLoader .spinner {
+    width: 40px !important;
+    height: 40px !important;
+    margin: 0 auto 8px !important;
+}
+
+/* ── Docked mode: card appearance (no overflow:hidden — block grows to content) ── */
+.docked-body .chart-container {
+    background: linear-gradient(135deg, rgba(15,23,42,0.95) 0%, rgba(22,28,40,0.95) 100%);
+    border: 1px solid rgba(255,255,255,0.04);
+    border-radius: 14px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 10px 30px rgba(2,6,23,0.45);
+    box-sizing: border-box;
+}
+.docked-body .chart-container h4 {
+    margin: 0 0 6px 0 !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #f8fafc !important;
+}
+
+/* ── Wrappers: явная пиксельная высота + position:relative для toolbar/legend.
+   НЕ используем flex+height:0 трюк — браузеры некорректно разрешают height:100%
+   у детей когда flex-item имеет height:0. ── */
+.docked-body #stockPriceChartWrapper {
+    position: relative !important;
+    width: 100% !important;
+    height: 380px !important;
+}
+.docked-body #stockVolumeChartWrapper {
+    position: relative !important;
+    width: 100% !important;
+    height: 140px !important;
+}
+
+/* ── Containers: переопределяем глобальный height:100% явными пикселями.
+   autoSize:true читает clientHeight=380/140 → рисует график с полными осями. ── */
+.docked-body #stockPriceChartContainer {
+    height: 380px !important;
+    min-height: 0 !important;
+}
+.docked-body #stockVolumeChartContainer {
+    height: 140px !important;
+    min-height: 0 !important;
+}
+
+/* ── Docked mode: crypto-detail-actions — normal flow, no sticky/negative margins ── */
+.docked-body .crypto-detail-actions {
+    position: static !important;
+    margin: 1.5rem 0 0 0 !important;
+    padding: 0 !important;
+    background: none !important;
+    display: flex !important;
+    gap: 0.75rem !important;
+    flex-wrap: wrap !important;
+}
+
+/* legend/title styling to match docked look */
+#stockDetailModal .chart-legend,
+#stockDetailModal #stockChartLegend,
+.docked-body .chart-legend,
+.docked-body #stockChartLegend {
+    background: rgba(26,29,40,0.88) !important;
+    border-radius: 8px !important;
+    padding: 6px 10px !important;
+    box-shadow: none !important;
+    /* Сброс inline-позиционирования из HTML, единый стиль как у крипты */
+    position: absolute !important;
+    top: 1rem !important;
+    left: auto !important;
+    right: 105px !important;
+    z-index: 10 !important;
+    display: flex !important;
+    gap: 0.75rem !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    flex-direction: row !important;
+}
+
+/* Stock modal actions are now outside scroll area (flex footer) — no sticky needed */
+#stockDetailModal .crypto-detail-actions:not(.stock-actions-footer) {
+    display: none !important;
+}
+
+/* small responsive tweak: slightly reduce heights on narrow screens */
+@media (max-width: 1024px) {
+  #stockDetailModal .chart-container { height: 420px !important; min-height: 380px !important; display: flex !important; flex-direction: column !important; }
+  #stockDetailModal .chart-container + .chart-container { height: 185px !important; min-height: 160px !important; display: flex !important; flex-direction: column !important; }
+  /* обёртки адаптируются через flex — убираем фиксированные высоты */
+  #stockDetailModal #stockPriceChartWrapper,
+  #stockDetailModal #stockVolumeChartWrapper { flex: 1 1 0% !important; height: 0 !important; min-height: 0 !important; max-height: none !important; }
 }
 
 
@@ -6878,6 +8699,27 @@ body {
 .btn-fav.active { color: var(--warning); transform: scale(1.05); }
 .btn-fav.animating { animation: star-pop 520ms cubic-bezier(.2,.9,.2,1); }
 
+/* Bigger star on toggle button */
+.btn-fav[data-action="toggle"] { font-size: 24px; line-height: 1; padding: 4px 6px; }
+
+/* Visible delete button */
+.btn-fav[data-action="remove"] {
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    background: #ef4444;
+    border: 1px solid #ef4444;
+    border-radius: 7px;
+    padding: 3px 10px;
+    transition: background 180ms ease, border-color 180ms ease;
+}
+.btn-fav[data-action="remove"]:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: #fff;
+    transform: none;
+}
+
 @keyframes star-pop {
     0% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(245,158,11,0)); }
     30% { transform: scale(1.35) rotate(-15deg); filter: drop-shadow(0 6px 18px rgba(245,158,11,0.22)); }
@@ -7578,7 +9420,8 @@ tbody tr {
 .chart-legend {
     position: absolute;
     top: 1rem;
-    right: 4rem;
+    /* Не перекрываем правую шкалу цен: шкала ~80-100пт от правого края */
+    right: 105px;
     z-index: 10;
     display: flex;
     gap: 0.75rem;
@@ -8215,6 +10058,229 @@ tbody tr {
     box-shadow: var(--shadow);
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   CHART DRAWING TOOLBAR  (chart-drawing.js)
+   Панель инструментов разметки графиков.
+   Абсолютно позиционирована внутри .chart-area-wrapper / #stockPriceChartWrapper
+   ═══════════════════════════════════════════════════════════════════ */
+
+.chart-drawing-toolbar {
+    position: absolute;
+    top: 50%;
+    left: 6px;
+    transform: translateY(-50%);
+    z-index: 12;                /* выше chart canvas (6), ниже модальных оверлеев */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 4px;
+    background: rgba(12, 16, 28, 0.90);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.40);
+    /* Ограничиваем высоту: OHLC сверху ~48пт, снизу всегда есть паддинг */
+    max-height: calc(100% - 20px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.chart-drawing-toolbar::-webkit-scrollbar { display: none; }
+
+/* ── Tool buttons ── */
+.cdt-btn {
+    width:  38px;
+    height: 38px;
+    min-width: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+}
+
+.cdt-btn svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+
+.cdt-btn span { pointer-events: none; }
+
+.cdt-btn:hover {
+    background: rgba(255, 255, 255, 0.09);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
+.cdt-btn.active {
+    background: rgba(59, 130, 246, 0.20);
+    color: #60a5fa;
+    border-color: rgba(59, 130, 246, 0.40);
+}
+
+.cdt-btn.cdt-action:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: #d1d5db;
+}
+
+.cdt-btn.cdt-danger:hover {
+    background: rgba(239, 68, 68, 0.18);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.30);
+}
+
+/* Fib / Text labels */
+.cdt-fib span, .cdt-text span {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: -.5px;
+}
+
+/* Tooltip (показывается :hover через CSS) */
+.cdt-btn[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    left: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(12, 16, 28, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #f0f4ff;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    padding: 4px 9px;
+    border-radius: 5px;
+    pointer-events: none;
+    z-index: 200;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+/* ── Separator ── */
+.cdt-sep {
+    width: 22px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.10);
+    margin: 3px 0;
+    flex-shrink: 0;
+}
+
+/* ── Color swatches ── */
+.cdt-colors {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+    padding: 2px 0;
+}
+
+.cdt-color {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.14s, border-color 0.14s;
+    padding: 0;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.cdt-color:hover  { transform: scale(1.20); }
+.cdt-color.active { border-color: #fff; transform: scale(1.15); }
+
+/* ── Line width selector ── */
+.cdt-widths {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    align-items: center;
+    padding: 3px 0;
+}
+
+.cdt-width {
+    width: 30px;
+    height: 22px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    transition: border-color 0.14s;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.cdt-width .cdt-w {
+    display: block;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.45);
+    border-radius: 2px;
+    transition: background 0.14s;
+}
+
+.cdt-w1 { height: 1.5px; }
+.cdt-w2 { height: 2.5px; }
+.cdt-w3 { height: 4px;   }
+
+.cdt-width:hover .cdt-w   { background: rgba(255, 255, 255, 0.88); }
+.cdt-width.active .cdt-w  { background: #60a5fa; }
+.cdt-width.active          { border-color: rgba(59, 130, 246, 0.40); }
+
+/* ── Canvas overlay (создаётся JS) ── */
+.cdt-canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border-radius: inherit;
+    z-index: 6;
+    pointer-events: none;   /* меняется на 'auto' при выборе инструмента */
+}
+
+/* ── Mobile: toolbar немного меньше ── */
+@media (max-width: 768px) {
+    .chart-drawing-toolbar {
+        left: 3px;
+        padding: 4px 2px;
+        gap: 1px;
+        border-radius: 8px;
+    }
+    .cdt-btn {
+        width:  34px;
+        height: 34px;
+        min-width: 34px;
+    }
+    .cdt-color { width: 16px; height: 16px; }
+    .cdt-width { width: 26px; height: 18px; }
+    /* tooltips вправо слишком широко на мобильных — скрываем */
+    .cdt-btn[title]:hover::after { display: none; }
+}
+
 .calc-description h3 {
     font-size: 1.5rem;
     margin-bottom: 0.5rem;
@@ -8708,7 +10774,7 @@ tbody tr {
   margin-bottom: 2rem;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 40px rgba(37, 99, 235, 0.15);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   animation: sectionFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -8755,12 +10821,16 @@ tbody tr {
 .docked-body .price-value {
   color: #ffffff !important;
   font-weight: 700;
-  font-size: 32px;
+  font-size: clamp(1.2rem, 2.5vw, 2rem);
+  word-break: break-all;
+  min-width: 0;
 }
 
 .docked-body .price-change {
   font-weight: 600;
   font-size: 18px;
+  flex-shrink: 0;
+  white-space: nowrap;
   padding: 6px 12px;
   border-radius: 8px;
 }
@@ -8903,7 +10973,7 @@ tbody tr {
   margin-bottom: 2rem;
 }
 
-/* На широких экранах показываем больше колонок */
+/* На шир��ких экранах показываем больше колонок */
 @media (min-width: 1400px) {
   .docked-body .crypto-detail-stats-grid {
     grid-template-columns: repeat(5, 1fr);
@@ -9300,4 +11370,182 @@ tbody tr {
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
+}
+
+/* ===================================
+   GOOGLE TRANSLATE - СКРЫТИЕ ТОЛЬКО UI
+   =================================== */
+
+/* Скрываем только визуальные элементы Google Translate */
+.goog-te-banner-frame,
+#goog-gt-tt,
+.goog-te-balloon-frame,
+.VIpgJd-ZVi9od-ORHb-OEVmcd,
+.VIpgJd-ZVi9od-xl07Ob-lTBxed,
+#google_translate_element,
+.goog-te-gadget,
+.goog-te-gadget-simple,
+.goog-logo-link,
+.goog-te-gadget-icon,
+img[src*="cleardot.gif"],
+img[src*="te_ctrl"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  position: absolute !important;
+  left: -99999px !important;
+}
+
+/* Убираем сдвиг body от Google Translate */
+body {
+  top: 0 !important;
+}
+
+/* Скрываем только верхний баннер */
+body > .skiptranslate:not(iframe):not(select) {
+  display: none !important;
+}
+
+/* ============================================
+   ГОСТЕВОЙ РЕЖИМ
+   ============================================ */
+
+/* Верхний баннер гостя */
+.guest-top-banner {
+  background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 10px 20px;
+  z-index: 100;
+  animation: guestBannerSlide 0.4s ease;
+}
+
+@keyframes guestBannerSlide {
+  from { transform: translateY(-100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.guest-banner-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  color: #94a3b8;
+}
+
+.guest-banner-content > i {
+  color: #3b82f6;
+  font-size: 16px;
+}
+
+.guest-login-link,
+.guest-register-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.guest-login-link {
+  background: #3b82f6;
+  color: white;
+}
+
+.guest-login-link:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.guest-register-link {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.guest-register-link:hover {
+  background: rgba(16, 185, 129, 0.25);
+  transform: translateY(-1px);
+}
+
+/* Гостевой toast */
+.guest-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 14px 24px;
+  border-radius: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  z-index: 10000;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  white-space: nowrap;
+}
+
+.guest-toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+.guest-toast i {
+  color: #f59e0b;
+  font-size: 18px;
+}
+
+.guest-toast-link {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 600;
+  margin-left: 4px;
+  transition: color 0.2s;
+}
+
+.guest-toast-link:hover {
+  color: #60a5fa;
+  text-decoration: underline;
+}
+
+/* Мобильная адаптация гостевого баннера */
+@media (max-width: 768px) {
+  .guest-top-banner {
+    padding: 8px 12px;
+  }
+  
+  .guest-banner-content {
+    font-size: 12px;
+    gap: 8px;
+  }
+  
+  .guest-login-link,
+  .guest-register-link {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+  
+  .guest-toast {
+    left: 12px;
+    right: 12px;
+    transform: translateX(0) translateY(100px);
+    white-space: normal;
+    text-align: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .guest-toast.show {
+    transform: translateX(0) translateY(0);
+  }
 }

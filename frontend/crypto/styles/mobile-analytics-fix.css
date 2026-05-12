@@ -1,0 +1,506 @@
+/* ============================================
+   ДОПОЛНИТЕЛЬНЫЕ ИСПРАВЛЕНИЯ ДЛЯ МОБИЛЬНЫХ
+   ============================================ */
+
+@media (max-width: 768px) {
+  
+  /* === ИСПРАВЛЕНИЕ ПОИСКОВЫХ ПОЛЕЙ === */
+  /* Иконка лупы не должна накладываться на текст */
+  .search-bar input,
+  input[type="search"],
+  input[placeholder*="Поиск"] {
+    padding-left: 2.75rem !important; /* Увеличиваем отступ слева */
+  }
+  
+  .search-bar i.fa-search,
+  .search-bar i.fas.fa-search {
+    left: 0.75rem !important;
+    font-size: 1rem !important;
+  }
+  
+  /* === РЕКОМЕНДАЦИИ ПО ОПТИМИЗАЦИИ === */
+  /* Каждая рекомендация - отдельная карточка, не сливаются */
+  .recommendation-card {
+    display: block !important;
+    width: 100% !important;
+    margin-bottom: 1rem !important;
+    padding: 1rem !important;
+  }
+  
+  .recommendation-content {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    gap: 0.75rem !important;
+  }
+  
+  .recommendation-icon {
+    width: 56px !important;
+    height: 56px !important;
+    margin: 0 auto !important;
+  }
+  
+  .recommendation-text {
+    width: 100% !important;
+  }
+  
+  .recommendation-title {
+    font-size: 1rem !important;
+    text-align: center !important;
+  }
+  
+  .recommendation-description {
+    font-size: 0.875rem !important;
+    text-align: center !important;
+  }
+  
+  /* Кнопка действия */
+  .rec-action-btn {
+    width: 100% !important;
+    text-align: center !important;
+    padding: 0.75rem 1rem !important;
+    margin-top: 0.5rem !important;
+  }
+  
+  .rec-action-btn i {
+    display: none !important; /* Прячем стрелку на мобильных */
+  }
+  
+  /* === КНОПКА ЗАКРЫТИЯ БОКОВЫХ ПАНЕЛЕЙ === */
+  /* Увеличиваем размер кнопок до 44px для удобства на мобильных */
+  .modal-close,
+  .sidebar-close,
+  button.close,
+  .close-btn,
+  .close-sidebar {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    flex-shrink: 0 !important;
+    z-index: 1000 !important;
+  }
+  
+  /* Позиционирование для модальных окон и боковых панелей */
+  .modal-close,
+  button.close {
+    position: absolute !important;
+    top: 12px !important;
+    right: 12px !important;
+  }
+  
+  .sidebar-close,
+  .close-sidebar {
+    position: relative !important;
+  }
+  
+  .modal-close i,
+  .sidebar-close i,
+  button.close i,
+  .close-btn i,
+  .close-sidebar i {
+    font-size: 20px !important;
+    margin: 0 !important;
+  }
+  
+  /* === АНАЛИТИКА: STAT-CARDS === */
+  .analytics-summary,
+  .stats-grid {
+    grid-template-columns: 1fr !important; /* Одна колонка на мобильных */
+    gap: 1rem !important;
+  }
+  
+  .stat-card {
+    padding: 1.25rem !important;
+    min-height: auto !important;
+  }
+  
+  .stat-icon {
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 1.25rem !important;
+  }
+  
+  .stat-label {
+    font-size: 0.875rem !important;
+  }
+  
+  .stat-value {
+    font-size: 1.5rem !important;
+  }
+  
+  /* === ДЕТАЛЬНАЯ СТАТИСТИКА АКТИВОВ === */
+  /* Скрываем таблицу на мобильных */
+  .assets-table-wrapper table.assets-table {
+    display: none !important;
+  }
+  
+  /* Создаем контейнер для карточек */
+  .assets-table-wrapper {
+    display: block !important;
+  }
+  
+  /* Карточки активов для мобильных - стильный дизайн как в таблице */
+  .asset-card-mobile {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+  }
+  
+  .asset-card-mobile:hover {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+  }
+  
+  .asset-card-mobile-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e2e8f0;
+  }
+  
+  .asset-card-mobile-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.125rem;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Иконки внутри asset-card-mobile-icon */
+  .asset-card-mobile-icon .asset-icon-inner {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .asset-card-mobile-icon .asset-icon-inner img {
+    width: 70%;
+    height: 70%;
+    object-fit: contain;
+  }
+  
+  .asset-card-mobile-icon .asset-icon-inner::before {
+    content: attr(data-emoji);
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: white;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  
+  .asset-card-mobile-icon .asset-icon-inner img[data-error="true"] {
+    opacity: 0;
+  }
+  
+  .asset-card-mobile-icon .asset-icon-inner img[data-error="true"] ~ ::before {
+    opacity: 1;
+  }
+  
+  .asset-card-mobile-name {
+    flex: 1;
+  }
+  
+  .asset-card-mobile-name h4 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+  }
+  
+  .asset-card-mobile-name span {
+    font-size: 0.8125rem;
+    color: #64748b;
+    font-weight: 500;
+  }
+  
+  .asset-card-mobile-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  
+  .asset-card-mobile-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .asset-card-mobile-field-label {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  
+  .asset-card-mobile-field-value {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  
+  .asset-card-mobile-field-value.positive {
+    color: #10b981;
+  }
+  
+  .asset-card-mobile-field-value.negative {
+    color: #ef4444;
+  }
+  
+  /* === РАЗДЕЛ РЕКОМЕНДАЦИЙ - одна под другой === */
+  #recommendationsBody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1rem !important;
+  }
+  
+  .analytics-recommendations {
+    margin-left: -10px !important;
+    margin-right: -10px !important;
+  }
+  
+  .analytics-recommendations .card {
+    border-radius: 0 !important;
+  }
+  
+  /* === ГРАФИКИ НА МОБИЛЬНЫХ === */
+  .charts-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1rem !important;
+  }
+  
+  .charts-grid .card {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+  
+  .chart-card-large {
+    min-height: 250px !important;
+  }
+  
+  canvas {
+    max-height: 250px !important;
+    width: 100% !important;
+  }
+  
+  /* === КНОПКИ ЭКСПОРТА === */
+  .section-actions {
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+  
+  .section-actions button,
+  .section-actions .custom-select-wrapper {
+    width: 100% !important;
+  }
+  
+  #exportAnalyticsPDFBtn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+  
+  /* === ТАБЛИЦА АКЦИЙ В РАЗДЕЛЕ РЫНКА === */
+  /* Скрываем таблицу акций на мобильных */
+  .market-table-container .market-table {
+    display: none !important;
+  }
+  
+  /* Контейнер для карточек акций */
+  .stocks-cards-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1rem !important;
+    padding: 0.5rem !important;
+  }
+  
+  /* Карточки акций - стиль как у карточек активов */
+  .stock-card-mobile {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1.25rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+  }
+  
+  .stock-card-mobile:hover {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+  }
+  
+  .stock-card-mobile-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e2e8f0;
+  }
+  
+  .stock-card-mobile-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: white;
+  }
+  
+  .stock-card-mobile-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  
+  .stock-card-mobile-info {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .stock-card-mobile-symbol {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.25rem;
+  }
+  
+  .stock-card-mobile-name {
+    font-size: 0.8125rem;
+    color: #64748b;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .stock-card-mobile-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .stock-card-mobile-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .stock-card-mobile-field-label {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  
+  .stock-card-mobile-field-value {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  
+  .stock-card-mobile-field-value.positive {
+    color: #10b981;
+  }
+  
+  .stock-card-mobile-field-value.negative {
+    color: #ef4444;
+  }
+  
+  .stock-card-mobile-action {
+    width: 100%;
+  }
+  
+  .stock-card-mobile-action button {
+    width: 100%;
+    padding: 0.75rem;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  }
+  
+  .stock-card-mobile-action button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
+  }
+  
+  .stock-card-mobile-action button i {
+    margin-right: 0.5rem;
+  }
+}
+
+/* === ПЛАНШЕТЫ (768px - 1024px) === */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .analytics-summary,
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  .asset-card-mobile,
+  .stock-card-mobile {
+    display: none !important;
+  }
+  
+  .stocks-cards-container {
+    display: none !important;
+  }
+  
+  .market-table {
+    display: table !important;
+  }
+}
+
+/* === ДЕСКТОП (>1024px) === */
+@media (min-width: 1025px) {
+  .asset-card-mobile,
+  .stock-card-mobile {
+    display: none !important;
+  }
+  
+  .stocks-cards-container {
+    display: none !important;
+  }
+  
+  .market-table {
+    display: table !important;
+  }
+}

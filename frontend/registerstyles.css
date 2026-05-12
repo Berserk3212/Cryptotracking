@@ -857,6 +857,41 @@ body {
   flex-direction: column;
 }
 
+/* Заголовок формы — скрыт на десктопе (там card-left выполняет эту роль) */
+.form-title {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .form-title {
+    display: block;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .form-title h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary, #f1f5f9);
+    margin: 0 0 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .form-title h2 i {
+    font-size: 17px;
+    color: var(--primary, #3b82f6);
+  }
+
+  .form-title p {
+    font-size: 13px;
+    color: var(--text-secondary, #94a3b8);
+    margin: 0;
+  }
+}
+
 .form-field {
   margin-bottom: 20px;
   animation: slideInRight 0.8s ease both;
@@ -1429,89 +1464,214 @@ body {
 }
 
 @media (max-width: 768px) {
+  /* ── Контейнер ── */
   .app-container {
-    padding: 16px;
-    padding-top: 70px;
+    padding: 12px 12px 24px;
+    padding-top: 56px;
+    justify-content: flex-start;
+    gap: 0;
   }
-  
+
+  /* ── Карточка: одна колонка ── */
   .register-card {
     grid-template-columns: 1fr;
     max-width: 100%;
-    min-height: auto;
-    margin-top: 20px;
+    min-height: 0;
+    margin-top: 0;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    animation: cardAppear 0.5s ease both;
   }
-  
-  .card-left {
-    padding: 40px 30px;
-  }
-  
+
+  /* ── Правая панель (форма) — ниже бренд-хедера ── */
   .card-right {
-    padding: 40px 30px;
+    padding: 24px 20px 20px;
   }
-  
+
+  /* ── Левая панель → компактный бренд-хедер сверху ── */
+  .card-left {
+    padding: 16px 20px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0;
+    border-radius: 20px 20px 0 0;
+    min-height: 0;
+  }
+
+  /* Логотип: горизонтальный, компактный */
+  .logo-container {
+    margin-bottom: 0;
+    animation: none;
+  }
+
   .logo {
-    flex-direction: column;
-    text-align: center;
-    gap: 15px;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 0;
   }
-  
-  .stats-grid {
-    grid-template-columns: 1fr;
-    gap: 20px;
+
+  .logo-icon {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    animation: none;
   }
-  
+
+  .logo-icon svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  .logo-text h1 {
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 2px;
+  }
+
+  .tagline {
+    font-size: 12px;
+    letter-spacing: 0.5px;
+  }
+
+  /* Прячем декоративный контент */
+  .welcome,
+  .features-list,
+  .info-cards {
+    display: none;
+  }
+
+  /* ── Переключатель темы ── */
+  .theme-switcher {
+    position: fixed;
+    top: 14px;
+    right: 14px;
+    z-index: 1001;
+  }
+
+  .theme-toggle {
+    width: 48px;
+    height: 26px;
+  }
+
+  .theme-toggle::before {
+    width: 18px;
+    height: 18px;
+  }
+
+  [data-theme="light"] .theme-toggle::before {
+    transform: translateX(22px);
+  }
+
+  /* ── Фоновый декор ── */
+  .crypto-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 22px;
+    opacity: 0.6;
+  }
+
+  .symbol {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+    opacity: 0.5;
+  }
+
+  .chart {
+    width: 400px;
+    height: 200px;
+    opacity: 0.03;
+  }
+
+  .stock-bars {
+    height: 120px;
+    opacity: 0.6;
+  }
+
+  /* ── Toast ── */
+  .toast {
+    left: 12px;
+    right: 12px;
+    max-width: none;
+    width: auto;
+    top: 14px;
+  }
+
+  /* ── Функциональные карточки вне карты ── */
   .features {
-    grid-template-columns: 1fr;
-    gap: 20px;
+    display: none;
   }
-  
+
+  /* ── form-footer: колонка ── */
   .form-footer {
     flex-direction: column;
-    gap: 20px;
+    gap: 12px;
     align-items: stretch;
-  }
-  
-  .theme-switcher {
-    top: 16px;
-    right: 16px;
   }
 }
 
 @media (max-width: 480px) {
+  .app-container {
+    padding: 10px 10px 20px;
+    padding-top: 52px;
+  }
+
+  .register-card {
+    border-radius: 16px;
+  }
+
+  .card-right {
+    padding: 20px 16px 16px;
+  }
+
+  .card-left {
+    padding: 14px 16px;
+  }
+
+  .logo-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .logo-icon svg {
+    width: 34px;
+    height: 34px;
+  }
+
   .logo-text h1 {
-    font-size: 32px;
+    font-size: 19px;
   }
-  
-  .welcome h2 {
-    font-size: 28px;
+
+  .tagline {
+    font-size: 11px;
   }
-  
-  .stat-value {
-    font-size: 28px;
-  }
-  
-  .feature {
-    padding: 25px;
-  }
-  
-  .feature h3 {
-    font-size: 20px;
-  }
-  
-  .feature p {
-    font-size: 14px;
-  }
-  
+
   .toast {
-    left: 16px;
-    right: 16px;
-    max-width: 100%;
-    width: auto;
+    left: 10px;
+    right: 10px;
+    top: 10px;
   }
-  
+
+  .chart {
+    width: 300px;
+    height: 150px;
+  }
+
+  .stock-bars {
+    height: 100px;
+    padding: 0 16px;
+    gap: 8px;
+  }
+
+  .bar {
+    width: 16px;
+  }
+
   .theme-switcher {
-    top: 12px;
-    right: 12px;
+    top: 10px;
+    right: 10px;
   }
 }
 
@@ -1523,4 +1683,111 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+/* ===== ЭКРАН ПОДТВЕРЖДЕНИЯ EMAIL ===== */
+.email-confirm-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2.5rem 2rem;
+  gap: 1.25rem;
+  min-height: 400px;
+}
+
+.confirm-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: #fff;
+  animation: iconPulse 2s ease infinite;
+}
+
+.email-confirm-screen h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.confirm-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.confirm-subtitle strong {
+  color: var(--primary-light);
+}
+
+.confirm-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  text-align: left;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.step-num {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.confirm-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.back-to-login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.back-to-login:hover {
+  color: var(--primary-light);
+}
+
+.spam-note {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }

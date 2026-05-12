@@ -322,6 +322,7 @@
     font-size: 1.15rem;
 }
 
+/* Базовые стили полей (для .tools-select и одиночных .tools-input не в wrapper) */
 .tools-input,
 .tools-select {
     padding: 1rem 1.25rem;
@@ -331,111 +332,132 @@
     color: #F8FAFC;
     font-size: 1.05rem;
     font-family: var(--font-sans);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
     width: 100%;
     backdrop-filter: blur(10px);
 }
 
-/* Стилизация стрелочек для number input */
+/* Убираем нативные стрелки number input */
 .tools-input[type="number"] {
-    appearance: textfield;
     -webkit-appearance: textfield;
     -moz-appearance: textfield;
-    position: relative;
+    appearance: textfield;
 }
-
 .tools-input[type="number"]::-webkit-inner-spin-button,
 .tools-input[type="number"]::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
 }
 
-.tools-input[type="number"] {
-    padding-right: 3rem;
-}
-/* Number input wrapper + custom step buttons */
+/* =====================================================
+   NUMBER INPUT WRAPPER — wrapper IS the visible field.
+   <input> внутри прозрачный, кнопки — flex-сосед.
+   Высота определяется содержимым flex-строки,
+   кнопки физически внутри wrapper → никогда не высовываются.
+   ===================================================== */
+
+/*
+  CSS Grid: первая колонка = поле ввода, вторая = колонка кнопок (2rem).
+  Инпут не может вытолкнуть кнопки — ширина колонок жёстко зафиксирована grid.
+  border-radius на угловых кнопках соответствует кривизне wrapper-а.
+*/
 .number-input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-    overflow: visible; /* важно: чтобы кнопки были видимы внутри поля */
+    display: grid;
+    grid-template-columns: 1fr 2rem;
+    align-items: stretch;
+    border-radius: 1rem;
+    border: 2px solid rgba(37, 99, 235, 0.2);
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(10px);
+    /* НЕТ overflow:hidden — без него кнопки не обрезаются бордер-радиусом */
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    width: 100%;
 }
 
+/* Поле ввода: прозрачное, без рамки, занимает первую grid-колонку */
 .number-input-wrapper .number-input {
-    padding-right: 44px; /* синхронизируем с реальной шириной блока стрелок, чтобы они помещались внутри поля */
+    grid-column: 1;
+    min-width: 0;
+    width: 100%;
+    padding: 1rem 0.5rem 1rem 1.25rem;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none;
+    color: #F8FAFC;
+    font-size: 1.05rem;
+    font-family: var(--font-sans);
+    transform: none !important;
+    border-radius: 0.9rem 0 0 0.9rem; /* радиус только слева */
 }
 
-/* контейнер стрелок — внутри поля, компактный вертикальный стек */
+/* Контейнер кнопок: вторая grid-колонка, занимает ровно 2rem */
 .number-steps {
-    position: absolute;
-    right: 8px; /* чуть внутрь поля, синхронизировано с padding-right */
-    top: 50%;
-    transform: translateY(-50%);
+    grid-column: 2;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    align-items: center;
-    justify-content: center;
-    z-index: 6;
-    pointer-events: auto;
-    width: 38px; /* ширина контейнера под размер кнопок */
-    height: calc(100% - 12px); /* чуть меньше высоты поля */
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0.25rem 0.2rem;
+    gap: 0.15rem;
+    box-sizing: border-box;
     background: transparent;
 }
 
-/* визуально "плоские" стрелки внутри поля */
+/*
+  Кнопка: flex:1 + min-height:0 = ровно половина высоты поля.
+  NO !important на ширине/высоте.
+*/
 .step-btn {
-    display: inline-flex;
+    flex: 1;
+    min-height: 0;
+    display: flex;
     align-items: center;
     justify-content: center;
-    width: 34px;       /* оригинальный размер */
-    height: 28px;      /* оригинальный размер */
+    width: 100%;
     padding: 0;
-    border-radius: 8px;
-    border: 1px solid rgba(255,255,255,0.03);
-    background: rgba(15, 23, 42, 0.85); /* темный фон, как у поля */
-    color: #CBD5E1;
+    border: 1px solid rgba(37, 99, 235, 0.25);
+    background: rgba(30, 41, 70, 0.85);
+    color: #94A3B8;
     cursor: pointer;
-    transition: background 0.12s ease, transform 0.12s ease;
-    box-shadow: none; /* убираем объем */
+    transition: background 0.15s ease, color 0.15s ease;
+    border-radius: 0.25rem;
 }
+/* Угловые кнопки соответствуют кривизне wrapper-а */
+.step-btn.step-up   { border-radius: 0.25rem 0.7rem 0.25rem 0.25rem; }
+.step-btn.step-down { border-radius: 0.25rem 0.25rem 0.7rem 0.25rem; }
 
-/* иконки внутри кнопок */
-.step-btn i { font-size: 0.85rem; }
-
-/* hover — легкий акцент, без сильной тени */
+.step-btn i {
+    font-size: 0.6rem;
+    line-height: 1;
+    pointer-events: none;
+}
 .step-btn:hover {
-    background: rgba(37,99,235,0.12);
+    background: rgba(37, 99, 235, 0.5);
     color: #fff;
-    transform: translateY(-1px);
-    box-shadow: none;
+    border-color: rgba(37, 99, 235, 0.6);
+}
+.step-btn:active {
+    background: rgba(37, 99, 235, 0.7);
+    color: #fff;
 }
 
-/* восстановленный локальный override внутри приложения (без "объёма") */
-#tradingToolsApp .step-btn {
-    width: 34px !important;
-    height: 28px !important;
-    border-radius: 8px !important;
-    background: rgba(15, 23, 42, 0.85) !important;
-    border: 1px solid rgba(255,255,255,0.03) !important;
-    color: #CBD5E1 !important;
-    box-shadow: none !important;
+/* Состояния wrapper (вместо состояний самого input) */
+.number-input-wrapper:hover {
+    border-color: #3B82F6;
+}
+.number-input-wrapper:focus-within {
+    border-color: #2563EB;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2), 0 0 20px rgba(37, 99, 235, 0.1);
 }
 
-#tradingToolsApp .step-btn i {
-    font-size: 0.85rem !important;
-}
-
-/* Focus and Hover States for Inputs and Selects */
+/* Focus и hover для одиночных полей (не в wrapper) */
 .tools-input:focus,
 .tools-select:focus {
     outline: none;
     border-color: #2563EB;
     box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2), 0 0 20px rgba(37, 99, 235, 0.1);
     background: rgba(15, 23, 42, 0.8);
-    transform: translateY(-2px);
 }
-
 .tools-input:hover,
 .tools-select:hover {
     border-color: #3B82F6;
@@ -791,6 +813,129 @@
     box-shadow: 0 0 10px rgba(37, 99, 235, 0.5);
 }
 
+/* ---- Search inside crypto dropdown ---- */
+
+/* Структура: поиск sticky сверху + прокручиваемый список */
+.tools-crypto-dropdown {
+    /* Переопределяем: скролл переносим на внутренний список */
+    overflow: hidden !important;
+    display: flex;
+    flex-direction: column;
+}
+
+.tools-crypto-search {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(37, 99, 235, 0.25);
+    background: rgba(15, 23, 42, 0.99);
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.tools-crypto-search-icon {
+    color: #64748b;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    transition: color 0.2s;
+}
+
+.tools-crypto-search:focus-within .tools-crypto-search-icon {
+    color: #3b82f6;
+}
+
+.tools-crypto-search-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #e2e8f0;
+    font-size: 0.9rem;
+    font-family: inherit;
+    caret-color: #3b82f6;
+}
+
+.tools-crypto-search-input::placeholder {
+    color: #475569;
+}
+
+.tools-crypto-search-clear {
+    background: none;
+    border: none;
+    padding: 0.2rem 0.3rem;
+    cursor: pointer;
+    color: #475569;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.tools-crypto-search-clear:hover {
+    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.07);
+}
+
+/* Внутренний прокручиваемый контейнер со списком */
+.tools-crypto-list {
+    overflow-y: auto;
+    max-height: 285px;
+}
+
+.tools-crypto-list::-webkit-scrollbar {
+    width: 10px;
+}
+
+.tools-crypto-list::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 5px;
+    margin: 0.5rem 0;
+}
+
+.tools-crypto-list::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #2563EB, #10B981);
+    border-radius: 5px;
+    border: 2px solid rgba(15, 23, 42, 0.5);
+}
+
+.tools-crypto-list::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #1D4ED8, #059669);
+}
+
+/* Empty state */
+.tools-crypto-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 2rem 1rem;
+    color: #475569;
+    text-align: center;
+}
+
+.tools-crypto-empty i {
+    font-size: 1.75rem;
+    color: #334155;
+    margin-bottom: 0.25rem;
+}
+
+.tools-crypto-empty p {
+    font-size: 0.9rem;
+    color: #64748b;
+    margin: 0;
+    font-weight: 500;
+}
+
+.tools-crypto-empty span {
+    font-size: 0.78rem;
+    color: #475569;
+}
+
 .tools-crypto-item {
     display: flex;
     align-items: center;
@@ -859,6 +1004,47 @@
     }
 }
 
+@media (max-width: 768px) {
+    /* Разрешаем выпадающим спискам выходить за пределы карточки */
+    .tools-main-card {
+        overflow: visible;
+    }
+
+    /* Сохраняем округлые углы заголовка карточки */
+    .tools-card-header {
+        border-radius: 2rem 2rem 0 0;
+        overflow: hidden;
+    }
+
+    /* На мобильных: grid-колонка кнопок чуть уже, больше места для текста */
+    .number-input-wrapper {
+        grid-template-columns: 1fr 1.8rem;
+    }
+
+    .number-input-wrapper .number-input {
+        padding: 0.75rem 0.4rem 0.75rem 1rem;
+        font-size: 0.95rem;
+    }
+
+    .number-steps {
+        padding: 0.2rem 0.15rem;
+        gap: 0.1rem;
+    }
+
+    .step-btn i {
+        font-size: 0.55rem;
+    }
+
+    /* Ограничиваем высоту выпадающего списка криптовалют */
+    .tools-crypto-dropdown {
+        max-height: 50vh !important;
+    }
+
+    .tools-crypto-list {
+        max-height: calc(50vh - 60px) !important;
+    }
+}
+
 @media (max-width: 480px) {
     #tradingToolsApp {
         padding: 1rem;
@@ -885,10 +1071,33 @@
     .tools-result-amount {
         font-size: 2rem;
     }
+
+    /* Уменьшаем padding полей на экстра-маленьких экранах */
+    .tools-input,
+    .tools-select {
+        padding: 0.75rem 0.875rem;
+        font-size: 0.9375rem;
+    }
+
+    /* number-input внутри wrapper на экстра-маленьких */
+    .number-input-wrapper {
+        grid-template-columns: 1fr 1.6rem;
+    }
+
+    .number-input-wrapper .number-input {
+        padding: 0.75rem 0.35rem 0.75rem 0.875rem;
+        font-size: 0.9375rem;
+    }
+
+    .number-steps {
+        padding: 0.18rem 0.12rem;
+        gap: 0.08rem;
+    }
 }
 
 /* === Overrides: стабильный тёмный вид полей внутри приложения === */
-#tradingToolsApp input,
+/* Применяем только к полям ВНЕ .number-input-wrapper, чтобы не сломать прозрачный фон */
+#tradingToolsApp input:not(.number-input),
 #tradingToolsApp select,
 #tradingToolsApp textarea {
     background-color: rgba(15, 23, 42, 0.6) !important;
@@ -897,10 +1106,19 @@
     caret-color: #F8FAFC !important;
     border-color: rgba(37, 99, 235, 0.18) !important;
     box-shadow: none !important;
-    transition: none !important; /* убираем мерцание при авто-подстановке/фокусе */
+    transition: none !important;
     -webkit-appearance: none !important;
     appearance: none !important;
     background-clip: padding-box;
+}
+
+/* .number-input внутри wrapper — только цвет текста */
+#tradingToolsApp .number-input {
+    color: #F8FAFC !important;
+    -webkit-text-fill-color: #F8FAFC !important;
+    caret-color: #F8FAFC !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
 }
 
 /* placeholder — всегда читаемый */
@@ -966,17 +1184,16 @@
     color: rgba(248, 250, 252, 0.9) !important;
 }
 
-/* Ещё меньшие кнопки шагов (стрелки) для number inputs */
+/* step-btn размеры задаются через flex:1 в .number-steps — никаких !important не нужно */
 #tradingToolsApp .step-btn {
-    width: 34px !important;   /* восстановлено оригинальное значение */
-    height: 28px !important;  /* восстановлено оригинальное значение */
-    border-radius: 8px !important;
-    background: rgba(255,255,255,0.03) !important;
-    color: #CBD5E1 !important;
+    background: rgba(30, 41, 70, 0.85) !important;
+    color: #94A3B8 !important;
+    border-color: rgba(37, 99, 235, 0.25) !important;
+    box-shadow: none !important;
 }
 
 #tradingToolsApp .step-btn i {
-    font-size: 0.85rem !important;
+    font-size: 0.6rem !important;
 }
 
 /* Кастомный селектор типа сделки наследует те же правила */

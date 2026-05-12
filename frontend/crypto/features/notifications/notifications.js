@@ -14,7 +14,7 @@ let unreadCount = 0;
 
 export async function initNotifications() {
   try {
-    console.log('Initializing notification system...');
+
     
     await loadNotificationPreferences();
     await loadNotifications();
@@ -22,9 +22,9 @@ export async function initNotifications() {
     updateNotificationBadge();
     renderNotificationPanel();
     
-    console.log('Notification system initialized');
+
   } catch (error) {
-    console.error('Notification initialization error:', error);
+
   }
 }
 
@@ -40,7 +40,7 @@ async function loadNotificationPreferences() {
       .single();
     
     if (error && error.code !== 'PGRST116') {
-      console.error('Error loading notification preferences:', error);
+
       return;
     }
     
@@ -58,7 +58,7 @@ async function loadNotificationPreferences() {
       notificationsState.preferences = data;
     }
   } catch (error) {
-    console.error('Error loading preferences:', error);
+
   }
 }
 
@@ -79,7 +79,7 @@ export async function loadNotifications(limit = 50) {
       .limit(limit);
     
     if (error) {
-      console.error('Ошибка загрузки уведомлений:', error);
+
       return;
     }
     
@@ -90,7 +90,7 @@ export async function loadNotifications(limit = 50) {
     updateNotificationBadge();
     
   } catch (error) {
-    console.error('Ошибка загрузки уведомлений:', error);
+
   } finally {
     notificationsState.isLoading = false;
   }
@@ -133,9 +133,9 @@ function subscribeToNotifications() {
       )
       .subscribe();
     
-    console.log('Подписка на realtime уведомления активна');
+
   } catch (error) {
-    console.error('Ошибка подписки на уведомления:', error);
+
   }
 }
 
@@ -172,12 +172,16 @@ function handleNotificationUpdate(notification) {
   
   if (index !== -1) {
     notificationsState.all[index] = notification;
+    // Пересортируем по created_at desc, чтобы обновлённое уведомление встало наверх
+    notificationsState.all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     
     // Обновляем непрочитанные
     if (notification.is_read) {
       notificationsState.unread = notificationsState.unread.filter(n => n.id !== notification.id);
-      unreadCount = notificationsState.unread.length;
+    } else if (!notificationsState.unread.find(n => n.id === notification.id)) {
+      notificationsState.unread.unshift(notification);
     }
+    unreadCount = notificationsState.unread.length;
     
     updateNotificationBadge();
     renderNotificationPanel();
@@ -198,7 +202,7 @@ export async function markAsRead(notificationId) {
       .eq('id', notificationId);
     
     if (error) {
-      console.error('Ошибка отметки прочитанным:', error);
+
       return false;
     }
     
@@ -217,7 +221,7 @@ export async function markAsRead(notificationId) {
     
     return true;
   } catch (error) {
-    console.error('Ошибка отметки прочитанным:', error);
+
     return false;
   }
 }
@@ -240,7 +244,7 @@ export async function markAllAsRead() {
       .eq('is_read', false);
     
     if (error) {
-      console.error('Ошибка отметки всех прочитанными:', error);
+
       return false;
     }
     
@@ -260,7 +264,7 @@ export async function markAllAsRead() {
     
     return true;
   } catch (error) {
-    console.error('Ошибка отметки всех прочитанными:', error);
+
     return false;
   }
 }
@@ -276,7 +280,7 @@ export async function dismissNotification(notificationId) {
       .eq('id', notificationId);
     
     if (error) {
-      console.error('Ошибка удаления уведомления:', error);
+
       return false;
     }
     
@@ -290,7 +294,7 @@ export async function dismissNotification(notificationId) {
     
     return true;
   } catch (error) {
-    console.error('Ошибка удаления уведомления:', error);
+
     return false;
   }
 }
@@ -325,7 +329,7 @@ export async function createPriceAlert(symbol, targetPrice, direction, assetType
     
     return data;
   } catch (error) {
-    console.error('Ошибка создания price alert:', error);
+
     throw error;
   }
 }
@@ -346,13 +350,13 @@ export async function getActivePriceAlerts() {
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error('Ошибка загрузки price alerts:', error);
+
       return [];
     }
     
     return data || [];
   } catch (error) {
-    console.error('Ошибка загрузки price alerts:', error);
+
     return [];
   }
 }
@@ -373,7 +377,7 @@ export async function deactivatePriceAlert(alertId) {
     
     return true;
   } catch (error) {
-    console.error('Ошибка деактивации price alert:', error);
+
     return false;
   }
 }
@@ -426,6 +430,11 @@ function renderNotificationPanel() {
     .map(notification => createNotificationHTML(notification))
     .join('');
   
+  // Принудительно задаём белый цвет заголовков (обходим любой конфликт CSS)
+  container.querySelectorAll('.notification-header h4').forEach(el => {
+    el.style.setProperty('color', '#ffffff', 'important');
+  });
+  
   // Привязываем обработчики
   attachNotificationHandlers();
 }
@@ -447,7 +456,7 @@ function createNotificationHTML(notification) {
       </div>
       <div class="notification-content">
         <div class="notification-header">
-          <h4>${notification.title}</h4>
+          <h4 style="color:#ffffff;font-weight:600;">${notification.title}</h4>
           <span class="notification-time">${timeAgo}</span>
         </div>
         <p class="notification-message">${notification.message}</p>
@@ -619,7 +628,7 @@ function playNotificationSound() {
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.5);
   } catch (error) {
-    console.warn('Не удалось воспроизвести звук уведомления:', error);
+
   }
 }
 
@@ -650,13 +659,13 @@ export async function getNotifications(filter = {}) {
     const { data, error } = await query;
     
     if (error) {
-      console.error('Ошибка получения уведомлений:', error);
+
       return [];
     }
     
     return data || [];
   } catch (error) {
-    console.error('Ошибка получения уведомлений:', error);
+
     return [];
   }
 }
@@ -680,7 +689,7 @@ export async function deleteNotification(notificationId) {
     
     return true;
   } catch (error) {
-    console.error('Ошибка удаления уведомления:', error);
+
     throw error;
   }
 }
@@ -704,7 +713,7 @@ export async function clearAllNotifications() {
       .eq('user_id', user.id);
     
     if (error) {
-      console.error('Ошибка очистки уведомлений:', error);
+
       return false;
     }
     
@@ -716,10 +725,10 @@ export async function clearAllNotifications() {
     updateNotificationBadge();
     renderNotificationPanel();
     
-    console.log('Все уведомления удалены');
+
     return true;
   } catch (error) {
-    console.error('Ошибка при очистке уведомлений:', error);
+
     return false;
   }
 }
@@ -739,13 +748,13 @@ export async function getPriceAlerts() {
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error('Ошибка получения алертов:', error);
+
       return [];
     }
     
     return data || [];
   } catch (error) {
-    console.error('Ошибка получения алертов:', error);
+
     return [];
   }
 }
@@ -769,7 +778,7 @@ export async function updatePriceAlert(alertId, updates) {
     
     return data;
   } catch (error) {
-    console.error('Ошибка обновления алерта:', error);
+
     throw error;
   }
 }
@@ -788,7 +797,7 @@ export async function deletePriceAlert(alertId) {
     
     return true;
   } catch (error) {
-    console.error('Ошибка удаления алерта:', error);
+
     throw error;
   }
 }
@@ -818,7 +827,7 @@ export async function updateNotificationPreferences(preferences) {
     notificationsState.preferences = data;
     return data;
   } catch (error) {
-    console.error('Ошибка обновления настроек:', error);
+
     throw error;
   }
 }
@@ -875,7 +884,7 @@ export async function createTestNotification(type = 'portfolio') {
     
     if (error) throw error;
     
-    console.log('Тестовое уведомление создано:', data);
+
     
     // Обновляем UI
     await loadNotifications();
@@ -883,7 +892,7 @@ export async function createTestNotification(type = 'portfolio') {
     
     return data;
   } catch (error) {
-    console.error('Ошибка создания тестового уведомления:', error);
+
     throw error;
   }
 }

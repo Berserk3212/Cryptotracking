@@ -9,12 +9,11 @@ function formatVolume(v) {
   return volume.toFixed(0);
 }
 
-
-async function loadStockData(symbols) {
+export async function loadStockData(symbols) {
   const FINNHUB_TOKEN = 'd49lflpr01qlaebhu1egd49lflpr01qlaebhu1f0';
   const results = {};
   
-  console.log('[FavoritesControls] Loading stock data for:', symbols);
+
   
   const promises = symbols.map(async symbol => {
     try {
@@ -33,11 +32,11 @@ async function loadStockData(symbols) {
             low: data.l.toFixed(2),
             volume: data.v || 0
           };
-          console.log(`[FavoritesControls] Loaded ${symbol}:`, results[symbol]);
+
         }
       }
     } catch (error) {
-      console.warn(`[FavoritesControls] Failed to load ${symbol}:`, error);
+
     }
   });
   
@@ -50,10 +49,10 @@ async function fetchFavoritesCoins() {
   const api = await import('../../api/api.js');
   
   if (!window.cryptoList || window.cryptoList.length === 0) {
-    try { await Promise.race([api.loadCryptoList(), new Promise(r => setTimeout(r, 4000))]); } catch (e) { console.warn('loadCryptoList failed in favorites-controls', e); }
+    try { await Promise.race([api.loadCryptoList(), new Promise(r => setTimeout(r, 4000))]); } catch (_) {}
   }
 
-  const favs = await getFavorites().catch(e => { console.warn('getFavorites failed', e); return []; });
+  const favs = await getFavorites().catch(e => {
   const cryptoList = window.cryptoList || [];
 
   // Определяем какие символы это акции
@@ -72,7 +71,7 @@ async function fetchFavoritesCoins() {
 
   const stocksToLoad = stockSymbols.filter(sym => !window.stocksRealData?.[sym]);
   if (stocksToLoad.length > 0) {
-    console.log('[FavoritesControls] Loading missing stock data:', stocksToLoad);
+
     const loadedStocks = await loadStockData(stocksToLoad);
     
     if (!window.stocksRealData) {
@@ -128,52 +127,74 @@ async function fetchFavoritesCoins() {
       };
   });
 
-  console.log('[FavoritesControls] Loaded favorites:', coins.map(c => ({ symbol: c.symbol, assetType: c.assetType, price: c.price })));
-
   return coins;
 }
 
 function createControlsHTML() {
   return `
-    <div class="favorites-controls">
-      <div class="fc-left">
-        <div class="search-bar small">
+    <div class="fc-panel">
+      <div class="fc-row">
+        <div class="fc-search">
           <i class="fas fa-search"></i>
           <input type="text" id="favoritesSearch" placeholder="Поиск в избранном (символ/имя)..." />
-          <button id="favoritesClear" class="search-clear" style="display:none"><i class="bi bi-x-lg"></i></button>
+          <button id="favoritesClear" class="fc-clear" style="display:none"><i class="bi bi-x-lg"></i></button>
         </div>
-        <select id="favoritesSort" class="sort-select">
-          <option value="default">Сортировка</option>
-          <option value="price_desc">Цена (убыв.)</option>
-          <option value="price_asc">Цена (возр.)</option>
-          <option value="change_desc">Измен. 24ч (убыв.)</option>
-          <option value="change_asc">Измен. 24ч (возр.)</option>
-          <option value="volume_desc">Объём (убыв.)</option>
-          <option value="marketcap_desc">Market Cap (убыв.)</option>
-        </select>
-
-        <label class="fc-filter">Цена
-          <input type="number" id="priceMin" placeholder="min" style="width:80px;margin-left:6px" />
-          <input type="number" id="priceMax" placeholder="max" style="width:80px;margin-left:6px" />
-        </label>
-
-        <select id="percentFilter" class="sort-select">
-          <option value="all">Все</option>
-          <option value="gainers">Gainers</option>
-          <option value="losers">Losers</option>
-        </select>
-
       </div>
-      <div class="fc-right">
-        <select id="sparklineRange" class="sort-select">
-          <option value="auto">Спарклайн: auto</option>
-          <option value="7">7d</option>
-          <option value="30">30d</option>
-        </select>
-        <button id="exportCsvBtn" class="btn btn-outline">Экспорт CSV</button>
-        <button id="exportFavsBtn" class="btn btn-outline">Экспорт избранных</button>
+      <div class="fc-row fc-row--filters">
+        <div class="fc-control-group">
+          <span class="fc-label">Сортировка</span>
+          <select id="favoritesSort">
+            <option value="default">По умолч.</option>
+            <option value="price_desc">Цена ↓</option>
+            <option value="price_asc">Цена ↑</option>
+            <option value="change_desc">Измен. ↓</option>
+            <option value="change_asc">Измен. ↑</option>
+            <option value="volume_desc">Объём ↓</option>
+            <option value="marketcap_desc">Капитал. ↓</option>
+          </select>
+        </div>
+        <div class="fc-control-group">
+          <span class="fc-label">Цена</span>
+          <div class="fc-price-range">
+            <div class="fc-price-input">
+              <input type="number" id="priceMin" placeholder="min" translate="no" />
+              <div class="fc-stepper">
+                <button type="button" class="fc-step-up" data-target="priceMin"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></button>
+                <button type="button" class="fc-step-down" data-target="priceMin"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+              </div>
+            </div>
+            <span class="fc-price-dash">—</span>
+            <div class="fc-price-input">
+              <input type="number" id="priceMax" placeholder="max" translate="no" />
+              <div class="fc-stepper">
+                <button type="button" class="fc-step-up" data-target="priceMax"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg></button>
+                <button type="button" class="fc-step-down" data-target="priceMax"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fc-control-group">
+          <span class="fc-label">Фильтр</span>
+          <select id="percentFilter">
+            <option value="all">Все</option>
+            <option value="gainers">Победители</option>
+            <option value="losers">Неудачники</option>
+          </select>
+        </div>
+        <div class="fc-control-group">
+          <span class="fc-label">Спарклайн</span>
+          <select id="sparklineRange">
+            <option value="auto">auto</option>
+            <option value="7">7д</option>
+            <option value="30">30д</option>
+          </select>
+        </div>
+      </div>
+      <div class="fc-row fc-row--actions">
+        <button id="exportCsvBtn" class="fc-btn"><i class="fas fa-file-csv"></i> CSV</button>
+        <button id="exportFavsBtn" class="fc-btn"><i class="fas fa-download"></i> Экспорт</button>
         <input type="file" id="importFavsFile" accept="application/json" style="display:none" />
-        <button id="importFavsBtn" class="btn btn-outline">Импорт избранных</button>
+        <button id="importFavsBtn" class="fc-btn"><i class="fas fa-upload"></i> Импорт</button>
       </div>
     </div>
   `;
@@ -203,11 +224,16 @@ export async function initFavoritesControls() {
 
   // Add controls container if not present
   let controlsWrap = document.getElementById('favoritesControlsWrap');
-  if (!controlsWrap) {
+  const isFirstInit = !controlsWrap;
+  if (isFirstInit) {
     controlsWrap = document.createElement('div');
     controlsWrap.id = 'favoritesControlsWrap';
     controlsWrap.innerHTML = createControlsHTML();
     section.insertBefore(controlsWrap, document.getElementById('favoritesCryptoGrid'));
+  } else if (typeof window._refreshFavoritesControls === 'function') {
+    // Already fully initialized — just refresh data and re-render, do NOT re-run setup
+    await window._refreshFavoritesControls();
+    return;
   }
 
   const searchInput = document.getElementById('favoritesSearch');
@@ -231,7 +257,7 @@ export async function initFavoritesControls() {
   async function refreshData() {
     // Перезагружаем данные избранного с актуальными ценами
     allCoins = await fetchFavoritesCoins();
-    console.log('[FavoritesControls] Data refreshed:', allCoins.length, 'items');
+
   }
 
   async function applyFiltersAndRender() {
@@ -240,7 +266,6 @@ export async function initFavoritesControls() {
     const max = parseFloat(priceMax.value) || Infinity;
     const pct = percentFilter.value;
 
-    console.log('[FavoritesControls] Filtering with allCoins:', allCoins.length, 'items');
     
     filtered = allCoins.filter(c => {
       if (q) {
@@ -289,58 +314,27 @@ export async function initFavoritesControls() {
     filtered = allCoins.slice();
   }
 
-  // Add custom steppers for number inputs (priceMin/priceMax)
-  [priceMin, priceMax].forEach(input => {
+  // Step button handlers for price inputs
+  controlsWrap.querySelectorAll('.fc-step-up, .fc-step-down').forEach(btn => {
+    const targetId = btn.dataset.target;
+    const input = document.getElementById(targetId);
     if (!input) return;
-    // wrap input
-    const wrapper = document.createElement('span');
-    wrapper.className = 'number-stepper-wrapper';
-    input.parentNode.insertBefore(wrapper, input);
-    wrapper.appendChild(input);
-
-    const stepper = document.createElement('span');
-    stepper.className = 'number-stepper';
-    stepper.innerHTML = `
-      <button type="button" class="step-up" aria-label="Увеличить">\n        <svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z"></path></svg>\n      </button>\n      <button type="button" class="step-down" aria-label="Уменьшить">\n        <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"></path></svg>\n      </button>`;
-    wrapper.appendChild(stepper);
-
-    const up = stepper.querySelector('.step-up');
-    const down = stepper.querySelector('.step-down');
-
-    function step(delta){
-      const stepVal = parseFloat(input.step) || 1;
-      const min = (input.min !== '') ? Number(input.min) : -Infinity;
-      const max = (input.max !== '') ? Number(input.max) : Infinity;
+    const isUp = btn.classList.contains('fc-step-up');
+    function step() {
       let val = parseFloat(input.value) || 0;
-      val = Math.round((val + delta*stepVal) * 100000000) / 100000000;
-      if (val < min) val = min;
-      if (val > max) val = max;
+      val = isUp ? val + 1 : Math.max(0, val - 1);
       input.value = val;
       input.dispatchEvent(new Event('change', { bubbles: true }));
       applyFiltersAndRender();
     }
-
-    // handle clicks and long-press auto-repeat
-    let repeatTimer = null;
-    let repeatInterval = null;
-    function startRepeat(delta){
-      step(delta);
-      repeatTimer = setTimeout(()=>{
-        repeatInterval = setInterval(()=> step(delta), 120);
-      }, 400);
-    }
-    function stopRepeat(){ if (repeatTimer) { clearTimeout(repeatTimer); repeatTimer = null; } if (repeatInterval) { clearInterval(repeatInterval); repeatInterval = null; } }
-
-    up.addEventListener('mousedown', ()=> startRepeat(1));
-    up.addEventListener('mouseup', stopRepeat);
-    up.addEventListener('mouseleave', stopRepeat);
-    up.addEventListener('click', ()=> step(1));
-
-    down.addEventListener('mousedown', ()=> startRepeat(-1));
-    down.addEventListener('mouseup', stopRepeat);
-    down.addEventListener('mouseleave', stopRepeat);
-    down.addEventListener('click', ()=> step(-1));
-
+    let rTimer = null, rInterval = null;
+    function startRepeat() { step(); rTimer = setTimeout(() => { rInterval = setInterval(step, 120); }, 400); }
+    function stopRepeat() { clearTimeout(rTimer); clearInterval(rInterval); rTimer = null; rInterval = null; }
+    btn.addEventListener('mousedown', startRepeat);
+    btn.addEventListener('touchstart', (e) => { e.preventDefault(); startRepeat(); }, { passive: false });
+    btn.addEventListener('mouseup', stopRepeat);
+    btn.addEventListener('mouseleave', stopRepeat);
+    btn.addEventListener('touchend', stopRepeat);
   });
 
   // Enhance native selects into custom animated dropdowns for better UX
@@ -401,17 +395,24 @@ export async function initFavoritesControls() {
       allCoins = await fetchFavoritesCoins();
       applyFiltersAndRender();
     } catch (err) {
-      console.error('Import favorites failed', err);
+
       showNotification('Не удалось импортировать избранные', 'error');
     }
   });
 
   // Автоматическое обновление данных каждые 30 секунд
   let autoRefreshInterval = setInterval(async () => {
-    console.log('[FavoritesControls] Auto-refreshing data...');
+
     await refreshData();
     applyFiltersAndRender();
   }, 30000); // 30 seconds
+
+  // Expose a refresh function so subsequent calls to initFavoritesControls
+  // can just refresh data without re-running the whole DOM setup
+  window._refreshFavoritesControls = async () => {
+    await refreshData();
+    applyFiltersAndRender();
+  };
 
   // Очистка интервала при закрытии секции избранного
   // Добавим возможность остановить автообновление
@@ -427,7 +428,7 @@ export function cleanupFavoritesAutoRefresh() {
   if (window.favoritesAutoRefreshIntervals) {
     window.favoritesAutoRefreshIntervals.forEach(interval => clearInterval(interval));
     window.favoritesAutoRefreshIntervals = [];
-    console.log('[FavoritesControls] Auto-refresh intervals cleared');
+
   }
 }
 

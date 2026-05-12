@@ -2,7 +2,12 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
     <title>CryptoPortfolio - Ваш инвестиционный помощник</title>
     <link rel="stylesheet" href="styles/styles_new.css">
     <link rel="stylesheet" href="styles/news-styles.css">
@@ -12,6 +17,12 @@
     <link rel="stylesheet" href="styles/favorites-controls.css">
     <link rel="stylesheet" href="styles/filters-styles.css">
     <link rel="stylesheet" href="styles/notifications-styles.css">
+    <!-- Исправление карточек криптовалют в разделе Рынок -->
+    <link rel="stylesheet" href="styles/market-crypto-fix.css?v=20260421">
+    <!-- Исправления для аналитики на мобильных -->вфц
+    <link rel="stylesheet" href="styles/mobile-analytics-fix.css?v=20260421">
+    <!-- Мобильная адаптивность - ДОЛЖНА БЫТЬ ПОСЛЕДНЕЙ для максимального приоритета -->
+    <link rel="stylesheet" href="styles/mobile-responsive.css?v=20260508">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <!-- Bootstrap Icons для надежной отрисовки иконок -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
@@ -27,26 +38,61 @@
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
-    <!-- Cache Manager для оптимизации API запросов -->
-    <!-- <script src="api/cache-manager.js"></script> -->
-    
         <!-- Optional utilities for request coordination and caching -->
         <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
+        
+        <!-- Mobile Performance Optimizations -->
+        <script src="ui/mobile-performance.js"></script>
+        
+        <!-- Mobile Charts & Modals Fix -->
+        <script src="ui/mobile-charts-fix.js?v=20260506"></script>
         
         <!-- Google Translate for automatic translation -->
         <script src="ui/google-translate.js"></script>
         <style>
-            /* Hide Google Translate widget UI */
+            /* АГРЕССИВНОЕ СКРЫТИЕ GOOGLE TRANSLATE UI */
             .goog-te-banner-frame,
-            .skiptranslate,
+            .goog-te-banner-frame.skiptranslate,
             #goog-gt-tt,
             .goog-te-balloon-frame,
             .VIpgJd-ZVi9od-ORHb-OEVmcd,
             .VIpgJd-ZVi9od-xl07Ob-lTBxed,
-            #google_translate_element {
+            #google_translate_element,
+            .goog-te-gadget,
+            .goog-te-gadget-simple,
+            .goog-te-gadget-icon,
+            .goog-logo-link,
+            .goog-te-gadget > span,
+            .goog-te-gadget > div,
+            body > .skiptranslate:not(iframe):not(select),
+            body > .skiptranslate iframe:not([src*="translate_a"]),
+            [class*="goog-te-"]:not(select):not(iframe[src*="translate_a"]),
+            [id*="goog-gt-"]:not(select):not(iframe[src*="translate_a"]),
+            div.skiptranslate:not(:has(select)):not(:has(iframe[src*="translate_a"])),
+            img[src*="translate.google.com"],
+            img[src*="cleardot.gif"],
+            img[src*="te_ctrl"] {
                 display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                position: absolute !important;
+                left: -10000px !important;
+                top: -10000px !important;
+                width: 0 !important;
+                height: 0 !important;
+                pointer-events: none !important;
+                z-index: -9999 !important;
+                overflow: hidden !important;
             }
-            body { top: 0 !important; }
+            body { 
+                top: 0 !important; 
+                position: relative !important;
+            }
+            /* Принудительно убираем верхний отступ от баннера */
+            body.translated-ltr,
+            body.translated-rtl {
+                margin-top: 0 !important;
+            }
         </style>
     </head>
 <body>
@@ -114,7 +160,7 @@
                         </svg>
                     </div>
                     <div class="logo-text">
-                        <span class="logo-title">CryptoPortfolio</span>
+                        <span class="logo-title" translate="no">CryptoPortfolio</span>
                         <span class="logo-tagline">Инвестируй с умом</span>
                     </div>
                 </div>
@@ -163,6 +209,10 @@
                 <a href="#favorites" class="nav-item" id="navFavorites">
                     <i class="fas fa-star"></i>
                     <span>Избранное</span>
+                </a>
+                <a href="../admin/" class="nav-item" id="navAdmin" style="display:none;">
+                    <i class="bi bi-shield-fill-check"></i>
+                    <span>Администрирование</span>
                 </a>
             </nav>
 
@@ -213,16 +263,30 @@
                 <section id="dashboardSection" class="section active">
                     <div class="welcome-card">
                         <div class="welcome-content">
-                            <h2>Добро пожаловать, <span id="userName">Инвестор</span>!</h2>
+                            <h2>Добро пожаловать, <span id="userName" class="notranslate" translate="no">Инвестор</span>!</h2>
                             <p class="subtitle">Ваш портфель сегодня</p>
                             <div class="total-balance">
                                 <span class="balance-label">Общая стоимость</span>
-                                <span class="balance-value" id="totalValue">$0.00</span>
-                                <span class="balance-change" id="totalChange">+0.00%</span>
+                                <span class="balance-value notranslate" id="totalValue" translate="no">$0.00</span>
+                                <span class="balance-change notranslate" id="totalChange" translate="no">+0.00%</span>
                             </div>
                         </div>
                         <div class="welcome-chart">
-                            <div id="miniChart" style="width: 100%; height: 80px;"></div>
+                            <div class="mini-chart-header">
+                                <span class="mini-chart-label">История портфеля</span>
+                                <span class="mini-chart-badge notranslate" id="miniChartBadge" translate="no">0%</span>
+                            </div>
+                            <div id="miniChart" class="notranslate" translate="no"></div>
+                            <div class="mini-chart-footer">
+                                <span class="mini-chart-stat mini-start">
+                                    <i class="fas fa-flag"></i>
+                                    <span id="miniLow" class="notranslate" translate="no">—</span>
+                                </span>
+                                <span class="mini-chart-stat mini-current">
+                                    <i class="fas fa-dot-circle"></i>
+                                    <span id="miniHigh" class="notranslate" translate="no">—</span>
+                                </span>
+                            </div>
                         </div>
                     </div>
 
@@ -231,14 +295,14 @@
                             <div class="stat-icon"><i class="bi bi-briefcase-fill"></i></div>
                             <div class="stat-info">
                                 <div class="stat-label">Портфели</div>
-                                <div class="stat-value" id="portfolioCount">0</div>
+                                <div class="stat-value notranslate" id="portfolioCount" translate="no">0</div>
                             </div>
                         </div>
                         <div class="stat-card green">
                             <div class="stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
                             <div class="stat-info">
                                 <div class="stat-label">Доходность</div>
-                                <div class="stat-value" id="totalReturn">+0%</div>
+                                <div class="stat-value notranslate" id="totalReturn" translate="no">+0%</div>
                             </div>
                             <canvas id="returnSparkline" width="80" height="30" style="position: absolute; bottom: 8px; right: 8px; opacity: 0.6;"></canvas>
                         </div>
@@ -246,14 +310,14 @@
                             <div class="stat-icon"><i class="bi bi-cash-coin"></i></div>
                             <div class="stat-info">
                                 <div class="stat-label">Крипто активы</div>
-                                <div class="stat-value" id="cryptoCount">0</div>
+                                <div class="stat-value notranslate" id="cryptoCount" translate="no">0</div>
                             </div>
                         </div>
                         <div class="stat-card orange">
                             <div class="stat-icon"><i class="bi bi-bar-chart-line-fill"></i></div>
                             <div class="stat-info">
                                 <div class="stat-label">Акции</div>
-                                <div class="stat-value" id="stocksCount">0</div>
+                                <div class="stat-value notranslate" id="stocksCount" translate="no">0</div>
                             </div>
                         </div>
                     </div>
@@ -288,7 +352,7 @@
                         <div class="dashboard-widget" id="fearGreedWidget">
                             <div class="widget-header">
                                 <i class="fas fa-heart-pulse"></i>
-                                <h3>Fear & Greed Index</h3>
+                                <h3 translate="no">Fear &amp; Greed Index</h3>
                             </div>
                             <div class="widget-body">
                                 <div class="loader-small"></div>
@@ -513,11 +577,13 @@
                     </div>
                     <div class="portfolios-grid" id="portfoliosGrid">
                         <div class="empty-state">
-                            <i class="fas fa-briefcase"></i>
+                            <div class="empty-icon-wrap">
+                                <i class="bi bi-briefcase-fill"></i>
+                            </div>
                             <h3>Нет портфелей</h3>
                             <p>Создайте свой первый портфель для отслеживания инвестиций</p>
                             <button class="btn btn-primary" onclick="document.getElementById('createPortfolioBtn').click()">
-                                <i class="fas fa-plus"></i> Создать портфель
+                                <i class="bi bi-plus-lg"></i> Создать портфель
                             </button>
                         </div>
                     </div>
@@ -543,6 +609,9 @@
                         <div class="card">
                             <div class="card-body">
                                 <div class="market-table-container">
+                                    <!-- Контейнер для карточек на мобильных -->
+                                    <div class="stocks-cards-container" style="display: none;"></div>
+                                    <!-- Таблица для десктопа -->
                                     <table class="market-table">
                                         <thead>
                                             <tr>
@@ -660,9 +729,9 @@
                     <div class="filter-bar">
                         <div class="filter-controls">
                             <div class="filter-group">
-                                <label for="filterPortfolio"><i class="fas fa-briefcase"></i> Портфель</label>
+                                <span id="lbl-filter-portfolio"><i class="fas fa-briefcase"></i> Портфель</span>
                                 <div class="custom-select-wrapper">
-                                    <div class="custom-select filter-select" id="filterPortfolioDisplay" tabindex="0">
+                                    <div class="custom-select filter-select" id="filterPortfolioDisplay" tabindex="0" role="combobox" aria-labelledby="lbl-filter-portfolio" aria-haspopup="listbox" aria-expanded="false">
                                         <span class="custom-select-value">Все портфели</span>
                                         <i class="fas fa-chevron-down custom-select-arrow"></i>
                                     </div>
@@ -677,9 +746,9 @@
                             </div>
 
                             <div class="filter-group">
-                                <label for="filterType"><i class="fas fa-exchange-alt"></i> Тип операции</label>
+                                <span id="lbl-filter-type"><i class="fas fa-exchange-alt"></i> Тип операции</span>
                                 <div class="custom-select-wrapper">
-                                    <div class="custom-select filter-select" id="filterTypeDisplay" tabindex="0">
+                                    <div class="custom-select filter-select" id="filterTypeDisplay" tabindex="0" role="combobox" aria-labelledby="lbl-filter-type" aria-haspopup="listbox" aria-expanded="false">
                                         <span class="custom-select-value">Все типы</span>
                                         <i class="fas fa-chevron-down custom-select-arrow"></i>
                                     </div>
@@ -701,9 +770,9 @@
                             </div>
 
                             <div class="filter-group">
-                                <label for="filterPeriod"><i class="fas fa-calendar"></i> Период</label>
+                                <span id="lbl-filter-period"><i class="fas fa-calendar"></i> Период</span>
                                 <div class="custom-select-wrapper">
-                                    <div class="custom-select filter-select" id="filterPeriodDisplay" tabindex="0">
+                                    <div class="custom-select filter-select" id="filterPeriodDisplay" tabindex="0" role="combobox" aria-labelledby="lbl-filter-period" aria-haspopup="listbox" aria-expanded="false">
                                         <span class="custom-select-value">Всё время</span>
                                         <i class="fas fa-chevron-down custom-select-arrow"></i>
                                     </div>
@@ -881,14 +950,14 @@
                             <div class="stat-icon"><i class="fas fa-coins"></i></div>
                             <div class="stat-info">
                                 <div class="stat-label">Общая стоимость</div>
-                                <div class="stat-value" id="analyticsTotalValue">$0</div>
+                                <div class="stat-value notranslate" id="analyticsTotalValue" translate="no">$0</div>
                             </div>
                         </div>
                         <div class="stat-card green">
                             <div class="stat-icon"><i class="fas fa-arrow-trend-up"></i></div>
                             <div class="stat-info">
                                 <div class="stat-label">Прибыль/Убыток</div>
-                                <div class="stat-value" id="analyticsPnL">$0</div>
+                                <div class="stat-value notranslate" id="analyticsPnL" translate="no">$0</div>
                             </div>
                         </div>
                         <div class="stat-card purple">
@@ -958,6 +1027,7 @@
                         <div class="card">
                             <div class="card-header">
                                 <h3>Распределение по типам</h3>
+                                <button class="chart-expand-btn" title="Развернуть"><i class="fas fa-expand-alt"></i></button>
                             </div>
                             <div class="card-body">
                                 <canvas id="assetTypeChart"></canvas>
@@ -967,6 +1037,7 @@
                         <div class="card">
                             <div class="card-header">
                                 <h3>Топ активов</h3>
+                                <button class="chart-expand-btn" title="Развернуть"><i class="fas fa-expand-alt"></i></button>
                             </div>
                             <div class="card-body">
                                 <canvas id="topAssetsChart"></canvas>
@@ -976,6 +1047,13 @@
                         <div class="card">
                             <div class="card-header">
                                 <h3>Доходность по месяцам</h3>
+                                <div class="chart-period-tabs" data-chart="pnl">
+                                    <button class="period-btn active" data-period="all">Всё</button>
+                                    <button class="period-btn" data-period="1y">1Г</button>
+                                    <button class="period-btn" data-period="6m">6М</button>
+                                    <button class="period-btn" data-period="3m">3М</button>
+                                </div>
+                                <button class="chart-expand-btn" title="Развернуть"><i class="fas fa-expand-alt"></i></button>
                             </div>
                             <div class="card-body">
                                 <canvas id="monthlyReturnsChart"></canvas>
@@ -985,6 +1063,13 @@
                         <div class="card">
                             <div class="card-header">
                                 <h3>Риск-профиль</h3>
+                                <div class="chart-period-tabs" data-chart="risk">
+                                    <button class="period-btn active" data-period="all">Всё</button>
+                                    <button class="period-btn" data-period="1y">1Г</button>
+                                    <button class="period-btn" data-period="6m">6М</button>
+                                    <button class="period-btn" data-period="3m">3М</button>
+                                </div>
+                                <button class="chart-expand-btn" title="Развернуть"><i class="fas fa-expand-alt"></i></button>
                             </div>
                             <div class="card-body">
                                 <canvas id="riskProfileChart"></canvas>
@@ -994,6 +1079,14 @@
                         <div class="card">
                             <div class="card-header">
                                 <h3>Волатильность активов</h3>
+                                <div class="chart-period-tabs" data-chart="volatility">
+                                    <button class="period-btn active" data-period="all">Всё</button>
+                                    <button class="period-btn" data-period="1y">1Г</button>
+                                    <button class="period-btn" data-period="6m">6М</button>
+                                    <button class="period-btn" data-period="3m">3М</button>
+                                    <button class="period-btn" data-period="1m">1М</button>
+                                </div>
+                                <button class="chart-expand-btn" title="Развернуть"><i class="fas fa-expand-alt"></i></button>
                             </div>
                             <div class="card-body">
                                 <canvas id="volatilityChart"></canvas>
@@ -1096,9 +1189,9 @@
                             Диапазон цен:
                         </span>
                         <div class="price-inputs-group">
-                            <input type="number" id="cryptoPriceMin" class="filter-input" placeholder="Мин" />
+                            <input type="number" id="cryptoPriceMin" class="filter-input notranslate" placeholder="Мин" translate="no" />
                             <span class="price-separator">—</span>
-                            <input type="number" id="cryptoPriceMax" class="filter-input" placeholder="Макс" />
+                            <input type="number" id="cryptoPriceMax" class="filter-input notranslate" placeholder="Макс" translate="no" />
                         </div>
                         <button id="cryptoResetFilters" class="btn-reset-filters">
                             <i class="fas fa-redo"></i>
@@ -1106,7 +1199,7 @@
                         </button>
                     </div>
 
-                    <div class="crypto-grid" id="mainCryptoGrid">
+                    <div class="crypto-grid notranslate" id="mainCryptoGrid" translate="no">
                         <div class="loading-row">
                             <div class="loader-small"></div>
                             Загрузка криптовалют...
@@ -1247,9 +1340,9 @@
                             Диапазон цен:
                         </span>
                         <div class="price-inputs-group">
-                            <input type="number" id="stocksPriceMin" class="filter-input" placeholder="Мин" />
+                            <input type="number" id="stocksPriceMin" class="filter-input notranslate" placeholder="Мин" translate="no" />
                             <span class="price-separator">—</span>
-                            <input type="number" id="stocksPriceMax" class="filter-input" placeholder="Макс" />
+                            <input type="number" id="stocksPriceMax" class="filter-input notranslate" placeholder="Макс" translate="no" />
                         </div>
                         <button id="stocksResetFilters" class="btn-reset-filters">
                             <i class="fas fa-redo"></i>
@@ -1257,7 +1350,7 @@
                         </button>
                     </div>
 
-                    <div class="crypto-grid" id="mainStocksGrid">
+                    <div class="crypto-grid notranslate" id="mainStocksGrid" translate="no">
                         <div class="loading-row">
                             <div class="loader-small"></div>
                             Загрузка акций...
@@ -1290,8 +1383,8 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group" style="position:relative;">
-                        <label for="portfolioCurrencyDisplay">Валюта</label>
-                        <div id="portfolioCurrencyDisplay" class="tools-crypto-display" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false">
+                        <span id="lbl-portfolio-currency">Валюта</span>
+                        <div id="portfolioCurrencyDisplay" class="tools-crypto-display" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="lbl-portfolio-currency">
                             <div class="tools-crypto-name">USD - Доллар США</div>
                             <div class="tools-crypto-arrow"><i class="bi bi-chevron-down"></i></div>
                         </div>
@@ -1309,8 +1402,8 @@
                         </div>
                     </div>
                     <div class="form-group" style="position:relative;">
-                        <label for="portfolioRiskDisplay">Уровень риска</label>
-                        <div id="portfolioRiskDisplay" class="tools-crypto-display" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false">
+                        <span id="lbl-portfolio-risk">Уровень риска</span>
+                        <div id="portfolioRiskDisplay" class="tools-crypto-display" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="lbl-portfolio-risk">
                             <div class="tools-crypto-name">Средний</div>
                             <div class="tools-crypto-arrow"><i class="bi bi-chevron-down"></i></div>
                         </div>
@@ -1342,7 +1435,7 @@
             <form id="transactionForm" class="modal-body-news">
                 <div class="form-row">
                     <div class="form-group" style="position:relative;">
-                        <label>Тип операции</label>
+                        <label for="transactionType">Тип операции</label>
                         <!-- visible portfolio-style display (keeps design parity) -->
                         <div id="transactionTypeDisplay" class="tools-crypto-display" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false">
                             <div class="tools-crypto-name">Покупка</div>
@@ -1364,7 +1457,7 @@
                     </div>
 
                     <div class="form-group" style="position:relative;">
-                        <label>Портфель</label>
+                        <label for="transactionPortfolio">Портфель</label>
                         <div id="transactionPortfolioDisplay" class="tools-crypto-display" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false">
                             <div class="tools-crypto-name">Выберите портфель</div>
                             <div class="tools-crypto-arrow"><i class="bi bi-chevron-down"></i></div>
@@ -1383,7 +1476,7 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Выберите криптовалюту или акцию</label>
+                    <label for="cryptoSearchInput">Выберите криптовалюту или акцию</label>
                     <div class="crypto-select-wrapper">
                         <div class="crypto-search crypto-search-wrapper">
                             <i class="fas fa-search search-icon"></i>
@@ -1400,18 +1493,18 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Количество</label>
-                        <input type="number" id="transactionQuantity" step="0.00000001" required placeholder="0.00">
+                        <label for="transactionQuantity">Количество</label>
+                        <input type="number" id="transactionQuantity" name="transactionQuantity" step="0.00000001" required placeholder="0.00">
                     </div>
                     <div class="form-group">
-                        <label>Цена за единицу <span class="auto-badge">Авто</span></label>
-                        <input type="number" id="transactionPrice" step="0.01" required readonly>
+                        <label for="transactionPrice">Цена за единицу <span class="auto-badge">Авто</span></label>
+                        <input type="number" id="transactionPrice" name="transactionPrice" step="0.01" required readonly>
                         <small class="form-hint">Цена загружается автоматически</small>
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Дата операции</label>
-                    <input type="datetime-local" id="transactionDate" required>
+                    <label for="transactionDate">Дата операции</label>
+                    <input type="datetime-local" id="transactionDate" name="transactionDate" required>
                 </div>
                 <div class="transaction-total">
                     <span>Итого:</span>
@@ -1718,7 +1811,7 @@
 
     <!-- Crypto Detail Modal - Enhanced -->
     <div class="modal crypto-detail-modal" id="cryptoDetailModal">
-        <div class="modal-content modal-xlarge">
+        <div class="modal-content modal-xlarge notranslate" translate="no">
             <div class="modal-header">
                 <div class="crypto-detail-header">
                     <div class="crypto-detail-icon" id="cryptoDetailIcon">
@@ -1837,6 +1930,7 @@
 
                 <!-- Enhanced Chart Controls -->
                 <div class="chart-controls-wrapper">
+                    <!-- Ряд 1: вкладки типов графика + Compare + доп. кнопки -->
                     <div class="chart-tabs">
                         <button class="chart-tab active" data-chart="price" onclick="switchChartType('price')">
                             <i class="fas fa-chart-line"></i> Price
@@ -1847,9 +1941,9 @@
                         <button class="chart-tab" data-chart="indicators" onclick="switchChartType('indicators')">
                             <i class="fas fa-chart-area"></i> Indicators
                         </button>
-                    <button class="chart-tab" data-chart="tech-table" onclick="switchChartType('tech-table')">
-                        <i class="fas fa-table"></i> Тех. индикаторы
-                    </button>
+                        <button class="chart-tab" data-chart="tech-table" onclick="switchChartType('tech-table')">
+                            <i class="fas fa-table"></i> Тех. индикаторы
+                        </button>
                         <!-- Compare Dropdown -->
                         <div class="chart-compare-dropdown" id="chartCompareDropdown">
                             <button class="compare-btn" id="compareBtn" onclick="toggleCompareDropdown()">
@@ -1864,18 +1958,6 @@
                                     <!-- Will be populated dynamically -->
                                 </div>
                             </div>
-                        </div>
-                        <div class="chart-divider"></div>
-                        
-                        <div class="chart-period-selector">
-                            <button class="period-btn" data-period="15m" onclick="changeCryptoChartPeriod('15m')">15m</button>
-                            <button class="period-btn" data-period="1h" onclick="changeCryptoChartPeriod('1h')">1h</button>
-                            <button class="period-btn" data-period="4h" onclick="changeCryptoChartPeriod('4h')">4h</button>
-                            <button class="period-btn" data-period="1d" onclick="changeCryptoChartPeriod('1d')">24h</button>
-                            <button class="period-btn active" data-period="1w" onclick="changeCryptoChartPeriod('1w')">1W</button>
-                            <button class="period-btn" data-period="1M" onclick="changeCryptoChartPeriod('1M')">1M</button>
-                            <button class="period-btn" data-period="1Y" onclick="changeCryptoChartPeriod('1Y')">1Y</button>
-                            <button class="period-btn" data-period="all" onclick="changeCryptoChartPeriod('all')">All</button>
                         </div>
                         <div class="chart-divider"></div>
                         <button class="chart-scale-btn" id="chartScaleBtn" onclick="toggleChartScale()" title="Логарифмическая шкала">
@@ -1899,6 +1981,17 @@
                                 </button>
                             </div>
                         </div>
+                    </div>
+                    <!-- Ряд 2: кнопки периодов (прямой дочерний элемент wrapper для корректного 2-рядного layout) -->
+                    <div class="chart-period-selector">
+                        <button class="period-btn" data-period="15m" onclick="changeCryptoChartPeriod('15m')">15m</button>
+                        <button class="period-btn" data-period="1h" onclick="changeCryptoChartPeriod('1h')">1h</button>
+                        <button class="period-btn" data-period="4h" onclick="changeCryptoChartPeriod('4h')">4h</button>
+                        <button class="period-btn" data-period="1d" onclick="changeCryptoChartPeriod('1d')">24h</button>
+                        <button class="period-btn active" data-period="1w" onclick="changeCryptoChartPeriod('1w')">1W</button>
+                        <button class="period-btn" data-period="1M" onclick="changeCryptoChartPeriod('1M')">1M</button>
+                        <button class="period-btn" data-period="1Y" onclick="changeCryptoChartPeriod('1Y')">1Y</button>
+                        <button class="period-btn" data-period="all" onclick="changeCryptoChartPeriod('all')">All</button>
                     </div>
                 </div>
 
@@ -1944,7 +2037,71 @@
                             <span class="ohlc-value" id="ohlcChange">0%</span>
                         </div>
                     </div>
-                    <div id="cryptoDetailPriceChart" style="width: 100%; height: 100%;"></div>
+                    <div class="chart-area-wrapper" id="chartAreaWrapper">
+                        <!-- Панель разметки (рисование на графике) -->
+                        <div class="chart-drawing-toolbar" id="cryptoDrawingToolbar">
+                          <!-- Курсор -->
+                          <button class="cdt-btn active" data-tool="cursor" title="Курсор">
+                            <svg viewBox="0 0 20 20"><path d="M5 2l12 8-6 1-3 6z"/></svg>
+                          </button>
+                          <div class="cdt-sep"></div>
+                          <!-- Линии -->
+                          <button class="cdt-btn" data-tool="hline" title="Горизонтальная линия">
+                            <svg viewBox="0 0 20 20"><line x1="2" y1="10" x2="18" y2="10"/><line x1="2" y1="7" x2="2" y2="13"/><line x1="18" y1="7" x2="18" y2="13"/></svg>
+                          </button>
+                          <button class="cdt-btn" data-tool="trendline" title="Линия тренда">
+                            <svg viewBox="0 0 20 20"><line x1="3" y1="15" x2="17" y2="5"/><circle cx="3" cy="15" r="1.5" fill="currentColor"/><circle cx="17" cy="5" r="1.5" fill="currentColor"/></svg>
+                          </button>
+                          <button class="cdt-btn" data-tool="ray" title="Луч">
+                            <svg viewBox="0 0 20 20"><line x1="3" y1="14" x2="16" y2="7"/><circle cx="3" cy="14" r="1.5" fill="currentColor"/><polyline points="13,5 17,7 13,9"/></svg>
+                          </button>
+                          <button class="cdt-btn" data-tool="extended" title="Расширенная линия">
+                            <svg viewBox="0 0 20 20"><line x1="1" y1="10" x2="19" y2="10"/><polyline points="4,7 1,10 4,13"/><polyline points="16,7 19,10 16,13"/></svg>
+                          </button>
+                          <div class="cdt-sep"></div>
+                          <!-- Фигуры -->
+                          <button class="cdt-btn" data-tool="rect" title="Прямоугольник">
+                            <svg viewBox="0 0 20 20"><rect x="3" y="5" width="14" height="10" rx="1"/></svg>
+                          </button>
+                          <button class="cdt-btn cdt-fib" data-tool="fib" title="Fibonacci Retracement">
+                            <span>Fib</span>
+                          </button>
+                          <div class="cdt-sep"></div>
+                          <!-- Аннотации -->
+                          <button class="cdt-btn cdt-text" data-tool="text" title="Текстовая аннотация">
+                            <span>T</span>
+                          </button>
+                          <div class="cdt-sep"></div>
+                          <!-- Действия -->
+                          <button class="cdt-btn" data-tool="eraser" title="Ластик (клик по объекту)">
+                            <svg viewBox="0 0 20 20"><path d="M16 3L8 3 3 8l5 9 9-5z"/><line x1="11" y1="6" x2="17" y2="12"/></svg>
+                          </button>
+                          <button class="cdt-btn cdt-action" data-action="undo" title="Отменить (Ctrl+Z)">
+                            <svg viewBox="0 0 20 20"><path d="M4 8H12a4 4 0 0 1 0 8H8"/><polyline points="4,4 4,8 8,8"/></svg>
+                          </button>
+                          <button class="cdt-btn cdt-action cdt-danger" data-action="clear" title="Очистить всё">
+                            <svg viewBox="0 0 20 20"><polyline points="3,6 5,6 17,6"/><path d="M8 6V4h4v2"/><path d="M6 6l1 11h6l1-11"/><line x1="8" y1="10" x2="8" y2="15"/><line x1="12" y1="10" x2="12" y2="15"/></svg>
+                          </button>
+                          <div class="cdt-sep"></div>
+                          <!-- Цвета -->
+                          <div class="cdt-colors">
+                            <button class="cdt-color active" data-color="#3b82f6" style="background:#3b82f6" title="Синий"></button>
+                            <button class="cdt-color" data-color="#ef4444" style="background:#ef4444" title="Красный"></button>
+                            <button class="cdt-color" data-color="#22c55e" style="background:#22c55e" title="Зелёный"></button>
+                            <button class="cdt-color" data-color="#f59e0b" style="background:#f59e0b" title="Жёлтый"></button>
+                            <button class="cdt-color" data-color="#a855f7" style="background:#a855f7" title="Фиолетовый"></button>
+                            <button class="cdt-color" data-color="#ffffff" style="background:#fff" title="Белый"></button>
+                          </div>
+                          <div class="cdt-sep"></div>
+                          <!-- Толщина линии -->
+                          <div class="cdt-widths">
+                            <button class="cdt-width active" data-width="1.5" title="Тонкая"><span class="cdt-w cdt-w1"></span></button>
+                            <button class="cdt-width" data-width="2.5" title="Средняя"><span class="cdt-w cdt-w2"></span></button>
+                            <button class="cdt-width" data-width="4"   title="Толстая"><span class="cdt-w cdt-w3"></span></button>
+                          </div>
+                        </div>
+                        <div id="cryptoDetailPriceChart"></div>
+                    </div>
                 </div>
 
                 <!-- Additional Stats -->
@@ -1996,7 +2153,7 @@
     
     <!-- Stock Detail Modal -->
     <div class="modal crypto-detail-modal" id="stockDetailModal">
-        <div class="modal-content modal-large">
+        <div class="modal-content modal-xlarge notranslate" translate="no">
             <div class="modal-header">
                 <div class="crypto-detail-header">
                     <div class="crypto-detail-icon" id="stockDetailIcon">
@@ -2042,7 +2199,7 @@
                             </div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-icon">
+                            <div class="stat-icon circulation">
                                 <i class="ri-percent-line"></i>
                             </div>
                             <div class="stat-content">
@@ -2051,7 +2208,7 @@
                             </div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-icon">
+                            <div class="stat-icon volume">
                                 <i class="ri-bar-chart-line"></i>
                             </div>
                             <div class="stat-content">
@@ -2060,7 +2217,7 @@
                             </div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-icon">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;box-shadow:0 4px 15px rgba(16,185,129,0.4)">
                                 <i class="ri-arrow-up-line"></i>
                             </div>
                             <div class="stat-content">
@@ -2069,7 +2226,7 @@
                             </div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-icon">
+                            <div class="stat-icon" style="background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;box-shadow:0 4px 15px rgba(239,68,68,0.4)">
                                 <i class="ri-arrow-down-line"></i>
                             </div>
                             <div class="stat-content">
@@ -2078,7 +2235,7 @@
                             </div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-icon">
+                            <div class="stat-icon dilution">
                                 <i class="ri-money-dollar-circle-line"></i>
                             </div>
                             <div class="stat-content">
@@ -2139,10 +2296,65 @@
                     </div>
                     
                     <!-- Lightweight Charts контейнер вместо canvas -->
-                    <div style="position: relative; width: 100%; height: 500px;">
+                    <div id="stockPriceChartWrapper">
+                        <!-- Панель разметки для графика акций -->
+                        <div class="chart-drawing-toolbar" id="stockDrawingToolbar">
+                          <button class="cdt-btn active" data-tool="cursor" title="Курсор">
+                            <svg viewBox="0 0 20 20"><path d="M5 2l12 8-6 1-3 6z"/></svg>
+                          </button>
+                          <div class="cdt-sep"></div>
+                          <button class="cdt-btn" data-tool="hline" title="Горизонтальная линия">
+                            <svg viewBox="0 0 20 20"><line x1="2" y1="10" x2="18" y2="10"/><line x1="2" y1="7" x2="2" y2="13"/><line x1="18" y1="7" x2="18" y2="13"/></svg>
+                          </button>
+                          <button class="cdt-btn" data-tool="trendline" title="Линия тренда">
+                            <svg viewBox="0 0 20 20"><line x1="3" y1="15" x2="17" y2="5"/><circle cx="3" cy="15" r="1.5" fill="currentColor"/><circle cx="17" cy="5" r="1.5" fill="currentColor"/></svg>
+                          </button>
+                          <button class="cdt-btn" data-tool="ray" title="Луч">
+                            <svg viewBox="0 0 20 20"><line x1="3" y1="14" x2="16" y2="7"/><circle cx="3" cy="14" r="1.5" fill="currentColor"/><polyline points="13,5 17,7 13,9"/></svg>
+                          </button>
+                          <button class="cdt-btn" data-tool="extended" title="Расширенная линия">
+                            <svg viewBox="0 0 20 20"><line x1="1" y1="10" x2="19" y2="10"/><polyline points="4,7 1,10 4,13"/><polyline points="16,7 19,10 16,13"/></svg>
+                          </button>
+                          <div class="cdt-sep"></div>
+                          <button class="cdt-btn" data-tool="rect" title="Прямоугольник">
+                            <svg viewBox="0 0 20 20"><rect x="3" y="5" width="14" height="10" rx="1"/></svg>
+                          </button>
+                          <button class="cdt-btn cdt-fib" data-tool="fib" title="Fibonacci Retracement">
+                            <span>Fib</span>
+                          </button>
+                          <div class="cdt-sep"></div>
+                          <button class="cdt-btn cdt-text" data-tool="text" title="Текстовая аннотация">
+                            <span>T</span>
+                          </button>
+                          <div class="cdt-sep"></div>
+                          <button class="cdt-btn" data-tool="eraser" title="Ластик">
+                            <svg viewBox="0 0 20 20"><path d="M16 3L8 3 3 8l5 9 9-5z"/><line x1="11" y1="6" x2="17" y2="12"/></svg>
+                          </button>
+                          <button class="cdt-btn cdt-action" data-action="undo" title="Отменить (Ctrl+Z)">
+                            <svg viewBox="0 0 20 20"><path d="M4 8H12a4 4 0 0 1 0 8H8"/><polyline points="4,4 4,8 8,8"/></svg>
+                          </button>
+                          <button class="cdt-btn cdt-action cdt-danger" data-action="clear" title="Очистить всё">
+                            <svg viewBox="0 0 20 20"><polyline points="3,6 5,6 17,6"/><path d="M8 6V4h4v2"/><path d="M6 6l1 11h6l1-11"/><line x1="8" y1="10" x2="8" y2="15"/><line x1="12" y1="10" x2="12" y2="15"/></svg>
+                          </button>
+                          <div class="cdt-sep"></div>
+                          <div class="cdt-colors">
+                            <button class="cdt-color active" data-color="#3b82f6" style="background:#3b82f6" title="Синий"></button>
+                            <button class="cdt-color" data-color="#ef4444" style="background:#ef4444" title="Красный"></button>
+                            <button class="cdt-color" data-color="#22c55e" style="background:#22c55e" title="Зелёный"></button>
+                            <button class="cdt-color" data-color="#f59e0b" style="background:#f59e0b" title="Жёлтый"></button>
+                            <button class="cdt-color" data-color="#a855f7" style="background:#a855f7" title="Фиолетовый"></button>
+                            <button class="cdt-color" data-color="#ffffff" style="background:#fff" title="Белый"></button>
+                          </div>
+                          <div class="cdt-sep"></div>
+                          <div class="cdt-widths">
+                            <button class="cdt-width active" data-width="1.5" title="Тонкая"><span class="cdt-w cdt-w1"></span></button>
+                            <button class="cdt-width" data-width="2.5" title="Средняя"><span class="cdt-w cdt-w2"></span></button>
+                            <button class="cdt-width" data-width="4"   title="Толстая"><span class="cdt-w cdt-w3"></span></button>
+                          </div>
+                        </div>
                         <!-- Chart Legend for Comparison - ВНУТРИ контейнера графика -->
-                        <div class="chart-legend" id="stockChartLegend" style="display: none; position: absolute; top: 10px; left: 10px; z-index: 10; background: rgba(26, 29, 40, 0.85); padding: 8px 12px; border-radius: 8px; backdrop-filter: blur(10px);">
-                            <div class="legend-item" id="stockLegend1" style="margin-bottom: 4px;">
+                        <div class="chart-legend" id="stockChartLegend" style="display: none;">
+                            <div class="legend-item" id="stockLegend1">
                                 <span class="legend-color" style="background: #3b82f6;"></span>
                                 <span class="legend-symbol">AAPL</span>
                                 <span class="legend-price">$175.43</span>
@@ -2158,7 +2370,7 @@
                                 </button>
                             </div>
                         </div>
-                        <div id="stockPriceChartContainer" style="width: 100%; height: 100%; position: relative;"></div>
+                        <div id="stockPriceChartContainer"></div>
                         <div id="stockPriceChartTooltip" class="chart-tooltip" style="position: absolute; display: none; pointer-events: none; z-index: 100;"></div>
                         <div id="stockPriceChartLoader" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; color: #3b82f6; font-size: 14px;">
                             <div class="spinner" style="width: 40px; height: 40px; border: 3px solid rgba(59, 130, 246, 0.3); border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 8px;"></div>
@@ -2170,23 +2382,24 @@
                 <!-- Volume Chart -->
                 <div class="chart-container">
                     <h4>Объём торгов</h4>
-                    <div style="position: relative; width: 100%; height: 250px;">
-                        <div id="stockVolumeChartContainer" style="width: 100%; height: 100%; position: relative;"></div>
+                    <div id="stockVolumeChartWrapper">
+                        <div id="stockVolumeChartContainer"></div>
                         <div id="stockVolumeChartLoader" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; color: #3b82f6; font-size: 14px;">
                             <div class="spinner" style="width: 30px; height: 30px; border: 3px solid rgba(59, 130, 246, 0.3); border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 8px;"></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Action Buttons -->
-                <div class="crypto-detail-actions" style="margin-top: 24px;">
-                    <button class="btn btn-primary btn-lg" onclick="addTransactionFromStock()">
-                        <i class="fas fa-plus"></i> Добавить в портфель
-                    </button>
-                    <button class="btn btn-secondary btn-lg" onclick="addStockToWatchlist()">
-                        <i class="fas fa-star"></i> В избранное
-                    </button>
-                </div>
+            </div>
+
+            <!-- Action Buttons — always visible at bottom, outside scroll area -->
+            <div class="crypto-detail-actions stock-actions-footer">
+                <button class="btn btn-primary btn-lg" onclick="addTransactionFromStock()">
+                    <i class="fas fa-plus"></i> Добавить в портфель
+                </button>
+                <button class="btn btn-secondary btn-lg" onclick="addStockToWatchlist()">
+                    <i class="fas fa-star"></i> В избранное
+                </button>
             </div>
         </div>
     </div>
@@ -2319,20 +2532,20 @@
                     <div class="settings-group">
                         <div class="setting-item">
                             <div class="setting-info">
-                                <label>Включить уведомления</label>
+                                <span class="setting-label">Включить уведомления</span>
                                 <p>Получать все типы уведомлений</p>
                             </div>
-                            <label class="toggle-switch">
+                            <label class="toggle-switch" for="settingEnabled">
                                 <input type="checkbox" id="settingEnabled" checked>
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <label>Push-уведомления</label>
+                                <span class="setting-label">Push-уведомления</span>
                                 <p>Показывать всплывающие уведомления</p>
                             </div>
-                            <label class="toggle-switch">
+                            <label class="toggle-switch" for="settingPushNotifications">
                                 <input type="checkbox" id="settingPushNotifications" checked>
                                 <span class="toggle-slider"></span>
                             </label>
@@ -2348,40 +2561,40 @@
                     <div class="settings-group">
                         <div class="setting-item">
                             <div class="setting-info">
-                                <label>Алерты цен</label>
+                                <span class="setting-label">Алерты цен</span>
                                 <p>Уведомления о достижении целевых цен</p>
                             </div>
-                            <label class="toggle-switch">
+                            <label class="toggle-switch" for="settingPriceAlerts">
                                 <input type="checkbox" id="settingPriceAlerts" checked>
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <label>Портфель</label>
+                                <span class="setting-label">Портфель</span>
                                 <p>Изменения в портфеле и балансе</p>
                             </div>
-                            <label class="toggle-switch">
+                            <label class="toggle-switch" for="settingPortfolioAlerts">
                                 <input type="checkbox" id="settingPortfolioAlerts" checked>
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <label>Новости</label>
+                                <span class="setting-label">Новости</span>
                                 <p>Важные новости по активам</p>
                             </div>
-                            <label class="toggle-switch">
+                            <label class="toggle-switch" for="settingNewsAlerts">
                                 <input type="checkbox" id="settingNewsAlerts" checked>
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <label>Рекомендации</label>
+                                <span class="setting-label">Рекомендации</span>
                                 <p>Советы по оптимизации портфеля</p>
                             </div>
-                            <label class="toggle-switch">
+                            <label class="toggle-switch" for="settingRecommendationAlerts">
                                 <input type="checkbox" id="settingRecommendationAlerts" checked>
                                 <span class="toggle-slider"></span>
                             </label>
@@ -2432,72 +2645,106 @@
         }, 100);
 
         // УПРАВЛЕНИЕ БОКОВОЙ ПАНЕЛЬЮ НА МОБИЛЬНЫХ УСТРОЙСТВАХ
-        document.addEventListener('DOMContentLoaded', function() {
-            const menuBtn = document.getElementById('menuBtn');
-            const closeSidebar = document.getElementById('closeSidebar');
-            const sidebar = document.getElementById('sidebar');
-            const app = document.getElementById('app');
+        // Скрипт в конце <body> — все элементы уже в DOM, DOMContentLoaded не нужен
+        (function initSidebar() {
+            const menuBtn    = document.getElementById('menuBtn');
+            const btnClose   = document.getElementById('closeSidebar');
+            const sidebar    = document.getElementById('sidebar');
+            const app        = document.getElementById('app');
 
-            // Открытие боковой панели
+            if (!sidebar) return; // защита на случай ошибки рендера
+
+            // --- helpers ---
+            function openSidebar() {
+                sidebar.classList.add('active');
+                if (!document.querySelector('.sidebar-overlay')) {
+                    const overlay = document.createElement('div');
+                    overlay.className = 'sidebar-overlay';
+                    // touch + click — нужны оба для iOS/Android
+                    overlay.addEventListener('touchstart', handleClose, { passive: true });
+                    overlay.addEventListener('click',      handleClose);
+                    app.appendChild(overlay);
+                }
+            }
+
+            function handleClose(e) {
+                e.stopPropagation();
+                closeSidebarPanel();
+            }
+
+            function closeSidebarPanel() {
+                sidebar.classList.remove('active');
+                const overlay = document.querySelector('.sidebar-overlay');
+                if (overlay) overlay.remove();
+            }
+
+            // --- открытие ---
             if (menuBtn) {
+                menuBtn.addEventListener('touchstart', function(e) {
+                    if (e.cancelable) e.preventDefault();   // убираем 300ms delay на iOS
+                    openSidebar();
+                }, { passive: false });
                 menuBtn.addEventListener('click', function(e) {
                     e.stopPropagation();
-                    sidebar.classList.add('active');
-                    // Добавляем overlay для закрытия при клике вне sidebar
-                    if (!document.querySelector('.sidebar-overlay')) {
-                        const overlay = document.createElement('div');
-                        overlay.className = 'sidebar-overlay';
-                        overlay.addEventListener('click', function() {
-                            sidebar.classList.remove('active');
-                            this.remove();
-                        });
-                        app.appendChild(overlay);
-                    }
+                    openSidebar();
                 });
             }
 
-            // Закрытие боковой панели
-            if (closeSidebar) {
-                closeSidebar.addEventListener('click', function() {
-                    sidebar.classList.remove('active');
-                    const overlay = document.querySelector('.sidebar-overlay');
-                    if (overlay) {
-                        overlay.remove();
-                    }
+            // --- закрытие кнопкой × ---
+            if (btnClose) {
+                btnClose.addEventListener('touchstart', function(e) {
+                    if (e.cancelable) e.preventDefault();
+                    closeSidebarPanel();
+                }, { passive: false });
+                btnClose.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    closeSidebarPanel();
                 });
             }
 
-            // Закрытие боковой панели при клике на пункт меню (на мобильных)
-            const navItems = document.querySelectorAll('.sidebar .nav-item');
-            navItems.forEach(item => {
+            // --- закрытие при клике на пункт меню (<= 1024px) ---
+            document.querySelectorAll('.sidebar .nav-item').forEach(function(item) {
                 item.addEventListener('click', function() {
-                    if (window.innerWidth <= 768) {
-                        sidebar.classList.remove('active');
-                        const overlay = document.querySelector('.sidebar-overlay');
-                        if (overlay) {
-                            overlay.remove();
-                        }
+                    if (window.innerWidth <= 1024) {
+                        closeSidebarPanel();
                     }
                 });
             });
-        });
+
+            // Экспортируем для других модулей (dashboard.js и пр.)
+            window.openSidebar  = openSidebar;
+            window.closeSidebar = closeSidebarPanel;
+        })();
     </script>
-    <!-- Crypto Config Manager - загружаем первым -->
+    
+    <!-- Инструменты разметки графиков (chart-drawing.js должен быть ДО модулей api.js/ui.js) -->
+    <script src="features/charts/chart-drawing.js"></script>
+
+    <!-- КРИТИЧНО: Crypto Config Manager - загружаем ПЕРВЫМ, до всех остальных -->
+    <script type="module" src="features/crypto/crypto-manager.js"></script>
+    
+    <!-- Остальные модули -->
     <script type="module" src="features/news/news-sentiment.js"></script>
     <script src="features/news/news-personalization.js"></script>
+    
+    <!-- КРИТИЧНО: script.js загружается ДО market-preload.js -->
     <script type="module" src="./core/script.js"></script>
     <script type="module" src="api/api.js"></script>
-    <script type="module" src="features/market/market-preload.js"></script>
+    
+    <!-- market-preload.js теперь НЕ должен перезаписывать функции -->
+    <!-- ВРЕМЕННО ОТКЛЮЧЕН для тестирования -->
+    <!-- <script type="module" src="features/market/market-preload.js"></script> -->
+    
     <script type="module" src="ui/ui.js"></script>
-    <script type="module" src="features/crypto/crypto-manager.js"></script>
     <!-- Load ui.js BEFORE script.js to override functions -->
     <script src="features/news/news-modal-vue.js"></script>
     <script src="features/charts/indicators.js"></script>
      <script type="module" src="./features/dashboard/dashboard.js"></script>
     <script type="module" src="./analytics/analytics-export.js"></script>
     <script type="module" src="./features/notifications/notifications.js"></script>
-    <script src="features/transactions/transaction-improvements.js"></script>
+    <!-- <script src="features/transactions/transaction-improvements.js"></script> -->
     <script type="module" src="features/transactions/transaction-filters.js"></script>
+    <script type="module" src="ui/init-improvements.js"></script>
     <script src="features/charts/chart-download.js"></script>
     <script src="features/crypto/crypto-modal-vue.js"></script>
     <script src="features/trading/trading-tools-new.js"></script>
@@ -2506,6 +2753,62 @@
         </script>
         <script src="features/charts/sparklineService.js"></script>
         <script src="features/crypto/indexCardComponent.js"></script>
+        
+        <!-- Инициализация improvements -->
+        <script type="module">
+            import { initImprovements } from './ui/init-improvements.js';
+            
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('=== DOM LOADED - Starting initialization ===');
+                console.log('Window.updateTransactionStats before init:', typeof window.updateTransactionStats);
+                
+                setTimeout(() => {
+                    console.log('Calling initImprovements...');
+                    initImprovements();
+                    
+                    console.log('Window.updateTransactionStats after init:', typeof window.updateTransactionStats);
+                    
+                    // Дополнительные вызовы с проверками
+                    setTimeout(() => {
+                        console.log('=== First delayed update (1s) ===');
+                        if (typeof window.updateTransactionStats === 'function') {
+                            window.updateTransactionStats();
+                        } else {
+                            console.error('updateTransactionStats NOT FOUND!');
+                        }
+                    }, 1000);
+                    
+                    setTimeout(() => {
+                        console.log('=== Second delayed update (2s) ===');
+                        if (typeof window.updateTransactionStats === 'function') {
+                            window.updateTransactionStats();
+                        }
+                    }, 2000);
+                }, 500);
+                
+                // Обработчик клика на вкладку "Транзакции"
+                const transactionsNavItem = document.querySelector('a[href="#transactions"]');
+                if (transactionsNavItem) {
+                    transactionsNavItem.addEventListener('click', () => {
+                        console.log('=== TRANSACTIONS TAB CLICKED ===');
+                        setTimeout(() => {
+                            console.log('Stats update 500ms after click');
+                            if (typeof window.updateTransactionStats === 'function') {
+                                window.updateTransactionStats();
+                            } else {
+                                console.error('updateTransactionStats NOT AVAILABLE');
+                            }
+                        }, 500);
+                        setTimeout(() => {
+                            console.log('Stats update 1000ms after click');
+                            if (typeof window.updateTransactionStats === 'function') {
+                                window.updateTransactionStats();
+                            }
+                        }, 1000);
+                    });
+                }
+            });
+        </script>
         
         <!-- Инициализация уведомлений -->
         <script type="module">
@@ -2579,9 +2882,48 @@
                 });
             });
         </script>
+        <script>
+            // Кнопки разворачивания графиков аналитики
+            document.addEventListener('click', function(e) {
+                const btn = e.target.closest('.chart-expand-btn');
+                if (!btn) return;
+                const card = btn.closest('.card');
+                const grid = card && card.closest('.charts-grid');
+                if (!card || !grid) return;
+
+                const isExpanded = card.classList.toggle('chart-expanded');
+                const icon = btn.querySelector('i');
+                if (icon) icon.className = isExpanded ? 'fas fa-compress-alt' : 'fas fa-expand-alt';
+                btn.title = isExpanded ? 'Свернуть' : 'Развернуть';
+
+                if (isExpanded) {
+                    // Запоминаем исходную позицию (следующий сосед)
+                    card._origNext = card.nextSibling;
+                    // Вставляем сразу после chart-card-large
+                    const largeCard = grid.querySelector('.chart-card-large');
+                    if (largeCard && largeCard.nextSibling !== card) {
+                        grid.insertBefore(card, largeCard.nextSibling);
+                    }
+                } else {
+                    // Возвращаем на исходное место
+                    if (card._origNext) {
+                        grid.insertBefore(card, card._origNext);
+                    } else {
+                        grid.appendChild(card);
+                    }
+                    card._origNext = null;
+                }
+
+                // Перерисовываем canvas после смены размера
+                const canvas = card.querySelector('canvas');
+                if (canvas && canvas.id && window.analyticsCharts && window.analyticsCharts[canvas.id]) {
+                    window.analyticsCharts[canvas.id].resize();
+                }
+            });
+        </script>
 </body>
     <script type="module">
-      // Обработка выбора валюты централизована в profile.js — там гарантируется, что курс загружается перед отправкой события currencyChanged
+      // Обработка выбора валюты централизована в profile.js
     </script>
 </html>
 

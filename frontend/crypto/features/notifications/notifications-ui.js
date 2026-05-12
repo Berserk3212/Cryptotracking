@@ -26,11 +26,11 @@ export function initNotificationsUI() {
   setupNotificationButtons();
   
   if (document.getElementById('notificationsList')) {
-    loadNotificationsUI().catch(err => console.error('Error loading notifications:', err));
+    loadNotificationsUI().catch(() => {});
   }
   
   if (document.getElementById('alertsList')) {
-    loadAlertsUI().catch(err => console.error('Error loading alerts:', err));
+    loadAlertsUI().catch(() => {});
   }
 }
 
@@ -185,7 +185,7 @@ async function handleSaveAlert() {
     await loadAlertsUI();
     
   } catch (error) {
-    console.error('Ошибка создания алерта:', error);
+
     showToast('Ошибка создания алерта', 'error');
   } finally {
     document.getElementById('saveAlertBtn').disabled = false;
@@ -211,7 +211,7 @@ export async function loadNotificationsUI() {
   const container = document.getElementById('notificationsList');
   
   if (!container) {
-    console.warn('Контейнер notificationsList не найден');
+
     return;
   }
   
@@ -231,11 +231,16 @@ export async function loadNotificationsUI() {
     
     container.innerHTML = notifications.map(notif => renderNotificationItem(notif)).join('');
     
+    // Принудительно задаём белый цвет заголовков (обходим любой конфликт CSS)
+    container.querySelectorAll('.notification-title').forEach(el => {
+      el.style.setProperty('color', '#ffffff', 'important');
+    });
+    
     // Добавляем обработчики
     setupNotificationHandlers(notifications);
     
   } catch (error) {
-    console.error('Ошибка загрузки уведомлений:', error);
+
     container.innerHTML = `
       <div class="notifications-empty">
         <i class="fas fa-exclamation-triangle"></i>
@@ -276,7 +281,7 @@ function renderNotificationItem(notification) {
       </div>
       <div class="notification-content">
         <div class="notification-header">
-          <div class="notification-title">${notification.title}</div>
+          <div class="notification-title" style="color:#ffffff;font-weight:600;">${notification.title}</div>
           <div class="notification-time">${timeAgo}</div>
         </div>
         <div class="notification-message">${notification.message}</div>
@@ -332,7 +337,7 @@ async function loadAlertsUI() {
   const container = document.getElementById('alertsList');
   
   if (!container) {
-    console.warn('Контейнер alertsList не найден');
+
     return;
   }
   
@@ -365,7 +370,7 @@ async function loadAlertsUI() {
     setupAlertHandlers();
     
   } catch (error) {
-    console.error('Ошибка загрузки алертов:', error);
+
     container.innerHTML = `
       <div class="alerts-empty">
         <i class="fas fa-exclamation-triangle"></i>
@@ -385,6 +390,8 @@ function renderAlertItem(alert) {
   const directionColor = alert.direction === 'above' ? '#10b981' : '#ef4444';
   const statusIcon = alert.is_active ? 'check-circle' : 'pause-circle';
   const statusColor = alert.is_active ? '#10b981' : '#64748b';
+  const _nSym  = (window.currency && window.currency.getCurrencySymbol) ? window.currency.getCurrencySymbol() : '$';
+  const _nConv = (window.currency && window.currency.convertToSelectedCurrency) ? window.currency.convertToSelectedCurrency : v => v;
   
   return `
     <div class="alert-item ${triggered}" data-id="${alert.id}">
@@ -409,7 +416,7 @@ function renderAlertItem(alert) {
       <div class="alert-details">
         <div class="alert-detail">
           <span class="alert-detail-label">Целевая цена</span>
-          <span class="alert-detail-value">$${parseFloat(alert.target_price).toFixed(2)}</span>
+          <span class="alert-detail-value">${_nSym}${_nConv(parseFloat(alert.target_price)).toFixed(2)}</span>
         </div>
         <div class="alert-detail">
           <span class="alert-detail-label">Условие</span>
@@ -420,7 +427,7 @@ function renderAlertItem(alert) {
         ${alert.current_price ? `
           <div class="alert-detail">
             <span class="alert-detail-label">Текущая цена</span>
-            <span class="alert-detail-value">$${parseFloat(alert.current_price).toFixed(2)}</span>
+            <span class="alert-detail-value">${_nSym}${_nConv(parseFloat(alert.current_price)).toFixed(2)}</span>
           </div>
         ` : ''}
       </div>
@@ -455,7 +462,7 @@ function setupAlertHandlers() {
         await loadAlertsUI();
         showToast(isActive ? 'Алерт приостановлен' : 'Алерт активирован', 'success');
       } catch (error) {
-        console.error('Ошибка обновления алерта:', error);
+
         showToast('Ошибка обновления алерта', 'error');
       }
     });
@@ -472,7 +479,7 @@ function setupAlertHandlers() {
           await loadAlertsUI();
           showToast('Алерт удален', 'success');
         } catch (error) {
-          console.error('Ошибка удаления алерта:', error);
+
           showToast('Ошибка удаления алерта', 'error');
         }
       }
@@ -558,7 +565,7 @@ async function handleSaveSettings() {
     document.getElementById('notificationSettingsModal').style.display = 'none';
     
   } catch (error) {
-    console.error('Ошибка сохранения настроек:', error);
+
     showToast('Ошибка сохранения настроек', 'error');
   } finally {
     document.getElementById('saveSettingsBtn').disabled = false;

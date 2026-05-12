@@ -87,7 +87,9 @@ function populateStockCompareList() {
     // Создаем цену
     const priceSpan = document.createElement('span');
     priceSpan.className = 'compare-item-price';
-    priceSpan.textContent = `$${price.toFixed(2)}`;
+    const _cSym = (window.currency && window.currency.getCurrencySymbol) ? window.currency.getCurrencySymbol() : '$';
+    const _cCp  = (window.currency && window.currency.convertToSelectedCurrency) ? window.currency.convertToSelectedCurrency(price) : price;
+    priceSpan.textContent = `${_cSym}${_cCp.toFixed(2)}`;
     
     item.appendChild(iconDiv);
     item.appendChild(infoDiv);
@@ -101,11 +103,11 @@ function populateStockCompareList() {
  * Select stock for comparison (как в криптовалютах)
  */
 window.selectStockCompare = async function(symbol) {
-  console.log('Selecting stock for comparison:', symbol);
+
   
   // Toggle: если кликнули на уже выбранный - убираем его
   if (window.stockCompareSymbol === symbol) {
-    console.log('Deselecting stock comparison');
+
     removeStockCompareSymbol();
     return;
   }
@@ -133,10 +135,13 @@ window.selectStockCompare = async function(symbol) {
   const legend = document.getElementById('stockChartLegend');
   if (legend) legend.style.display = 'flex';
   
-  // Reload chart with comparison
+  // Reload chart with comparison (pass explicit modal containers to avoid id-resolution ambiguity)
   if (window.currentStockDetail && typeof window.loadStockChart === 'function') {
     const currentPeriod = document.querySelector('#stockDetailModal .period-btn.active')?.getAttribute('data-period') || '30';
-    await window.loadStockChart(window.currentStockDetail.symbol, currentPeriod);
+    const modal = document.getElementById('stockDetailModal');
+    const priceContainer = (modal && modal.querySelector('#stockPriceChartContainer')) || document.getElementById('stockPriceChartContainer');
+    const volumeContainer = (modal && modal.querySelector('#stockVolumeChartContainer')) || document.getElementById('stockVolumeChartContainer');
+    await window.loadStockChart(window.currentStockDetail.symbol, currentPeriod, priceContainer || undefined, volumeContainer || undefined);
   }
   
   showNotification(`Сравнение с ${symbol}`, 'success');
@@ -146,7 +151,7 @@ window.selectStockCompare = async function(symbol) {
  * Remove stock comparison (как в криптовалютах)
  */
 window.removeStockCompareSymbol = function() {
-  console.log('Removing stock comparison');
+
   window.stockCompareSymbol = null;
   
   // Reset button (как в криптовалютах)
@@ -167,10 +172,13 @@ window.removeStockCompareSymbol = function() {
     dropdown.style.display = 'none';
   }
   
-  // Reload chart without comparison
+  // Reload chart without comparison (pass explicit modal containers)
   if (window.currentStockDetail && typeof window.loadStockChart === 'function') {
     const currentPeriod = document.querySelector('#stockDetailModal .period-btn.active')?.getAttribute('data-period') || '30';
-    window.loadStockChart(window.currentStockDetail.symbol, currentPeriod);
+    const modal = document.getElementById('stockDetailModal');
+    const priceContainer = (modal && modal.querySelector('#stockPriceChartContainer')) || document.getElementById('stockPriceChartContainer');
+    const volumeContainer = (modal && modal.querySelector('#stockVolumeChartContainer')) || document.getElementById('stockVolumeChartContainer');
+    window.loadStockChart(window.currentStockDetail.symbol, currentPeriod, priceContainer || undefined, volumeContainer || undefined);
   }
   
   showNotification('Сравнение отменено', 'success');
@@ -214,7 +222,7 @@ window.downloadStockChartAsJPG = function() {
     const menu = document.getElementById('stockDownloadMenu');
     if (menu) menu.style.display = 'none';
   }).catch(error => {
-    console.error('Ошибка скачивания JPG:', error);
+
     showNotification('Ошибка сохранения графика', 'error');
   });
 };
@@ -246,7 +254,7 @@ window.downloadStockChartAsPNG = function() {
     const menu = document.getElementById('stockDownloadMenu');
     if (menu) menu.style.display = 'none';
   }).catch(error => {
-    console.error('Ошибка скачивания PNG:', error);
+
     showNotification('Ошибка сохранения графика', 'error');
   });
 };
@@ -290,4 +298,3 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-console.log('Stock comparison & download functions loaded');

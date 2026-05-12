@@ -2,13 +2,13 @@
 // Добавь этот код в конец script.js или ui.js
 
 // Функция для гибкого парсинга дат в разных форматах
-const parseFlexibleDate = (dateString) {
+const parseFlexibleDate = (dateString) => {
     if (!dateString) return null;
     
     dateString = dateString.trim();
     
     // Формат: DD.MM.YYYY или DD.MM.YYYY HH:mm
-    const dotFormat = dateString.match(/^(\d{1, 2})\.(\d{1, 2})\.(\d{4})/);
+    const dotFormat = dateString.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
     if (dotFormat) {
         const day = parseInt(dotFormat[1], 10);
         const month = parseInt(dotFormat[2], 10) - 1; // месяцы с 0
@@ -17,7 +17,7 @@ const parseFlexibleDate = (dateString) {
     }
     
     // Формат: DD/MM/YYYY или DD/MM/YYYY HH:mm
-    const slashFormat = dateString.match(/^(\d{1, 2})\/(\d{1, 2})\/(\d{4})/);
+    const slashFormat = dateString.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
     if (slashFormat) {
         const day = parseInt(slashFormat[1], 10);
         const month = parseInt(slashFormat[2], 10) - 1;
@@ -26,7 +26,7 @@ const parseFlexibleDate = (dateString) {
     }
     
     // Формат: YYYY-MM-DD или ISO (2024-01-25T10:30:00)
-    const isoFormat = dateString.match(/^(\d{4})-(\d{1, 2})-(\d{1, 2})/);
+    const isoFormat = dateString.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
     if (isoFormat) {
         const year = parseInt(isoFormat[1], 10);
         const month = parseInt(isoFormat[2], 10) - 1;
@@ -44,7 +44,7 @@ const parseFlexibleDate = (dateString) {
 }
 
 // Функция обновления статистики транзакций
-const updateTransactionStats = () {
+const updateTransactionStats = () => {
     const tbody = document.getElementById('transactionsTableBody');
     if (!tbody) return;
     
@@ -63,26 +63,44 @@ const updateTransactionStats = () {
         const cells = row.cells;
         if (!cells || cells.length < 6) return;
         
-        // Получаем тип транзакции
+        // ГЛАВНОЕ: используем data-type атрибут из строки (устойчиво к переводу)
+        const dataType = row.getAttribute('data-type');
         const typeCell = cells[1];
         let isBuy = false;
-        if (typeCell) {
-            isBuy = typeCell.textContent.includes('Покупка') || typeCell.textContent.includes('BUY');
-            if (isBuy) {
-                buyCount++;
+        
+        if (dataType) {
+            // Используем data-type атрибут (BUY/SELL)
+            isBuy = dataType === 'BUY';
+        } else if (typeCell) {
+            // Фолбэк: проверяем класс транзакции или иконку
+            const typeSpan = typeCell.querySelector('.transaction-type');
+            if (typeSpan) {
+                isBuy = typeSpan.classList.contains('buy');
             } else {
-                sellCount++;
+                // Последний фолбэк: проверяем иконку
+                isBuy = typeCell.querySelector('.bi-arrow-up-circle-fill') !== null;
             }
+        }
+        
+        if (isBuy) {
+            buyCount++;
+        } else {
+            sellCount++;
         }
         
         // Получаем сумму транзакции (парсим числа независимо от символов валют)
         const sumCell = cells[5];
         if (sumCell) {
-            const sumText = sumCell.textContent.replace(/[^\d., -]/g, '').replace(/, /g, '');
+            // Извлекаем число более надежным способом
+            let sumText = sumCell.textContent || sumCell.innerText || '';
+            // Удаляем все символы кроме цифр, точки, запятой и минуса
+            sumText = sumText.replace(/[^\d.,\-]/g, '');
+            // Заменяем запятые на точки для парсинга
+            sumText = sumText.replace(/,/g, '');
             const sum = parseFloat(sumText) || 0;
-            totalVolume += sum;
-            if (isBuy) investedSum += sum;
-            else receivedSum += sum;
+            totalVolume += Math.abs(sum);
+            if (isBuy) investedSum += Math.abs(sum);
+            else receivedSum += Math.abs(sum);
         }
     });
     
@@ -122,7 +140,7 @@ const updateTransactionStats = () {
 }
 
 // Функция применения фильтров транзакций
-const applyTransactionFilters = () {
+const applyTransactionFilters = () => {
     const portfolioFilter = document.getElementById('filterPortfolio')?.value;
     const typeFilter = document.getElementById('filterType')?.value;
     const periodFilter = document.getElementById('filterPeriod')?.value || 'all';
@@ -293,7 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-const filterMarketContent = (query) {
+const filterMarketContent = (query) => {
     // Определяем активную вкладку
     const tabs = document.querySelectorAll('.tab');
     let activeTab = 'stocks';
@@ -317,7 +335,7 @@ const filterMarketContent = (query) {
     }
 }
 
-const filterStocksTable = (query) {
+const filterStocksTable = (query) => {
     const tbody = document.getElementById('stocksTable');
     if (!tbody) return;
     
@@ -341,7 +359,7 @@ const filterStocksTable = (query) {
     }
 }
 
-const filterMarketCrypto = (query) {
+const filterMarketCrypto = (query) => {
     const grid = document.getElementById('marketCryptoGrid');
     if (!grid) return;
     
@@ -365,7 +383,7 @@ const filterMarketCrypto = (query) {
     }
 }
 
-const filterMarketIndices = (query) {
+const filterMarketIndices = (query) => {
     const grid = document.getElementById('indicesGrid');
     if (!grid) return;
     
@@ -389,7 +407,7 @@ const filterMarketIndices = (query) {
     }
 }
 
-const showNoResultsInTable = (tbody, message) {
+const showNoResultsInTable = (tbody, message) => {
     removeNoResultsFromTable(tbody);
     
     const tr = document.createElement('tr');
@@ -400,14 +418,14 @@ const showNoResultsInTable = (tbody, message) {
     tbody.appendChild(tr);
 }
 
-const removeNoResultsFromTable = (tbody) {
+const removeNoResultsFromTable = (tbody) => {
     const existing = tbody.querySelector('.no-results-row');
     if (existing) {
         existing.remove();
     }
 }
 
-const showNoResultsInGrid = (grid, message) {
+const showNoResultsInGrid = (grid, message) => {
     removeNoResultsFromGrid(grid);
     
     const div = document.createElement('div');
@@ -418,7 +436,7 @@ const showNoResultsInGrid = (grid, message) {
     grid.appendChild(div);
 }
 
-const removeNoResultsFromGrid = (grid) {
+const removeNoResultsFromGrid = (grid) => {
     const existing = grid.querySelector('.no-results-message');
     if (existing) {
         existing.remove();
@@ -444,7 +462,7 @@ document.addEventListener('click', function(e) {
     }
 });
 
-async const deleteTransaction = (transactionId, button) {
+const deleteTransaction = async (transactionId, button) => {
     try {
         // Показываем загрузку
         button.disabled = true;
@@ -469,7 +487,7 @@ async const deleteTransaction = (transactionId, button) {
         }
         
     } catch (error) {
-        console.error('Ошибка удаления транзакции:', error);
+
         showNotification('Ошибка при удалении транзакции: ' + error.message, 'error');
         button.disabled = false;
         button.innerHTML = '<i class=\"fas fa-trash\"></i> Удалить';
@@ -477,7 +495,7 @@ async const deleteTransaction = (transactionId, button) {
 }
 
 // Функция показа уведомлений
-const showNotification = (message, type = 'info') {
+const showNotification = (message, type = 'info') => {
     const notification = document.createElement('div');
     notification.className = 'notification notification-' + type;
     notification.textContent = message;
@@ -503,7 +521,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(updateSidebarProfile, 1500);
 });
 
-const updateSidebarProfile = () {
+const updateSidebarProfile = () => {
     // Получаем данные пользователя из существующих элементов на странице
     const profileNameInput = document.getElementById('profileName');
     const profileEmailInput = document.getElementById('profileEmail');
@@ -534,7 +552,7 @@ const updateSidebarProfile = () {
                 }
             }
         }).catch(err => {
-            console.log('Не удалось загрузить данные пользователя:', err);
+
         });
     }
 }
@@ -551,9 +569,9 @@ window.updateSidebarProfile = updateSidebarProfile;
 //     setTimeout(updateDashboardData, 2000);
 // });
 
-async const updateDashboardData_DEPRECATED = () {
+const updateDashboardData_DEPRECATED = async () => {
     // DEPRECATED: Логика перенесена в dashboard.js
-    console.warn('updateDashboardData_DEPRECATED called - this function is deprecated');
+
     return;
     
     try {
@@ -563,13 +581,13 @@ async const updateDashboardData_DEPRECATED = () {
         // Обновляем статистику портфелей
         await updatePortfolioStats_DEPRECATED();
         
-        console.log('Данные дашборда обновлены');
+
     } catch (error) {
-        console.error('Ошибка обновления дашборда:', error);
+
     }
 }
 
-async const updateUserName = () {
+const updateUserName = async () => {
     const userNameEl = document.getElementById('userName');
     if (!userNameEl) return;
     
@@ -598,7 +616,7 @@ async const updateUserName = () {
                 }
             }
         } catch (err) {
-            console.log('Не удалось загрузить имя пользователя:', err);
+
         }
     }
     
@@ -610,8 +628,8 @@ async const updateUserName = () {
 }
 
 // DEPRECATED: Функция перенесена в dashboard.js
-async const updatePortfolioStats_DEPRECATED = () {
-    console.warn('updatePortfolioStats_DEPRECATED called - this function is deprecated');
+const updatePortfolioStats_DEPRECATED = async () => {
+
     return;
     
     let totalValue = 0;
@@ -652,7 +670,7 @@ async const updatePortfolioStats_DEPRECATED = () {
                 }
             }
         } catch (err) {
-            console.log('Не удалось загрузить статистику портфелей:', err);
+
         }
     }
     
@@ -723,7 +741,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
 // Синхронизация профиля с дашбордом
 
 // Функция синхронизации имени
-const syncUserNameToDashboard = () {
+const syncUserNameToDashboard = () => {
     const profileNameInput = document.getElementById('profileName');
     const profileEmailInput = document.getElementById('profileEmail');
     const userNameEl = document.getElementById('userName');
@@ -732,7 +750,7 @@ const syncUserNameToDashboard = () {
     
     if (profileNameInput && profileNameInput.value && userNameEl) {
         userNameEl.textContent = profileNameInput.value;
-        console.log('Имя синхронизировано с дашбордом:', profileNameInput.value);
+
     }
     
     if (profileNameInput && profileNameInput.value && sidebarName) {
@@ -798,7 +816,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initTableSorting();
 });
 
-const initTableSorting = () {
+const initTableSorting = () => {
     // Инициализация сортировки для всех таблиц
     const sortableHeaders = document.querySelectorAll('th.sortable');
     
@@ -853,7 +871,7 @@ const initTableSorting = () {
     });
 }
 
-const sortTable = (tbody, columnIndex, direction) {
+const sortTable = (tbody, columnIndex, direction) => {
     const rows = Array.from(tbody.querySelectorAll('tr:not(.loading-row):not(.no-data)'));
     
     rows.sort((rowA, rowB) => {

@@ -1,6 +1,8 @@
-// data.js — ВСЁ РАБОТАЕТ + SUPABASE
+// data.js — работа с данными через Supabase
 import { supabase } from './profile.js';
 import { safeFetch, fetchCoinGeckoSimplePrice } from '../api/requests.js';
+import { logActivity } from './activity-logger.js';
+import { validatePortfolioInput, validateTransactionInput } from './security.js';
 
 // Кэш в памяти (не localStorage)
 let portfolios = [];
@@ -23,7 +25,7 @@ const coinGeckoCache = {
   TTL: 1000 * 60 * 60 * 24 // 24 часа
 };
 
-// Простая локальная очередь и retry для CoinGecko вызовов (чтобы избежать 429)
+// Локальная очередь для CoinGecko — защита от 429
 const __cgQueue = [];
 let __cgRunning = false;
 const CG_MIN_INTERVAL = 1200;
@@ -83,16 +85,16 @@ async function safeFetchCoinGeckoJson(url, options = {}, ttl = 0) {
         const parsed = JSON.parse(raw);
         if (parsed && parsed.ts && (Date.now() - parsed.ts) <= ttl) return parsed.data;
       }
-    } catch (e) { console.warn('cg cache read', e); }
+    } catch (_) { /* кэш недоступен */ }
   }
 
   return new Promise((resolve, reject) => {
     __cgQueue.push({ url, options, resolve, reject, retries: 3 });
     _cgProcessQueue();
   }).then(data => {
-    try { if (ttl > 0 && data !== null) localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch (e) { console.warn('cg cache write', e); }
+    try { if (ttl > 0 && data !== null) localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch (_) { /* запись в кэш недоступна */ }
     return data;
-  }).catch(e => { console.warn('safeFetchCoinGeckoJson error', e); return null; });
+  }).catch(() => null);
 }
 
 // Получаем цены через CoinGecko для символов, когда Binance не покрывает
@@ -108,8 +110,6 @@ async function fetchCoinGeckoPrices(symbols) {
       if (respJson) {
         coinGeckoCache.coinsList = respJson;
         coinGeckoCache.timestamp = Date.now();
-      } else {
-        console.warn('CoinGecko /coins/list failed or returned null');
       }
     }
 
@@ -129,7 +129,7 @@ async function fetchCoinGeckoPrices(symbols) {
       const s = String(sym || '').toLowerCase();
       const ids = lowerToIds[s];
       if (ids && ids.length > 0) {
-        // choose first id (best-effort)
+        // первый результат — наиболее распространённая монета
         symToId[sym] = ids[0];
         idsToQuery.add(ids[0]);
       }
@@ -138,14 +138,9 @@ async function fetchCoinGeckoPrices(symbols) {
     if (idsToQuery.size === 0) return prices;
 
     const idsParam = Array.from(idsToQuery).join(',');
-    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(idsParam)}&vs_currencies=usd`;
-    // cache simple/price short-term (30s)
+    // кэшируем ответ на 30 секунд
     const json = await fetchCoinGeckoSimplePrice(idsParam, 30 * 1000);
-    if (!json) {
-      console.warn('CoinGecko simple/price failed or returned null');
-      return prices;
-    }
-    // map back to symbols
+    if (!json) return prices;
     Object.entries(symToId).forEach(([sym, id]) => {
       const val = json[id] && (json[id].usd || json[id].usd === 0 ? json[id].usd : undefined);
       if (val !== undefined && val !== null) prices[sym] = Number(val);
@@ -157,41 +152,25 @@ async function fetchCoinGeckoPrices(symbols) {
       priceCache[s] = { price: prices[s], timestamp: Date.now() };
     });
 
-  } catch (e) {
-    console.warn('fetchCoinGeckoPrices error', e);
-  }
+  } catch (_) { /* ошибка CoinGecko — возвращаем частичные цены */ }
 
   return prices;
 }
 
-// Функция для получения текущих цен активов через Binance
+// Получение текущих цен активов через Binance
 async function fetchCurrentPrices(symbols) {
     const prices = {};
     
-    if (!symbols || symbols.length === 0) {
-        console.log('No symbols to fetch prices for');
-        return prices;
-    }
+    if (!symbols || symbols.length === 0) return prices;
     
     // Проверяем кэш
     const now = Date.now();
     if (now - binancePriceCache.timestamp < binancePriceCache.CACHE_DURATION && Object.keys(binancePriceCache.data).length > 0) {
-        console.log('Using cached Binance prices (age:', Math.round((now - binancePriceCache.timestamp) / 1000), 'seconds)');
-        
-        // Возвращаем закэшированные цены для запрошенных символов
         symbols.forEach(symbol => {
-            if (binancePriceCache.data[symbol]) {
-                prices[symbol] = binancePriceCache.data[symbol];
-            }
+            if (binancePriceCache.data[symbol]) prices[symbol] = binancePriceCache.data[symbol];
         });
-        
-        // Если есть все нужные цены в кэше, возвращаем их
-        if (symbols.every(s => prices[s])) {
-            return prices;
-        }
+        if (symbols.every(s => prices[s])) return prices;
     }
-    
-    console.log('Fetching prices for symbols from Binance:', symbols);
     
     try {
         // Маппинг символов к Binance торговым парам
@@ -240,21 +219,14 @@ async function fetchCurrentPrices(symbols) {
             }
         });
         
-        console.log('Binance symbols to fetch:', Array.from(binanceSymbols));
-        
-        // Получаем цены криптовалют через Binance
+        // Получаем все цены одним запросом к Binance
         if (binanceSymbols.size > 0) {
             try {
-                // Binance API возвращает все цены одним запросом
                 const url = 'https://api.binance.com/api/v3/ticker/price';
-                
-                console.log('Fetching from Binance:', url);
-                
                 const response = await fetch(url);
                 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('Binance response received:', data.length, 'pairs');
                     
                     // Создаем быстрый lookup объект
                     const binancePrices = {};
@@ -268,18 +240,11 @@ async function fetchCurrentPrices(symbols) {
                       const binanceSymbol = symbolToBindanceMap[symbol];
                       if (binanceSymbol && binancePrices[binanceSymbol]) {
                         prices[symbol] = binancePrices[binanceSymbol];
-                        console.log(`Price for ${symbol}: $${prices[symbol]} (mapped)`);
                         return;
                       }
-
-                      // Попытки найти пару по общим суффиксам (best-effort)
-                      const tryPairs = [`${upper}USDT`, `${upper}USD`, `${upper}USDC`, `${upper}BUSD`, `${upper}BTC`];
-                      for (const p of tryPairs) {
-                        if (binancePrices[p]) {
-                          prices[symbol] = binancePrices[p];
-                          console.log(`Price for ${symbol}: $${prices[symbol]} (found by ${p})`);
-                          break;
-                        }
+                      // Перебираем популярные торговые пары
+                      for (const p of [`${upper}USDT`, `${upper}USD`, `${upper}USDC`, `${upper}BUSD`, `${upper}BTC`]) {
+                        if (binancePrices[p]) { prices[symbol] = binancePrices[p]; break; }
                       }
                     });
                     
@@ -299,46 +264,28 @@ async function fetchCurrentPrices(symbols) {
                                     symbol, 
                                     prices[symbol], 
                                     previousPrice
-                                ).catch(err => console.error('Ошибка уведомления об изменении цены:', err));
+                                ).catch(() => {});
                             }
                         }
                     });
                     
                 } else {
-                    console.error('Binance API error:', response.status, response.statusText);
-                    
-                    // Fallback на кэш при любой ошибке
+                    // Binance недоступен — используем кэш
                     symbols.forEach(symbol => {
-                        if (binancePriceCache.data[symbol]) {
-                            prices[symbol] = binancePriceCache.data[symbol];
-                            console.log(`Using cached price for ${symbol}: $${prices[symbol]}`);
-                        }
+                        if (binancePriceCache.data[symbol]) prices[symbol] = binancePriceCache.data[symbol];
                     });
                 }
-            } catch (err) {
-                console.error('Error fetching crypto prices from Binance:', err);
-                
-                // Fallback на закэшированные цены
-                console.log('Using cached prices due to fetch error');
+            } catch (_) {
+                // Сетевая ошибка — используем кэш
                 symbols.forEach(symbol => {
-                    if (binancePriceCache.data[symbol]) {
-                        prices[symbol] = binancePriceCache.data[symbol];
-                        console.log(`Using cached price for ${symbol}: $${prices[symbol]}`);
-                    }
+                    if (binancePriceCache.data[symbol]) prices[symbol] = binancePriceCache.data[symbol];
                 });
             }
         }
-        
-        console.log('Final prices object:', prices);
-        
-    } catch (error) {
-        console.error('Error in fetchCurrentPrices:', error);
-        
+    } catch (_) {
         // Последний fallback на кэш
         symbols.forEach(symbol => {
-            if (binancePriceCache.data[symbol]) {
-                prices[symbol] = binancePriceCache.data[symbol];
-            }
+            if (binancePriceCache.data[symbol]) prices[symbol] = binancePriceCache.data[symbol];
         });
     }
     
@@ -350,41 +297,34 @@ export async function initData() {
   await getTransactions();
 }
 
-// data.js - ПРОСТАЯ ВЕРСИЯ с детальным логированием
 export async function createPortfolio(name, description = '', currency = 'USD', riskLevel = 'MEDIUM') {
-  console.log('createPortfolio called with:', { name, description, currency, riskLevel });
-  console.log('Parameter types:', {
-    name: typeof name,
-    description: typeof description,
-    currency: typeof currency,
-    riskLevel: typeof riskLevel
-  });
-  
+  // Валидация входных данных (защита от SQL-инъекций и XSS)
+  const validated = validatePortfolioInput({ name, description, currency, riskLevel });
+  name        = validated.name;
+  description = validated.description;
+  currency    = validated.currency;
+  riskLevel   = validated.riskLevel;
+
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) {
-    console.error('User not authenticated');
-    throw new Error('Не авторизован');
+  if (!session?.user) throw new Error('Не авторизован');
+
+  // Проверяем лимит портфелей из системных настроек
+  const maxPortfolios = window.appSettings?.max_portfolios_per_user ?? 10;
+  const { count: existingCount, error: countError } = await supabase
+    .from('portfolios')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', session.user.id);
+  if (!countError && existingCount >= maxPortfolios) {
+    throw new Error(`Достигнут лимит портфелей: максимум ${maxPortfolios}`);
   }
-  
-  console.log('User ID:', session.user.id);
 
-  // ВАЖНО: Проверяем, что передается в risk_level
-  console.log('Risk level before insert:', riskLevel);
-  console.log('Risk level type:', typeof riskLevel);
-  console.log('Risk level length:', riskLevel.length);
-  console.log('Risk level charCodes:', [...riskLevel].map(c => c.charCodeAt(0)));
-
-  // Подготовка данных - ТОЛЬКО те поля, которые точно есть в таблице
   const portfolioData = {
     user_id: session.user.id,
     name: name.trim(),
     description: description.trim() || '',
     currency: currency,
-    risk_level: riskLevel  // Передаем как есть
+    risk_level: riskLevel
   };
-  
-  console.log('Inserting portfolio data:', portfolioData);
-  console.log('JSON stringify:', JSON.stringify(portfolioData, null, 2));
 
   const { data, error } = await supabase
     .from('portfolios')
@@ -392,30 +332,10 @@ export async function createPortfolio(name, description = '', currency = 'USD', 
     .select()
     .single();
 
-  if (error) {
-    console.error('Supabase error:', error);
-    console.error('Error code:', error.code);
-    console.error('Error message:', error.message);
-    console.error('Error details:', error.details);
-    console.error('Error hint:', error.hint);
-    
-    // Пробуем получить существующие портфели, чтобы увидеть правильный формат
-    console.log('Trying to fetch existing portfolios to see correct format...');
-    const { data: existingPortfolios } = await supabase
-      .from('portfolios')
-      .select('risk_level')
-      .limit(1);
-    
-    if (existingPortfolios && existingPortfolios.length > 0) {
-      console.log('Example risk_level from DB:', existingPortfolios[0].risk_level);
-      console.log('Type:', typeof existingPortfolios[0].risk_level);
-    }
-    
-    throw error;
-  }
-  
-  console.log('Portfolio created successfully:', data);
+  if (error) throw error;
+
   portfolios.push(data);
+  logActivity('create_portfolio', 'portfolios', { portfolio_id: data.id, name: data.name, currency: data.currency });
   return data;
 }
 
@@ -431,15 +351,25 @@ export async function getPortfolios() {
 }
 
 export async function deletePortfolio(id) {
+  const name = portfolios.find(p => p.id === id)?.name;
   const { error: txError } = await supabase.from('transactions').delete().eq('portfolio_id', id);
   const { error } = await supabase.from('portfolios').delete().eq('id', id);
   if (txError || error) throw txError || error;
   portfolios = portfolios.filter(p => p.id !== id);
   transactions = transactions.filter(t => t.portfolio_id !== id);
+  logActivity('delete_portfolio', 'portfolios', { portfolio_id: id, name });
 }
 
 // === ТРАНЗАКЦИИ ===
 export async function addTransaction(portfolioId, type, symbol, quantity, price, date) {
+  // Валидация входных данных (защита от SQL-инъекций и XSS)
+  const validated = validateTransactionInput({ type, symbol, quantity, price, date });
+  type     = validated.type;
+  symbol   = validated.symbol;
+  quantity = validated.quantity;
+  price    = validated.price;
+  date     = validated.date;
+
   const { data: { session } } = await supabase.auth.getSession();
   const { data, error } = await supabase
     .from('transactions')
@@ -457,36 +387,22 @@ export async function addTransaction(portfolioId, type, symbol, quantity, price,
 
   if (error) throw error;
   transactions.push(data);
+  logActivity('add_transaction', 'transactions', { type, symbol, quantity, price, portfolio_id: portfolioId });
   return data;
 }
 
 export async function getTransactions(retries = 2) {
-  console.log('📥 data.js: getTransactions вызвана (попыток:', retries + 1 + ')');
-  
-  const t0 = performance.now();
   try {
-    // Проверяем, авторизован ли пользователь
     const { data: { session } } = await supabase.auth.getSession();
-    console.log('✔️ Текущая сессия:', session ? 'Активна' : 'Отсутствует');
-    
-    if (!session?.user) {
-      console.warn('Пользователь не авторизован');
-      transactions = [];
-      return [];
-    }
+    if (!session?.user) { transactions = []; return []; }
     
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
       .order('date', { ascending: false });
-
-    const t1 = performance.now();
-    console.log(`🕒 Supabase запрос транзакций занял ${Math.round(t1 - t0)} мс`);
     
     if (error) {
-      console.error('Ошибка Supabase:', error);
       if (retries > 0) {
-        console.log(`Повторяю запрос (осталось ${retries - 1})...`);
         await new Promise(r => setTimeout(r, 1000));
         return getTransactions(retries - 1);
       }
@@ -494,12 +410,9 @@ export async function getTransactions(retries = 2) {
     }
     
     transactions = data || [];
-    console.log(`Транзакции загружены: ${transactions.length} шт.`);
     return data || [];
   } catch (err) {
-    console.error('ОШИБКА getTransactions:', err);
     if (retries > 0) {
-      console.log(`Повторяю запрос (осталось ${retries - 1})...`);
       await new Promise(r => setTimeout(r, 1000));
       return getTransactions(retries - 1);
     }
@@ -508,49 +421,31 @@ export async function getTransactions(retries = 2) {
 }
 
 export async function deleteTransaction(id) {
-  console.log('Удаление транзакции:', id);
-  
   const { error } = await supabase
     .from('transactions')
     .delete()
     .eq('id', id);
   
-  if (error) {
-    console.error('Ошибка удаления:', error);
-    throw error;
-  }
+  if (error) throw error;
   
-  // Удаляем из кэша
   transactions = transactions.filter(t => t.id !== id);
-  console.log('Транзакция удалена из кэша');
-  
+  logActivity('delete_transaction', 'transactions', { transaction_id: id });
   return true;
 }
 
 // === КЭШИРОВАНИЕ ЦЕН ===
 export async function getPricesForSymbols(symbols, options = { useCoinGecko: true }) {
-  if (!symbols || symbols.length === 0) {
-    console.log('⏭️ Пропускаем fetch цен — массив пуст');
-    return {};
-  }
+  if (!symbols || symbols.length === 0) return {};
 
-  console.log('Запрос цен для:', symbols, 'options:', options);
-
-  // Используем новую функцию fetchCurrentPrices с Binance API
   let prices = await fetchCurrentPrices(symbols);
-  console.log('💯 Цены получены через Binance:', prices);
 
-  // Если включён fallback и для некоторых символов не нашлось цены — попробуем CoinGecko
+  // Для символов без цены пробуем CoinGecko как запасной источник
   const missing = symbols.filter(s => !(Number.isFinite(prices[s]) && prices[s] > 0));
-  if (missing.length > 0 && options && options.useCoinGecko !== false) {
-    console.log('🔎 Missing prices for, trying CoinGecko:', missing);
+  if (missing.length > 0 && options?.useCoinGecko !== false) {
     try {
       const cg = await fetchCoinGeckoPrices(missing);
-      console.log('🌐 CoinGecko prices:', cg);
       prices = Object.assign({}, prices, cg);
-    } catch (e) {
-      console.warn('CoinGecko fallback failed', e);
-    }
+    } catch (_) { /* CoinGecko fallback недоступен */ }
   }
 
   return prices;
@@ -580,6 +475,12 @@ export function getPriceSync(symbol) {
       }
     }
   }
+  // stocksRealData — заполняется из localStorage при загрузке страницы и при посещении раздела акций
+  if (window.stocksRealData?.[symbol]) {
+    const n = Number(window.stocksRealData[symbol].price || 0);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+
   if (window.stocksList) {
     const s = window.stocksList.find(x => (x.symbol || '').toUpperCase() === String(symbol).toUpperCase());
     if (s) {
@@ -608,10 +509,7 @@ export function getRisk(level) {
 // === ДЛЯ ДАШБОРДА И АНАЛИТИКИ ===
 export function getPortfoliosSync() { return portfolios; }
 export function getTransactionsSync() { return transactions; }
-export function clearPriceCache() { 
-  priceCache = {}; 
-  console.log('Кэш цен очищен');
-}
+export function clearPriceCache() { priceCache = {}; }
 
 // Экспортируем глобально для использования в других модулях
 window.getPortfoliosSync = getPortfoliosSync;
@@ -619,14 +517,9 @@ window.getTransactionsSync = getTransactionsSync;
 
 // ==================== FAVORITES ====================
 export async function getFavorites(retries = 2) {
-  console.log('📥 data.js: getFavorites called');
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) {
-      console.warn('Пользователь не авторизован (favorites)');
-      favorites = [];
-      return [];
-    }
+    if (!session?.user) { favorites = []; return []; }
 
     const { data, error } = await supabase
       .from('favorites')
@@ -635,16 +528,13 @@ export async function getFavorites(retries = 2) {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Ошибка Supabase (getFavorites):', error);
       if (retries > 0) return getFavorites(retries - 1);
       throw error;
     }
 
     favorites = data || [];
-    console.log(`Favorites loaded: ${favorites.length}`);
     return favorites;
   } catch (err) {
-    console.error('ОШИБКА getFavorites:', err);
     if (retries > 0) return getFavorites(retries - 1);
     throw err;
   }
@@ -670,8 +560,7 @@ export async function addFavorite(symbol, metadata = {}) {
       .single();
 
     if (error) {
-      // Если уникальное ограничение — уже добавлено, вернём существующую запись
-      console.warn('addFavorite: Supabase error', error);
+      // Нарушение уникальности — запись уже существует, возвращаем её
       if (error.code === '23505') {
         try {
           const { data: existing } = await supabase
@@ -687,16 +576,17 @@ export async function addFavorite(symbol, metadata = {}) {
             return existing;
           }
         } catch (e) {
-          console.warn('addFavorite: failed to fetch existing favorite after duplicate error', e);
+
         }
       }
       throw error;
     }
 
     favorites.unshift(data);
+    logActivity('add_favorite', 'favorites', { symbol: String(symbol).toUpperCase() });
     return data;
   } catch (e) {
-    console.error('addFavorite error:', e.message || e);
+
     throw e;
   }
 }
@@ -709,14 +599,16 @@ export async function removeFavorite(id) {
       .eq('id', id);
 
     if (error) {
-      console.error('removeFavorite supabase error:', error);
+
       throw error;
     }
 
+    const sym = favorites.find(f => f.id === id)?.symbol;
     favorites = favorites.filter(f => f.id !== id);
+    logActivity('remove_favorite', 'favorites', { favorite_id: id, symbol: sym });
     return true;
   } catch (e) {
-    console.error('removeFavorite error:', e.message || e);
+
     throw e;
   }
 }

@@ -1,5 +1,5 @@
 // @ts-nocheck
-// api.js - ТОЛЬКО РЕАЛЬНЫЕ ДАННЫЕ
+// api.js — реальные данные, без моков
 
 import { convertToSelectedCurrency, getCurrencySymbol } from '../core/currency.js';
 
@@ -33,20 +33,13 @@ if (typeof window !== 'undefined') {
       window._loadNewsReady = true;
       if (!window.app) window.app = {};
       window.app.loadNews = realFn;
-      console.log('[api.js] Реальная функция loadNews установлена');
 
-      // Flush any early buffered calls
+      // Запускаем накопленные вызовы
       if (window._earlyLoadNewsCalls && window._earlyLoadNewsCalls.length) {
-        console.log('[api.js] Flushing early loadNews calls:', window._earlyLoadNewsCalls.length);
         const calls = window._earlyLoadNewsCalls.slice();
         window._earlyLoadNewsCalls = [];
         calls.forEach(args => {
-          try {
-            // Call without awaiting to avoid blocking
-            window._loadNewsReal(...args);
-          } catch (err) {
-            console.warn('[api.js] Ошибка при выполнении отложенного вызова loadNews:', err.message);
-          }
+          try { window._loadNewsReal(...args); } catch (_) {}
         });
       }
 
@@ -55,7 +48,7 @@ if (typeof window !== 'undefined') {
         if (window._earlyScheduleLoadRequests && window._earlyScheduleLoadRequests.length) {
           const reqs = window._earlyScheduleLoadRequests.slice();
           window._earlyScheduleLoadRequests = [];
-          console.log('[api.js] Triggering buffered scheduleLoadNews via loadNews:', reqs.length);
+
           // Call loadNews for the first buffered request to avoid multiple heavy parallel loads
           const first = reqs[0];
           const category = first && first[0] ? first[0] : 'all';
@@ -63,15 +56,15 @@ if (typeof window !== 'undefined') {
           try {
             window._loadNewsReal(category, force);
           } catch (err) {
-            console.warn('[api.js] Ошибка при вызове loadNews для отложённого schedule:', err.message);
+
           }
         }
       } catch (e) {
-        console.warn('[api.js] Ошибка при обработке отложённых scheduleLoadNews:', e.message);
+
       }
 
     } catch (e) {
-      console.warn('[api.js] Не удалось установить реальную функцию loadNews:', e.message);
+
     }
   };
 
@@ -83,26 +76,18 @@ if (typeof window !== 'undefined') {
     // Buffer the call so it runs later when the real implementation is available
     window._earlyLoadNewsCalls = window._earlyLoadNewsCalls || [];
     window._earlyLoadNewsCalls.push([category, force]);
-    console.log('[loadNews proxy] Буферизуем вызов loadNews, real implementation не готов:', category, force);
+
     return Promise.resolve();
   };
 }
-// Универсальный безопасный fetch для новостей (возвращает null при ошибке или не-JSON)
+// Безопасный fetch для новостей — возвращает null при ошибке или не-JSON ответе
 async function safeFetchJson(url, options) {
   try {
     const response = await fetch(url, options);
     const contentType = response.headers.get('content-type') || '';
-    if (!response.ok) {
-      console.warn('safeFetchJson: response not ok', url, response.status);
-      return null;
-    }
-    if (!contentType.includes('application/json')) {
-      console.warn('safeFetchJson: CORB or non-JSON response', url, 'Content-Type:', contentType);
-      return null;
-    }
+    if (!response.ok || !contentType.includes('application/json')) return null;
     return await response.json();
-  } catch (e) {
-    console.warn('safeFetchJson: fetch or parse error', url, e.message);
+  } catch (_) {
     return null;
   }
 }
@@ -119,7 +104,7 @@ const STOCK_FALLBACK_PRICES = {
   'META': 550, 'NVDA': 875, 'NFLX': 260, 'PYPL': 73, 'ADBE': 680,
   'CRM': 310, 'INTC': 45, 'AMD': 188, 'ORCL': 145, 'IBM': 210,
   'CSCO': 52, 'QCOM': 165, 'TXN': 215, 'AVGO': 140, 'SHOP': 105,
-  'SQ': 175, 'SNAP': 18, 'UBER': 75, 'LYFT': 22, 'ABNB': 130,
+  'XYZ': 60, 'SNAP': 18, 'UBER': 75, 'LYFT': 22, 'ABNB': 130,
   'COIN': 145, 'RBLX': 38, 'PINS': 32, 'SPOT': 175, 'ZM': 120,
   'DOCU': 85, 'TWLO': 45, 'PLTR': 35, 'SNOW': 175, 'NET': 135,
   'DDOG': 185, 'MDB': 410, 'CRWD': 385, 'ZS': 210, 'OKTA': 95,
@@ -143,75 +128,73 @@ function hexToRgba(hex, alpha = 1) {
 
 async function fetchWithCache(url, options = {}) {
   // Проверяем умный кеш-менеджер
-  const cacheKey = url.split('?')[0]; // Используем URL без параметров как тип
   const cacheParams = { url };
   
   const cached = window.cacheManager?.get('quote', cacheParams);
   if (cached) {
-    console.log('[Cache HIT] Finnhub quote:', url);
     return cached;
   }
-  
-  // Простая стратегия: повторить запрос несколько раз при 429 с экспоненциальным бэкоффом
+
+  // Дедупликация: если этот URL уже запрашивается прямо сейчас — возвращаем тот же Promise
+  if (!window._pendingFetch) window._pendingFetch = new Map();
+  if (window._pendingFetch.has(url)) {
+    return window._pendingFetch.get(url);
+  }
+
   const maxRetries = typeof options.maxRetries === 'number' ? options.maxRetries : 2;
   const baseDelay = 800; // ms
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      console.log('Запрос:', url, 'attempt', attempt + 1);
-      const res = await fetch(url, options);
+  const promise = (async () => {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const res = await fetch(url, options);
 
-      if (!res.ok) {
-        if (res.status === 429) {
-          // Если остались попытки — сделаем паузу и повторим
-          if (attempt < maxRetries) {
-            const wait = baseDelay * Math.pow(2, attempt);
-            console.warn(`429 для ${url}, повтор через ${wait}ms`);
-            await new Promise((r) => setTimeout(r, wait));
-            continue;
+        if (!res.ok) {
+          if (res.status === 429) {
+            if (attempt < maxRetries) {
+              const wait = baseDelay * Math.pow(2, attempt);
+
+              await new Promise((r) => setTimeout(r, wait));
+              continue;
+            }
+            const oldCached = window.cache.get(url);
+            if (oldCached) {
+
+              return oldCached.data;
+            }
+            throw new Error('Rate limit exceeded');
           }
-          // При исчерпании попыток проверяем старый кеш
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        window.cache.set(url, { data, time: Date.now() });
+        window.cacheManager?.set('quote', cacheParams, data);
+        return data;
+      } catch (error) {
+        if (attempt >= maxRetries) {
+
           const oldCached = window.cache.get(url);
           if (oldCached) {
-            console.warn('[Fallback] Используем устаревший кеш для:', url);
+
             return oldCached.data;
           }
-          throw new Error('Rate limit exceeded');
+          throw error;
         }
-        throw new Error(`HTTP ${res.status}`);
-      }
-
-      const data = await res.json();
-      
-      // Сохраняем в оба кеша
-      window.cache.set(url, { data, time: Date.now() });
-      window.cacheManager?.set('quote', cacheParams, data);
-      
-      return data;
-    } catch (error) {
-      // Если это последняя попытка — логируем и пробрасываем
-      if (attempt >= maxRetries) {
-        console.error('Ошибка запроса:', url, error);
-        // Пробуем вернуть устаревший кеш при ошибке
-        const oldCached = window.cache.get(url);
-        if (oldCached) {
-          console.warn('[Fallback] Используем устаревший кеш при ошибке:', url);
-          return oldCached.data;
+        if (error && error.name === 'AbortError') {
+          throw error;
         }
-        throw error;
+        const wait = baseDelay * Math.pow(2, attempt);
+        await new Promise((r) => setTimeout(r, wait));
       }
-
-      // Если fetch выбросил из-за AbortError — не будем повторять
-      if (error && error.name === 'AbortError') {
-        console.warn('Fetch aborted for', url);
-        throw error;
-      }
-
-      // Неблокирующий лог и пауза перед следующей попыткой
-      const wait = baseDelay * Math.pow(2, attempt);
-      console.warn(`Запрос к ${url} завершился ошибкой (${error.message}), повтор через ${wait}ms`);
-      await new Promise((r) => setTimeout(r, wait));
     }
+  })();
+
+  window._pendingFetch.set(url, promise);
+  try {
+    return await promise;
+  } finally {
+    window._pendingFetch.delete(url);
   }
 }
 
@@ -228,145 +211,110 @@ export async function loadStocks() {
     tbody.innerHTML = '<tr><td colspan="7" class="loading"> Загрузка данных акций...</td></tr>';
   }
 
-  // Константы для кеширования (5 минут для свежих данных)
-  const STOCKS_CACHE_TTL = 5 * 60 * 1000; // 5 минут
+  // Константы для кеширования (30 минут — акции не меняются каждую минуту)
+  const STOCKS_CACHE_TTL = 30 * 60 * 1000; // 30 минут
   const CACHE_KEY_PREFIX = 'stock_';
-  
-  try {
-    const allStocks = [];
-    const cachedStocks = [];
-    const stocksToFetch = [];
-    
-    // Проверяем кеш для каждой акции
-    for (const symbol of symbols) {
-      const cacheKey = CACHE_KEY_PREFIX + symbol;
-      const cached = localStorage.getItem(cacheKey);
-      
-      if (cached) {
-        try {
-          const cachedData = JSON.parse(cached);
-          const age = Date.now() - cachedData.timestamp;
-          
-          if (age < STOCKS_CACHE_TTL) {
-            console.log(`Using cache for ${symbol} (${Math.round(age / 60000)} min ago)`);
-            cachedStocks.push(cachedData.data);
-            continue;
-          } else {
-            console.log(`Cache for ${symbol} expired (${Math.round(age / 60000)} min), updating`);
-          }
-        } catch (e) {
-          console.warn(`Ошибка чтения кеша для ${symbol}:`, e);
+
+  // Собираем что есть в кеше (свежее и устаревшее)
+  const allStocksFromCache = [];
+  const stocksToFetch = [];
+
+  for (const symbol of symbols) {
+    const cacheKey = CACHE_KEY_PREFIX + symbol;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        const cachedData = JSON.parse(cached);
+        const age = Date.now() - cachedData.timestamp;
+        if (age < STOCKS_CACHE_TTL) {
+          // Свежий кеш — используем, не грузим
+          allStocksFromCache.push({ symbol, data: cachedData.data, fresh: true });
+        } else {
+          // Устаревший кеш — показываем сразу, но обновим в фоне
+          allStocksFromCache.push({ symbol, data: cachedData.data, fresh: false });
+          stocksToFetch.push(symbol);
         }
+      } catch (e) {
+        stocksToFetch.push(symbol);
       }
-      
+    } else {
       stocksToFetch.push(symbol);
     }
-    
-    // Добавляем закешированные акции
-    allStocks.push(...cachedStocks);
-    
-    // Если есть акции для загрузки, загружаем их партиями
+  }
+
+  // Данные из кеша (и свежие, и устаревшие) — отдаём немедленно
+  const allStocks = allStocksFromCache.map(e => e.data);
+
+  try {
+    // Если есть что показать из кеша — сразу рендерим
+    if (allStocks.length > 0) {
+      if (!window.stocksRealData) window.stocksRealData = {};
+      allStocks.forEach((s) => {
+        if (s) window.stocksRealData[s.symbol] = { price: s.price, change: s.change, changePercent: s.changePercent, volume: s.volume, high: s.high || s.price, low: s.low || s.price, isReal: s.isReal };
+      });
+      if (hasTable) renderStocks(allStocks);
+      try { document.dispatchEvent(new CustomEvent('stocksDataLoaded', { detail: { stocks: allStocks, count: allStocks.length } })); } catch(e) {}
+    }
+
+    // Если есть акции для загрузки/обновления — делаем в фоне
     if (stocksToFetch.length > 0) {
-      console.log(`Loading ${stocksToFetch.length} stocks of ${symbols.length} (${cachedStocks.length} from cache)`);
-      
-      // МЕНЬШИЙ батч и БОЛЬШИЕ задержки для соблюдения rate limit
-      const batchSize = 5;
-      const batchDelay = 2000;
+      // Обновляем в фоне: 3 параллельных запроса, 1200ms между батчами
+      const batchSize = 3;
+      const batchDelay = 1200;
       
       for (let i = 0; i < stocksToFetch.length; i += batchSize) {
         const batch = stocksToFetch.slice(i, i + batchSize);
         
-        console.log(`Loading batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(stocksToFetch.length / batchSize)}: ${batch.join(', ')}`);
+
         
         const stocksBatch = await Promise.all(
           batch.map(async (symbol) => {
             try {
               const stockData = await fetchStockFromFinnhub(symbol);
-              
-              // Сохраняем в кеш при успешной загрузке
               const cacheKey = CACHE_KEY_PREFIX + symbol;
-              localStorage.setItem(cacheKey, JSON.stringify({
-                timestamp: Date.now(),
-                data: stockData
-              }));
-              
+              localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: stockData }));
               return stockData;
             } catch (error) {
-              console.warn(`Finnhub не сработал для ${symbol}:`, error.message);
-              
-              // Пытаемся использовать устаревший кеш
               const cacheKey = CACHE_KEY_PREFIX + symbol;
               const staleCache = localStorage.getItem(cacheKey);
               if (staleCache) {
-                try {
-                  const cachedData = JSON.parse(staleCache);
-                  console.log(`Используем устаревший кеш для ${symbol}`);
-                  return cachedData.data;
-                } catch (e) {
-                  console.warn(`Ошибка чтения устаревшего кеша для ${symbol}`);
-                }
+                try { return JSON.parse(staleCache).data; } catch(e) {}
               }
-              
-              // В крайнем случае используем fallback данные
               return generateFallbackStockData(symbol);
             }
           })
         );
-        
-        allStocks.push(...stocksBatch);
-        
+
+        // Обновляем данные по мере загрузки (live update)
+        stocksBatch.forEach((s) => {
+          if (!s) return;
+          if (!window.stocksRealData) window.stocksRealData = {};
+          window.stocksRealData[s.symbol] = { price: s.price, change: s.change, changePercent: s.changePercent, volume: s.volume, high: s.high || s.price, low: s.low || s.price, isReal: s.isReal };
+          // Обновляем карточку акции на странице без полного ре-рендера
+          const card = document.querySelector(`[data-symbol="${s.symbol}"]`);
+          if (card) {
+            const priceEl = card.querySelector('.stock-price, .crypto-price');
+            const changeEl = card.querySelector('.stock-change, .crypto-change');
+            if (priceEl) {
+              const _sym = getCurrencySymbol();
+              const _cp  = convertToSelectedCurrency(parseFloat(s.price));
+              priceEl.textContent = `${_sym}${_cp.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            }
+            if (changeEl) {
+              changeEl.textContent = `${s.changePercent >= 0 ? '+' : ''}${parseFloat(s.changePercent).toFixed(2)}%`;
+              changeEl.className = changeEl.className.replace(/\bpositive\b|\bnegative\b/g, '') + (s.changePercent >= 0 ? ' positive' : ' negative');
+            }
+          }
+        });
+
         if (i + batchSize < stocksToFetch.length) {
-          console.log(`Ожидание ${batchDelay}ms перед следующим батчем...`);
           await new Promise((resolve) => setTimeout(resolve, batchDelay));
         }
       }
     }
-
-    console.log('Акции загружены:', allStocks.length, 'из', symbols.length, 
-                `(${cachedStocks.length} из кеша, ${stocksToFetch.length} загружено)`);
-    
-    console.log('Пример данных акций:', allStocks.slice(0, 3).map(s => ({
-      symbol: s.symbol,
-      price: s.price,
-      priceType: typeof s.price,
-      isReal: s.isReal
-    })));
-    
-    // Сохраняем данные в window.stocksRealData ВСЕГДА (даже если нет таблицы)
-    if (!window.stocksRealData) {
-      window.stocksRealData = {};
-    }
-    
-    allStocks.forEach((s) => {
-      window.stocksRealData[s.symbol] = {
-        price: s.price,
-        change: s.change,
-        changePercent: s.changePercent,
-        volume: s.volume,
-        high: s.high || s.price,
-        low: s.low || s.price,
-        isReal: s.isReal || true
-      };
-    });
-    
-    console.log('Сохранены данные для акций:', Object.keys(window.stocksRealData).length);
-    
-    // Уведомляем другие модули о загрузке акций
-    try {
-      document.dispatchEvent(new CustomEvent('stocksDataLoaded', {
-        detail: { stocks: allStocks, count: allStocks.length },
-      }));
-    } catch (e) {
-      console.warn('Could not dispatch stocksDataLoaded', e);
-    }
-    
-    // Рендерим только если есть таблица
-    if (hasTable) {
-      renderStocks(allStocks);
-    }
     
   } catch (err) {
-    console.error('Ошибка загрузки акций:', err);
+
     if (hasTable) {
       tbody.innerHTML = '<tr><td colspan="7" class="no-data"> Не удалось загрузить данные акций. Попробуйте позже.</td></tr>';
     }
@@ -393,13 +341,14 @@ async function fetchStockFromFinnhub(symbol) {
         high: data.h ? parseFloat(data.h.toFixed(2)) : parseFloat(data.c.toFixed(2)),
         low: data.l ? parseFloat(data.l.toFixed(2)) : parseFloat(data.c.toFixed(2)),
         volume: formatVolume(data.v || 0),
+        volumeFormatted: formatVolume(data.v || 0),
         isReal: true
       };
     }
     throw new Error('Некорректные данные от Finnhub');
   } catch (error) {
     // Fallback: используем примерные данные
-    console.warn(`Finnhub недоступен для ${symbol}, используем fallback`);
+
     return generateFallbackStockData(symbol);
   }
 }
@@ -417,6 +366,7 @@ function generateFallbackStockData(symbol) {
     change: parseFloat(change.toFixed(2)),
     changePercent: parseFloat(changePercent.toFixed(2)),
     volume: formatVolume(Math.random() * 5000000 + 1000000),
+    volumeFormatted: formatVolume(Math.random() * 5000000 + 1000000),
     high: parseFloat(basePrice.toFixed(2)),
     low: parseFloat((basePrice * 0.98).toFixed(2)),
     isReal: false // Отмечаем как примерные данные
@@ -437,7 +387,7 @@ export async function loadCrypto() {
     // Получаем топ-30 активов для dashboard (быстрая загрузка)
     const assets = window.cryptoManager.getTopAssets(30);
     
-    console.log(`Загружаю ${assets.length} криптовалют из конфигурации...`);
+
     
     // Используем пакетную загрузку с rate limiting
       const crypto = await window.cryptoManager.batchLoadPrices(assets);
@@ -446,14 +396,13 @@ export async function loadCrypto() {
       throw new Error('Не удалось загрузить ни одной криптовалюты');
     }
 
-    console.log('Криптовалюты загружены:', crypto.length, 'из', assets.length);
     renderCrypto(crypto);
     
     // Очищаем устаревший кэш
     window.cryptoManager.cleanStaleCache();
     
   } catch (err) {
-    console.error('Ошибка загрузки криптовалют:', err);
+
     grid.innerHTML = '<div class="no-data">Не удалось загрузить данные криптовалют</div>';
     showNotification('Ошибка загрузки криптовалют', 'error');
   }
@@ -490,7 +439,7 @@ export async function loadIndices() {
         if (cached) {
           const cachedData = JSON.parse(cached);
           if (Date.now() - cachedData.timestamp < INDICES_CACHE_TTL) {
-            console.log(`Используем кеш для ${index.symbol} (${Math.round((Date.now() - cachedData.timestamp) / 3600000)}ч назад)`);
+
             indicesData.push(cachedData.data);
             continue;
           }
@@ -498,7 +447,7 @@ export async function loadIndices() {
         
         // Используем TwelveData API для получения quote (текущих данных)
         const url = `https://api.twelvedata.com/quote?symbol=${index.symbol}&apikey=${TWELVEDATA_API_KEY}`;
-        console.log(`Загружаю индекс ${index.name} (${index.symbol}) из TwelveData...`);
+
         
         const response = await fetch(url);
         const data = await response.json();
@@ -530,15 +479,15 @@ export async function loadIndices() {
           }));
           indicesData.push(indexData);
           
-          console.log(`${index.name}: ${currentPrice.toFixed(2)} (${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%)`);
+
         } else if (data.status === 'error') {
-          console.warn(`TwelveData ошибка для ${index.symbol}:`, data.message);
+
           
           // При ошибке пробуем использовать кешированные данные (игнорируем TTL)
           const cachedData = localStorage.getItem(cacheKey);
           if (cachedData) {
             const parsed = JSON.parse(cachedData);
-            console.log(`[Fallback] Используем устаревшие данные для ${index.symbol}`);
+
             indicesData.push(parsed.data);
             continue;
           }
@@ -547,7 +496,7 @@ export async function loadIndices() {
           if (msg.includes('run out of api credits') || msg.includes('exceeded')) {
             // Если это ошибка лимита и у нас есть хоть какие-то кешированные данные - показываем их
             if (indicesData.length > 0) {
-              console.log(`Показываем ${indicesData.length} индексов из кеша`);
+
               break;
             }
             
@@ -566,14 +515,14 @@ export async function loadIndices() {
         // Увеличенная задержка между запросами (важно для бесплатного тарифа TwelveData)
         await new Promise((resolve) => setTimeout(resolve, 300));
       } catch (error) {
-        console.error(`Ошибка загрузки ${index.name} (${index.symbol}):`, error);
+
         
         // При ошибке сети пробуем взять из кеша
         const cacheKey = `indices_${index.symbol}`;
         const cachedData = localStorage.getItem(cacheKey);
         if (cachedData) {
           const parsed = JSON.parse(cachedData);
-          console.log(`[Fallback] Используем кеш для ${index.symbol} после ошибки`);
+
           indicesData.push(parsed.data);
         }
       }
@@ -610,38 +559,51 @@ export async function loadIndices() {
     }
     if (typeof window.mountIndexCards === 'function') {
       window.mountIndexCards(indicesData);
-      console.log(`Индексы переданы в Vue: ${indicesData.length}`);
+
     } else {
       // fallback — простой рендер (на случай, если Vue не подключён)
+      function _fbSym() {
+        const cur = localStorage.getItem('selectedCurrency') || 'USD';
+        const m = { USD:'$', EUR:'€', RUB:'₽', GBP:'£', JPY:'¥', CNY:'¥', CAD:'$', AUD:'$', CHF:'Fr' };
+        return m[cur] || '$';
+      }
+      function _fbRate() {
+        const r = parseFloat(localStorage.getItem('currencyRate')); return (r && r > 0) ? r : 1;
+      }
+      function _fbFmt(v) {
+        const n = parseFloat(v) * _fbRate();
+        const s = n >= 1000 ? n.toLocaleString('ru-RU', { maximumFractionDigits: 2 }) : n.toFixed(2);
+        return _fbSym() + s;
+      }
       grid.innerHTML = `
         <div class="indices-grid">
           ${indicesData.map(index => `
             <div class="index-card">
               <div class="index-header">
                 <div class="index-left">
-                  <div class="index-icon">${index.symbol.charAt(0)}</div>
+                  <div class="index-icon notranslate" translate="no">${index.symbol.charAt(0)}</div>
                   <div class="index-meta">
                     <div class="index-name notranslate" translate="no">${index.name}</div>
                     <div class="index-symbol notranslate" translate="no">${index.symbol}</div>
                   </div>
                 </div>
                 <div class="index-right">
-                  <div class="index-value notranslate" translate="no">${index.value}</div>
+                  <div class="index-value notranslate" translate="no">${_fbFmt(index.value)}</div>
                   <div class="index-change ${parseFloat(index.changePercent) >= 0 ? 'positive' : 'negative'} notranslate" translate="no">${parseFloat(index.changePercent) >= 0 ? '+' : ''}${index.changePercent}%</div>
                 </div>
               </div>
               <div class="index-body">
                 <div class="index-sparkline" aria-hidden="true"></div>
                 <div class="index-details">
-                  <div class="notranslate" translate="no"><small>Мин:</small> ${index.low}</div>
-                  <div class="notranslate" translate="no"><small>Объём:</small> ${index.volume}</div>
+                  <div class="notranslate" translate="no"><small translate="no">Мин:</small> ${_fbFmt(index.low)}</div>
+                  <div class="notranslate" translate="no"><small translate="no">Объём:</small> ${index.volume}</div>
                 </div>
               </div>
             </div>
           `).join('')}
         </div>
       `;
-      console.log(`Загружено индексов (fallback): ${indicesData.length}`);
+
     }
     // --- Спарклайны: загрузка истории и рендер SVG в каждую карточку ---
     async function fetchIndexHistory(symbol) {
@@ -654,7 +616,7 @@ export async function loadIndices() {
           return json.values.map((v) => parseFloat(v.close)).reverse();
         }
       } catch (e) {
-        console.warn('Ошибка загрузки истории для', symbol, e);
+
       }
       return null;
     }
@@ -700,7 +662,7 @@ export async function loadIndices() {
       }
     });
   } catch (error) {
-    console.error('Критическая ошибка загрузки индексов:', error);
+
     grid.innerHTML = `
       <div class="no-data">
         <i class="fas fa-exclamation-triangle"></i>
@@ -821,6 +783,34 @@ window.CRYPTO_INFO = {
 // === КРИПТОВАЛЮТЫ ДЛЯ РАЗДЕЛА КРИПТО (с CryptoManager) ===
 let cryptoListCache = null;
 
+/**
+ * Загружает список криптовалют в window.cryptoList без привязки к DOM-элементам.
+ * Используется для дропдауна в модальных окнах транзакций.
+ */
+export async function loadCryptoForDropdown() {
+  if (window.cryptoList && window.cryptoList.length > 0) return;
+  // Используем кэш если есть — без сетевого запроса
+  if (cryptoListCache) {
+    window.cryptoList = cryptoListCache;
+    return;
+  }
+  try {
+    await window.cryptoManager.loadConfig();
+    const assets = window.cryptoManager.getAllAssets();
+    const cryptoData = await window.cryptoManager.batchLoadPrices(assets);
+    const valid = cryptoData.filter(d => d !== null);
+    const sorted = window.cryptoManager.sortAssets(valid, 'rank', 'asc');
+    sorted.forEach(it => {
+      if (it.symbol) it.symbol = String(it.symbol).replace(/;/g, '').trim().toUpperCase();
+      if (it.name) it.name = String(it.name).replace(/;/g, '').trim();
+    });
+    cryptoListCache = sorted;
+    window.cryptoList = sorted;
+  } catch (e) {
+
+  }
+}
+
 export async function loadCryptoList() {
   const grid = document.getElementById('mainCryptoGrid');
   if (!grid) return;
@@ -840,13 +830,12 @@ export async function loadCryptoList() {
     // ВСЕ криптовалюты из конфигурации (75+)
     const assets = window.cryptoManager.getAllAssets();
     
-    console.log(`Загружаю ВСЕ ${assets.length} криптовалют...`);
+
     
     // Пакетная загрузка с rate limiting
     const cryptoData = await window.cryptoManager.batchLoadPrices(assets);
 
     const validData = cryptoData.filter((data) => data !== null);
-    console.log('Загружено криптовалют:', validData.length);
 
     // Сортируем по рангу
     const sortedData = window.cryptoManager.sortAssets(validData, 'rank', 'asc');
@@ -873,7 +862,7 @@ export async function loadCryptoList() {
     try {
       document.dispatchEvent(new CustomEvent('cryptoListLoaded', { detail: { list: sortedData } }));
     } catch (e) {
-      console.warn('Could not dispatch cryptoListLoaded', e);
+
     }
     
     // Инициализируем фильтры после загрузки данных
@@ -881,10 +870,10 @@ export async function loadCryptoList() {
     
     // Показываем статистику по категориям
     const categoryStats = window.cryptoManager.getCategoryStats(sortedData);
-    console.log('Статистика по категориям:', categoryStats);
+
     
   } catch (error) {
-    console.error('Ошибка загрузки списка криптовалют:', error);
+
     grid.innerHTML = '<div class="no-data">Не удалось загрузить список криптовалют</div>';
     showNotification('Ошибка загрузки криптовалют', 'error');
   }
@@ -900,7 +889,7 @@ async function getSparklineData(symbol) {
     // Берем цены закрытия последних 24 часов
     return data.map(candle => parseFloat(candle[4]));
   } catch (error) {
-    console.warn(`Не удалось загрузить sparkline для ${symbol}:`, error);
+
     return null;
   }
 }
@@ -935,7 +924,15 @@ function createSparklineSVG(data, color) {
   const width = 100;
   const height = 40;
   const padding = 2;
-  
+
+  // Защита от undefined/пустых данных и невалидного цвета
+  if (!Array.isArray(data) || data.length < 2) {
+    data = generateSparklineData(0);
+  }
+  if (!color || typeof color !== 'string') {
+    color = '#3b82f6';
+  }
+  const safeColorId = color.replace(/[^a-zA-Z0-9]/g, '');
   const min = Math.min(...data);
   const max = Math.max(...data);
   const range = max - min || 1;
@@ -981,11 +978,11 @@ function createSparklineSVG(data, color) {
   return `
     <svg width="${width}" height="${height}" style="display: block;">
       <defs>
-        <linearGradient id="grad-${color.replace('#', '')}" x1="0%" y1="0%" x2="0%" y2="100%">
+        <linearGradient id="grad-${safeColorId}" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" style="stop-color:${color};stop-opacity:0.4" />
           <stop offset="100%" style="stop-color:${color};stop-opacity:0.05" />
         </linearGradient>
-        <filter id="glow-${color.replace('#', '')}">
+        <filter id="glow-${safeColorId}">
           <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
           <feMerge>
             <feMergeNode in="coloredBlur"/>
@@ -994,7 +991,7 @@ function createSparklineSVG(data, color) {
         </filter>
       </defs>
       <path
-        fill="url(#grad-${color.replace('#', '')})"
+        fill="url(#grad-${safeColorId})"
         d="${fillPath}"
         opacity="0">
         <animate attributeName="opacity" from="0" to="1" dur="0.6s" fill="freeze"/>
@@ -1006,7 +1003,7 @@ function createSparklineSVG(data, color) {
         stroke-linecap="round"
         stroke-linejoin="round"
         d="${smoothPath}"
-        filter="url(#glow-${color.replace('#', '')})"
+        filter="url(#glow-${safeColorId})"
         stroke-dasharray="1000"
         stroke-dashoffset="1000">
         <animate attributeName="stroke-dashoffset" from="1000" to="0" dur="1s" fill="freeze"/>
@@ -1030,6 +1027,26 @@ function getCoinCapIcon(symbol) {
   const coinCapId = COINCAP_ID_MAP[symbol] || symbol.toLowerCase();
   return `https://assets.coincap.io/assets/icons/${coinCapId}@2x.png`;
 }
+
+// Обработчик ошибок загрузки иконок криптовалют с fallback цепочкой
+window.handleCryptoIconError = (img, symbol, bgColor) => {
+  const attempt = img.dataset.cryptoFallback || '0';
+  if (attempt === '0') {
+    // CoinCap не нашёл — пробуем CryptoIcons (spothq) по тикеру
+    img.dataset.cryptoFallback = '1';
+    img.src = `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/icon/${symbol.toLowerCase()}.png`;
+  } else if (attempt === '1') {
+    // Пробуем Coinicons CDN
+    img.dataset.cryptoFallback = '2';
+    img.src = `https://cdn.jsdelivr.net/gh/atomiclabs/cryptocurrency-icons@1.0.0/128/icon/${symbol.toLowerCase()}.png`;
+  } else {
+    // Финальный fallback — ui-avatars
+    img.onerror = null;
+    img.dataset.cryptoFallback = 'done';
+    const bg = (bgColor || '#3b82f6').replace('#', '');
+    img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(symbol)}&background=${bg}&color=fff&size=64&bold=true`;
+  }
+};
 
 // Обработчик ошибок загрузки иконок акций с fallback цепочкой
 window.handleStockIconError = (img, symbol, firstLetter, color) => {
@@ -1107,10 +1124,9 @@ function renderCryptoListTo(coins, gridId = 'mainCryptoGrid') {
              style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%;">`;
     } else {
       const bgColor = info.color.replace('#', '');
-      const avatarUrl = `https://ui-avatars.com/api/?name=${coin.symbol}&background=${bgColor}&color=fff&size=48&bold=true`;
       iconHTML = `<img src="${getCoinCapIcon(coin.symbol)}" 
                       alt="${coin.symbol}" 
-                      onerror="this.onerror=null; this.src='${avatarUrl}';"
+                      onerror="handleCryptoIconError(this, '${coin.symbol}', '${info.color.replace('#', '')}')"
                       style="width: 100%; height: 100%; object-fit: contain;">`;
     }
     
@@ -1136,9 +1152,10 @@ function renderCryptoListTo(coins, gridId = 'mainCryptoGrid') {
       : `window.showCryptoDetail('${coin.symbol}')`;
     
     return `
-      <div class="crypto-card" 
+      <div class="crypto-card notranslate" 
            onclick="${clickHandler}" 
            data-symbol="${coin.symbol}"
+           translate="no"
            style="cursor: pointer; 
                   border-left: 4px solid ${info.color}; 
                   background: linear-gradient(135deg, ${info.color}05 0%, #ffffff 100%);
@@ -1176,7 +1193,7 @@ function renderCryptoListTo(coins, gridId = 'mainCryptoGrid') {
               <span class="notranslate" translate="no">${coin.symbol}</span>
               ${isStock ? `<span style="background: #3B82F615; color: #3B82F6; padding: 2px 6px; border-radius: 8px; font-size: 0.65rem; font-weight: 600;">STOCK</span>` : ''}
               <span style="color: #cbd5e1; font-size: 0.7rem;">•</span>
-              <span style="color: #94a3b8; font-size: 0.7rem;">24h Vol: ${coin.volumeFormatted}</span>
+              <span style="color: #94a3b8; font-size: 0.7rem;">24h Vol: ${coin.volumeFormatted || coin.volume || '—'}</span>
             </div>
           </div>
         </div>
@@ -1241,8 +1258,13 @@ function renderCryptoListTo(coins, gridId = 'mainCryptoGrid') {
   if (window._iconLoader && typeof window._iconLoader.processContainer === 'function') {
     window._iconLoader.processContainer(grid);
   }
+
+  // Защищаем динамически добавленные элементы от Google Translate
+  if (typeof window.markNoTranslateElements === 'function') {
+    setTimeout(() => window.markNoTranslateElements(), 100);
+  }
   
-  console.log('Отрендерено активов:', coins.length, `(${coins.filter((c) => c.assetType === 'stock').length} акций, ${coins.filter((c) => c.assetType === 'crypto').length} криптовалют)`);
+
 }
 
 // Экспортируем функцию для рендера списка карточек из других модулей (например, favorites-controls)
@@ -1326,12 +1348,20 @@ function initCustomSelect(displayId, dropdownId, onChange) {
   const dropdown = document.getElementById(dropdownId);
   
   if (!display || !dropdown) {
-    console.warn(`[initCustomSelect] Элементы не найдены: ${displayId}, ${dropdownId}`);
+
     return;
   }
-  
+
+  // Guard: only init once per element
+  if (display.dataset.csInited === '1') {
+    // Just update callback reference if needed
+    display._csOnChange = onChange;
+    return;
+  }
   // Удаляем старые обработчики, если они были (клонируя элемент)
   const newDisplay = display.cloneNode(true);
+  newDisplay.dataset.csInited = '1';
+  newDisplay._csOnChange = onChange;
   display.parentNode.replaceChild(newDisplay, display);
   
   // Открытие/закрытие dropdown
@@ -1352,7 +1382,7 @@ function initCustomSelect(displayId, dropdownId, onChange) {
     }
   });
   
-  // Выбор опции (используем делегирование событий для избежания дублирования)
+  // Выбор опции — храним ссылку на функцию на самом элементе, чтобы removeEventListener работал
   const optionClickHandler = (e) => {
     const option = e.target.closest('.custom-select-option');
     if (!option) return;
@@ -1377,14 +1407,16 @@ function initCustomSelect(displayId, dropdownId, onChange) {
     dropdown.classList.remove('show');
     if (displayEl) displayEl.classList.remove('open');
     
-    // Вызвать callback
-    if (onChange) {
-      onChange(value);
-    }
+    // Вызвать callback через хранимую ссылку
+    const cb = (document.getElementById(displayId) || newDisplay)._csOnChange;
+    if (cb) cb(value);
   };
   
-  // Удаляем старый обработчик и добавляем новый
-  dropdown.removeEventListener('click', optionClickHandler);
+  // Храним ссылку на handler на dropdown, чтобы можно было его снять
+  if (dropdown._optionClickHandler) {
+    dropdown.removeEventListener('click', dropdown._optionClickHandler);
+  }
+  dropdown._optionClickHandler = optionClickHandler;
   dropdown.addEventListener('click', optionClickHandler);
   
   // Отметить выбранную опцию по умолчанию
@@ -1402,8 +1434,11 @@ document.addEventListener('click', () => {
   });
 });
 
-// Инициализация обработчиков поиска и сортировки
+// Guard: only init once
+let _cryptoFiltersInited = false;
 function initCryptoFilters() {
+  if (_cryptoFiltersInited) return;
+  _cryptoFiltersInited = true;
   const searchInput = document.getElementById('cryptoSearch');
   const priceMin = document.getElementById('cryptoPriceMin');
   const priceMax = document.getElementById('cryptoPriceMax');
@@ -1517,14 +1552,14 @@ async function loadCryptoData(symbol) {
       isReal: true
     };
   } catch (error) {
-    console.error(`Ошибка загрузки ${symbol}:`, error);
+
     return null;
   }
 }
 
 // === ДЕТАЛЬНАЯ СТРАНИЦА КРИПТЫ ===
 export async function loadCryptoDetail(symbol, interval = '1d') {
-  console.log('Загрузка деталей для:', symbol);
+
   
   try {
     const [tickerData, klineData] = await Promise.all([
@@ -1550,7 +1585,7 @@ export async function loadCryptoDetail(symbol, interval = '1d') {
     // DISABLED: renderCryptoDetail uses old Chart.js - now using window.showCryptoDetail from ui.js
     
   } catch (error) {
-    console.error('Ошибка загрузки деталей крипты:', error);
+
     showNotification('Ошибка загрузки данных криптовалюты', 'error');
     
     // Показываем сообщение об ошибке вместо заглушек
@@ -1638,10 +1673,62 @@ async function fetchKlines(symbol, interval = '1d', limit = 100) {
       parseFloat(kline[4])
     ]);
   } catch (error) {
-    console.error('Ошибка загрузки графика:', error);
+
     throw error;
   }
 }
+
+// === ИСТОРИЧЕСКИЕ ЦЕНЫ ДЛЯ ГРАФИКА ПОРТФЕЛЯ ===
+// Получает дневные цены закрытия с Binance для крипто-символов
+// Возвращает { SYMBOL: { 'YYYY-MM-DD': closePrice, ... }, ... }
+async function fetchHistoricalDailyPrices(symbols, startDate) {
+  const startMs = new Date(startDate + 'T00:00:00Z').getTime();
+  const result = {};
+
+  // Пропускаем акции — Binance не имеет данных для них
+  const cryptoSymbols = symbols.filter(sym => !(window.STOCK_INFO && window.STOCK_INFO[sym.toUpperCase()]));
+  if (cryptoSymbols.length === 0) return result;
+
+  const binancePairMap = {
+    'BTC': 'BTCUSDT', 'ETH': 'ETHUSDT', 'BNB': 'BNBUSDT', 'SOL': 'SOLUSDT',
+    'ADA': 'ADAUSDT', 'XRP': 'XRPUSDT', 'DOGE': 'DOGEUSDT', 'DOT': 'DOTUSDT',
+    'MATIC': 'MATICUSDT', 'AVAX': 'AVAXUSDT', 'LINK': 'LINKUSDT', 'UNI': 'UNIUSDT',
+    'ETC': 'ETCUSDT', 'LTC': 'LTCUSDT', 'TRX': 'TRXUSDT', 'SHIB': 'SHIBUSDT',
+    'ATOM': 'ATOMUSDT', 'XLM': 'XLMUSDT', 'FIL': 'FILUSDT', 'APT': 'APTUSDT',
+    'NEAR': 'NEARUSDT', 'ICP': 'ICPUSDT', 'VET': 'VETUSDT', 'ALGO': 'ALGOUSDT',
+    'HBAR': 'HBARUSDT', 'MANA': 'MANAUSDT', 'SAND': 'SANDUSDT', 'AXS': 'AXSUSDT',
+    'IMX': 'IMXUSDT', 'GRT': 'GRTUSDT', 'AAVE': 'AAVEUSDT', 'MKR': 'MKRUSDT',
+    'COMP': 'COMPUSDT', 'SNX': 'SNXUSDT', 'CRV': 'CRVUSDT', 'BAL': 'BALUSDT',
+    'SUSHI': 'SUSHIUSDT', '1INCH': '1INCHUSDT', 'ENJ': 'ENJUSDT', 'CHZ': 'CHZUSDT',
+    'HOT': 'HOTUSDT', 'WIN': 'WINUSDT', 'BTT': 'BTTCUSDT', 'CELO': 'CELOUSDT',
+    'FLOW': 'FLOWUSDT', 'KSM': 'KSMUSDT', 'EGLD': 'EGLDUSDT', 'ONE': 'ONEUSDT',
+    'ZIL': 'ZILUSDT', 'QTUM': 'QTUMUSDT', 'ICX': 'ICXUSDT', 'ONT': 'ONTUSDT',
+    'ZRX': 'ZRXUSDT', 'BAT': 'BATUSDT', 'OXT': 'OXTUSDT', 'ANKR': 'ANKRUSDT',
+  };
+
+  await Promise.all(cryptoSymbols.map(async sym => {
+    const upper = sym.toUpperCase().replace('USDT', '').replace('USD', '');
+    const pair = binancePairMap[upper] || (upper + 'USDT');
+    try {
+      const url = `${BINANCE_KLINES}?symbol=${pair}&interval=1d&startTime=${startMs}&limit=1500`;
+      const r = await fetch(url);
+      if (!r.ok) return;
+      const data = await r.json();
+      if (!Array.isArray(data)) return;
+      result[sym] = {};
+      data.forEach(c => {
+        // c[0] = openTime ms, c[4] = close price
+        const dateStr = new Date(c[0]).toISOString().slice(0, 10);
+        result[sym][dateStr] = parseFloat(c[4]);
+      });
+    } catch (e) {
+
+    }
+  }));
+
+  return result;
+}
+window.fetchHistoricalDailyPrices = fetchHistoricalDailyPrices;
 
 // === ЗАГЛУШКИ УДАЛЕНЫ - ИСПОЛЬЗУЮТСЯ ТОЛЬКО РЕАЛЬНЫЕ ДАННЫЕ ===
 
@@ -1667,7 +1754,6 @@ function renderStocks(stocks) {
     };
   });
   
-  console.log('Saved data for stocks:', Object.keys(window.stocksRealData));
 
   const currencySymbol = getCurrencySymbol();
 
@@ -1700,6 +1786,44 @@ function renderStocks(stocks) {
       </tr>
     `;
   }).join('');
+
+  // Заполняем мобильный контейнер карточками
+  const cardsContainer = document.querySelector('.stocks-cards-container');
+  if (cardsContainer) {
+    cardsContainer.innerHTML = stocks.map(s => {
+      const changeClass = parseFloat(s.changePercent) >= 0 ? 'positive' : 'negative';
+      const changeSign = parseFloat(s.changePercent) >= 0 ? '+' : '';
+      const convertedPrice = convertToSelectedCurrency(parseFloat(s.price));
+      const iconHTML = getStockLogoHTML(s.symbol, '36px');
+
+      return `
+        <div class="stock-card-mobile" data-symbol="${s.symbol}">
+          <div class="stock-card-mobile-header">
+            <div class="stock-card-mobile-icon">${iconHTML}</div>
+            <div class="stock-card-mobile-info">
+              <div class="stock-card-mobile-symbol notranslate" translate="no">${s.symbol}</div>
+              <div class="stock-card-mobile-name notranslate" translate="no">${s.name}</div>
+            </div>
+          </div>
+          <div class="stock-card-mobile-body">
+            <div class="stock-card-mobile-field">
+              <span class="stock-card-mobile-field-label">Цена</span>
+              <span class="stock-card-mobile-field-value stock-price notranslate" translate="no">${currencySymbol}${formatPrice(convertedPrice)}</span>
+            </div>
+            <div class="stock-card-mobile-field">
+              <span class="stock-card-mobile-field-label">Изменение</span>
+              <span class="stock-card-mobile-field-value ${changeClass} stock-change notranslate" translate="no">${changeSign}${s.changePercent}%</span>
+            </div>
+          </div>
+          <div class="stock-card-mobile-action">
+            <button onclick="window.app.showTransactionModal('BUY', null, '${s.symbol}')">
+              <i class="fas fa-shopping-cart"></i> Купить ${s.symbol}
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
   
   // Принудительно защищаем новые элементы от перевода
   if (typeof window.markNoTranslateElements === 'function') {
@@ -1782,7 +1906,7 @@ export async function renderFavoritesSection() {
           };
         }
       } catch (e) {
-        console.warn(`Не удалось загрузить данные для ${symbol}:`, e);
+
       }
       
       // Если всё ещё нет данных, возвращаем минимальный объект
@@ -1824,15 +1948,15 @@ export async function renderFavoritesSection() {
                 low: data.l.toFixed(2),
                 volume: data.v || 0
               };
-              console.log(`Загружены данные для ${symbol} через API:`, stockData);
+
             }
           }
         } catch (error) {
-          console.warn(`Не удалось загрузить данные для ${symbol}:`, error);
+
         }
       }
       
-      console.log(`Обработка избранной акции ${symbol}:`, { stockData, info });
+
       
       if (stockData && stockData.price) {
         return {
@@ -1892,13 +2016,12 @@ export async function renderFavoritesSection() {
       return;
     }
 
-    console.log(`Валидных активов для рендера:`, validAssets.length);
     
     // Рендерим карточки (функция теперь универсальная)
     renderCryptoListTo(validAssets, 'favoritesCryptoGrid');
     
   } catch (e) {
-    console.error('renderFavoritesSection error:', e);
+
     grid.innerHTML = '<div class="no-data">Не удалось загрузить избранное</div>';
   }
 }
@@ -1910,7 +2033,7 @@ window.refreshFavorites = async () => {
       await renderFavoritesSection();
     }
   } catch (e) {
-    console.warn('refreshFavorites failed', e);
+
   }
 };
 
@@ -1943,10 +2066,9 @@ function renderCrypto(crypto) {
     
     // Используем CoinCap API для иконок
     const bgColor = info.color.replace('#', '');
-    const avatarUrl = `https://ui-avatars.com/api/?name=${c.symbol}&background=${bgColor}&color=fff&size=48&bold=true`;
     const iconHTML = `<img src="${getCoinCapIcon(c.symbol)}" 
                            alt="${c.symbol}" 
-                           onerror="this.onerror=null; this.src='${avatarUrl}';"
+                           onerror="handleCryptoIconError(this, '${c.symbol}', '${info.color.replace('#','')}')"
                            style="width: 100%; height: 100%; object-fit: contain;">`;
     
     const convertedPrice = convertToSelectedCurrency(parseFloat(c.price));
@@ -2152,7 +2274,6 @@ window.scheduleLoadNews = (category = 'all', maxRetries = 15, interval = 200, fo
     return window._realScheduleLoadNews(category, maxRetries, interval, force);
   }
 
-  console.log('[scheduleLoadNews proxy] Буферизуем запрос scheduleLoadNews, реализация ещё не загружена:', category);
   window._earlyScheduleLoadRequests.push([category, maxRetries, interval, force]);
 
   try {
@@ -2170,7 +2291,7 @@ window.scheduleLoadNews = (category = 'all', maxRetries = 15, interval = 200, fo
 
     // If we have cached news, render it immediately as a fallback
     if (window.newsCache && window.newsCache.data && window.newsCache.data.length) {
-      console.log('[scheduleLoadNews proxy] Отображаем кэшированные новости как fallback');
+
       // renderNews may not be defined yet; guard against that
       if (typeof window.renderNews === 'function') {
         window.renderNews(window.newsCache.data, category);
@@ -2178,7 +2299,7 @@ window.scheduleLoadNews = (category = 'all', maxRetries = 15, interval = 200, fo
       }
     }
   } catch (e) {
-    console.warn('[scheduleLoadNews proxy] Ошибка при показе fallback UI:', e.message);
+
   }
 
   // Start a short watcher to flush buffered schedule requests as soon as the real implementation appears.
@@ -2196,16 +2317,16 @@ window.scheduleLoadNews = (category = 'all', maxRetries = 15, interval = 200, fo
           try {
             const reqs = window._earlyScheduleLoadRequests.slice();
             window._earlyScheduleLoadRequests = [];
-            if (reqs.length) console.log('[scheduleLoadNews proxy] Flushing buffered schedule requests:', reqs.length);
+            if (reqs.length)
             reqs.forEach(args => {
               try {
                 window._realScheduleLoadNews(...args);
               } catch (err) {
-                console.warn('[scheduleLoadNews proxy] Ошибка при выполнении отложённого scheduleLoadNews:', err.message);
+
               }
             });
           } catch (e) {
-            console.warn('[scheduleLoadNews proxy] Flush error:', e.message);
+
           }
           return;
         }
@@ -2217,7 +2338,7 @@ window.scheduleLoadNews = (category = 'all', maxRetries = 15, interval = 200, fo
           try {
             const reqs = window._earlyScheduleLoadRequests.slice();
             window._earlyScheduleLoadRequests = [];
-            if (reqs.length) console.log('[scheduleLoadNews proxy] Flushing buffered requests (via loadNews readiness):', reqs.length);
+            if (reqs.length)
             reqs.forEach(args => {
               try {
                 // If real schedule not present, call loadNews directly for each buffered request
@@ -2227,11 +2348,11 @@ window.scheduleLoadNews = (category = 'all', maxRetries = 15, interval = 200, fo
                   window.loadNews(args[0], args[3]);
                 }
               } catch (err) {
-                console.warn('[scheduleLoadNews proxy] Ошибка при выполнении отложённого вызова loadNews:', err.message);
+
               }
             });
           } catch (e) {
-            console.warn('[scheduleLoadNews proxy] Flush error (loadNews path):', e.message);
+
           }
           return;
         }
@@ -2239,7 +2360,7 @@ window.scheduleLoadNews = (category = 'all', maxRetries = 15, interval = 200, fo
         if (attempts >= maxAttempts) {
           clearInterval(watcher);
           window._scheduleLoadWatcherActive = false;
-          console.warn('[scheduleLoadNews proxy] Real scheduleLoadNews did not appear within timeout, buffered requests remain.');
+
         }
       }, intervalMs);
     })();
@@ -2262,12 +2383,11 @@ window.ensureNewsFiltersInit = ensureNewsFiltersInit;
 // --- HOOK: auto-init on DOMContentLoaded and section show ---
 document.addEventListener('DOMContentLoaded', ensureNewsFiltersInit);
 
-
 // === РЕНДЕР: График объема ===
 function renderVolumeChart(coinSymbol, volume) {
   const ctx = document.getElementById('cryptoDetailVolumeChart');
   if (!ctx) {
-    console.log('Volume chart canvas not found');
+
     return;
   }
 
@@ -2343,7 +2463,7 @@ function renderVolumeChart(coinSymbol, volume) {
 function renderRangeChart(coinSymbol, currentPrice, high, low) {
   const ctx = document.getElementById('cryptoDetailRangeChart');
   if (!ctx) {
-    console.log('Range chart canvas not found');
+
     return;
   }
 
@@ -2583,7 +2703,7 @@ window.app = window.app || {};
 window.app.refreshMarketData = async () => {
   if (window.cache) {
     window.cache.clear();
-    console.log('Кэш очищен');
+
   }
   
   showNotification('Обновление рыночных данных...', 'info');
@@ -2610,7 +2730,7 @@ window.app.refreshMarketData = async () => {
     }, 1000);
     
   } catch (error) {
-    console.error('Ошибка обновления данных:', error);
+
     showNotification('Ошибка при обновлении данных', 'error');
   }
 };
@@ -2651,7 +2771,6 @@ window.closeModal = (modalId) => {
     content.style.height = '';
   }
 
-    console.log(`Panel modal ${modalId} undocked and restored`);
   }
 
   // Normal hide
@@ -2659,21 +2778,19 @@ window.closeModal = (modalId) => {
   setTimeout(() => {
     modal.style.display = 'none';
   }, 300);
-  console.log(`Modal ${modalId} closed`);
+
 };
 
 // Также добавляем в window.app для совместимости
 window.app = window.app || {};
 window.app.closeModal = window.closeModal;
 
-console.log('API module loaded - ТОЛЬКО РЕАЛЬНЫЕ ДАННЫЕ');
-
 // ==================== STOCKS SECTION ====================
 
 const STOCK_SYMBOLS = [
   'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX', 
   'PYPL', 'ADBE', 'CRM', 'INTC', 'AMD', 'ORCL', 'IBM', 'CSCO',
-  'QCOM', 'TXN', 'AVGO', 'SHOP', 'SQ', 'SNAP', 'UBER', 'LYFT',
+  'QCOM', 'TXN', 'AVGO', 'SHOP', 'XYZ', 'SNAP', 'UBER', 'LYFT',
   'ABNB', 'COIN', 'RBLX', 'PINS', 'SPOT', 'ZM', 'DOCU', 'TWLO',
   'PLTR', 'SNOW', 'NET', 'DDOG', 'MDB', 'CRWD', 'ZS', 'OKTA'
 ];
@@ -2699,7 +2816,7 @@ window.STOCK_INFO = {
   TXN: { name: 'Texas Instruments', sector: 'Technology', exchange: 'NASDAQ', color: '#D8232A', marketCap: 160 },
   AVGO: { name: 'Broadcom Inc.', sector: 'Technology', exchange: 'NASDAQ', color: '#ED1C24', marketCap: 450 },
   SHOP: { name: 'Shopify Inc.', sector: 'Technology', exchange: 'NYSE', color: '#95BF47', marketCap: 90 },
-  SQ: { name: 'Block Inc.', sector: 'Financial Services', exchange: 'NYSE', color: '#3D3D3D', marketCap: 45 },
+  XYZ: { name: 'Block Inc.', sector: 'Financial Services', exchange: 'NYSE', color: '#3D3D3D', marketCap: 45 },
   SNAP: { name: 'Snap Inc.', sector: 'Technology', exchange: 'NYSE', color: '#FFFC00', marketCap: 20 },
   UBER: { name: 'Uber Technologies', sector: 'Technology', exchange: 'NYSE', color: '#000000', marketCap: 140 },
   LYFT: { name: 'Lyft Inc.', sector: 'Technology', exchange: 'NASDAQ', color: '#FF00BF', marketCap: 6 },
@@ -2721,43 +2838,91 @@ window.STOCK_INFO = {
   OKTA: { name: 'Okta Inc.', sector: 'Technology', exchange: 'NASDAQ', color: '#007DC1', marketCap: 15 }
 };
 
+// Мгновенно заполняем window.stocksRealData из localStorage (синхронно, без сети).
+// Это гарантирует, что акции с реальными ценами будут доступны в дропдауне транзакций
+// сразу при открытии страницы, если данные уже были загружены раньше и закешированы.
+(() => {
+  const PREFIX = 'stock_';
+  window.stocksRealData = window.stocksRealData || {};
+  let loaded = 0;
+  for (const sym of STOCK_SYMBOLS) {
+    const raw = localStorage.getItem(PREFIX + sym);
+    if (!raw) continue;
+    try {
+      const entry = JSON.parse(raw);
+      const s = entry.data;
+      if (s && s.symbol) {
+        window.stocksRealData[s.symbol] = {
+          price: s.price, change: s.change, changePercent: s.changePercent,
+          volume: s.volume, high: s.high || s.price, low: s.low || s.price, isReal: s.isReal
+        };
+        loaded++;
+      }
+    } catch(e) { /* ignore malformed cache */ }
+  }
+})();
+
 let stocksListCache = null;
 
 export async function loadStocksList() {
   const grid = document.getElementById('mainStocksGrid');
   if (!grid) return;
 
-  grid.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка акций...</div>';
+  const CACHE_KEY_PREFIX = 'stock_';
+  const STOCKS_CACHE_TTL = 30 * 60 * 1000; // 30 минут
+
+  // Собираем что есть в кеше — показываем мгновенно
+  const cachedList = [];
+  const toFetch = [];
+  for (const symbol of STOCK_SYMBOLS) {
+    const raw = localStorage.getItem(CACHE_KEY_PREFIX + symbol);
+    if (raw) {
+      try {
+        const entry = JSON.parse(raw);
+        const age = Date.now() - entry.timestamp;
+        cachedList.push(entry.data);
+        if (age >= STOCKS_CACHE_TTL) toFetch.push(symbol);
+      } catch(e) { toFetch.push(symbol); }
+    } else {
+      toFetch.push(symbol);
+    }
+  }
 
   if (stocksListCache) {
     renderStocksList(stocksListCache);
-    return;
+  } else if (cachedList.length > 0) {
+    // Показываем кеш мгновенно
+    stocksListCache = cachedList;
+    window.stocksList = cachedList;
+    renderStocksList(cachedList);
+    if (typeof initStocksFilters === 'function') initStocksFilters();
+  } else {
+    grid.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Загрузка акций...</div>';
   }
 
+  // Обновляем устаревшие/отсутствующие данные в фоне
+  if (toFetch.length === 0) return;
+
   try {
-    // Обрабатываем символы пакетами, чтобы не превысить лимит Finnhub.
-    // Простая стратегия: выполняем N запросов параллельно, затем ждём delayMs.
-    async function batchProcess(items, fn, batchSize = 5, delayMs = 1000) {
+    async function batchProcess(items, fn, batchSize = 3, delayMs = 1200) {
       const results = [];
       for (let i = 0; i < items.length; i += batchSize) {
         const batch = items.slice(i, i + batchSize);
-        console.log(`Загружаю батч акций ${i + 1}-${i + batch.length} из ${items.length}`);
-        // Выполняем батч параллельно, но каждый элемент индивидуально ловит ошибки
-        const batchResults = await Promise.all(batch.map((item) => fn(item).catch((err) => {
-          console.warn('Ошибка при загрузке в батче для', item, err && err.message);
-          return null;
-        })));
+        const batchResults = await Promise.all(batch.map((item) => fn(item).catch(() => null)));
         results.push(...batchResults);
         if (i + batchSize < items.length) await new Promise((r) => setTimeout(r, delayMs));
       }
       return results;
     }
 
-    // Настройки: 5 запросов одновременно, 1 секунда пауза между батчами — простая, надёжная настройка
-    const stocksData = await batchProcess(STOCK_SYMBOLS, loadStockData, 5, 1000);
+    const stocksData = await batchProcess(toFetch, loadStockData, 3, 1200);
 
-    const validData = stocksData.filter((data) => data !== null);
-    console.log('Загружено акций:', validData.length);
+    const freshData = stocksData.filter(Boolean);
+    // Мёрж: заменяем устаревшие данные свежими, добавляем новые
+    const mergedMap = {};
+    (stocksListCache || cachedList).forEach(s => { if (s) mergedMap[s.symbol] = s; });
+    freshData.forEach(s => { mergedMap[s.symbol] = s; localStorage.setItem(CACHE_KEY_PREFIX + s.symbol, JSON.stringify({ timestamp: Date.now(), data: s })); });
+    const validData = STOCK_SYMBOLS.map(sym => mergedMap[sym]).filter(Boolean);
 
     stocksListCache = validData;
     window.stocksList = validData;
@@ -2776,7 +2941,7 @@ export async function loadStocksList() {
     }
     
   } catch (error) {
-    console.error('Ошибка загрузки акций:', error);
+
     grid.innerHTML = '<div class="no-data">Не удалось загрузить список акций</div>';
   }
 }
@@ -2817,15 +2982,15 @@ async function loadStockData(symbol) {
         };
       }
       // Fallback: если Finnhub не сработал
-      console.warn(`Finnhub недоступен для ${symbol}, используем fallback`);
+
       return generateFallbackStockDetailData(symbol);
     } catch (timeoutError) {
       clearTimeout(timeoutId);
-      console.warn(`Timeout Finnhub для ${symbol}: ${timeoutError.message}`);
+
       return generateFallbackStockDetailData(symbol);
     }
   } catch (error) {
-    console.warn(`Не удалось загрузить ${symbol}:`, error);
+
     return generateFallbackStockDetailData(symbol);
   }
 }
@@ -2857,70 +3022,37 @@ function generateFallbackStockDetailData(symbol) {
 }
 
 function renderStocksList(stocks) {
-  const grid = document.getElementById('mainStocksGrid');
-  if (!grid) return;
-
-  if (stocks.length === 0) {
-    grid.innerHTML = '<div class="no-data">Акции не найдены</div>';
+  if (!stocks || stocks.length === 0) {
+    const grid = document.getElementById('mainStocksGrid');
+    if (grid) grid.innerHTML = '<div class="no-data">Акции не найдены</div>';
     return;
   }
 
-  grid.innerHTML = stocks.map(stock => {
-    const changeClass = parseFloat(stock.changePercent) >= 0 ? 'price-positive' : 'price-negative';
-    const changeSign = parseFloat(stock.changePercent) >= 0 ? '+' : '';
-    
-    // Генерируем SVG спарклайн как у криптовалют
-    const sparklineSVG = createSparklineSVG(stock.sparklineData, stock.color);
-    
-    // Получаем HTML для логотипа акции с автоматическим fallback
-    const iconHTML = getStockLogoHTML(stock.symbol, '32px');
-    
-    return `
-      <div class="crypto-card" onclick="window.app.showStockDetail('${stock.symbol}')" style="cursor: pointer; border-left: 4px solid ${stock.color}; background: linear-gradient(135deg, ${stock.color}08 0%, #ffffff 100%);">
-        <div class="crypto-header">
-          <div class="crypto-icon" style="background: ${stock.color}; color: white; box-shadow: 0 4px 12px ${stock.color}40;">
-            ${iconHTML}
-          </div>
-          <div class="crypto-info">
-            <h4 class="notranslate" translate="no">${stock.name}</h4>
-            <div class="crypto-symbol notranslate" translate="no">${stock.symbol}</div>
-          </div>
-        </div>
-        <div class="crypto-price-row">
-          <div class="crypto-price notranslate" style="color: ${stock.color};" translate="no">$${formatPrice(stock.price)}</div>
-          <div class="crypto-change ${changeClass} notranslate" translate="no">
-            ${changeSign}${stock.changePercent}%
-          </div>
-        </div>
-        <div class="crypto-sparkline">
-          ${sparklineSVG}
-        </div>
-        <div class="crypto-stats-extended">
-          <div class="stat-mini">
-            <span class="stat-mini-label">24h High</span>
-            <span class="stat-mini-value notranslate" translate="no">$${stock.high}</span>
-          </div>
-          <div class="stat-mini">
-            <span class="stat-mini-label">24h Low</span>
-            <span class="stat-mini-value notranslate" translate="no">$${stock.low}</span>
-          </div>
-          <div class="stat-mini">
-            <span class="stat-mini-label">Капитализация</span>
-            <span class="stat-mini-value notranslate" translate="no">${stock.marketCap}B</span>
-          </div>
-          <div class="stat-mini">
-            <span class="stat-mini-label">Биржа</span>
-            <span class="stat-mini-value notranslate" translate="no">${stock.exchange}</span>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-  
-  console.log('Отрендерено акций:', stocks.length);
+  // Приводим данные акций к формату renderCryptoListTo чтобы карточки
+  // выглядели идентично криптовалютам (единый шаблон, анимации, тёмная тема и т.д.)
+  const coins = stocks.map(stock => ({
+    assetType: 'stock',
+    symbol: stock.symbol,
+    name: stock.name,
+    price: stock.price,
+    changePercent: stock.changePercent,
+    high: stock.high,
+    low: stock.low,
+    priceHistory: Array.isArray(stock.sparklineData) && stock.sparklineData.length >= 2
+      ? stock.sparklineData
+      : null,
+    volumeFormatted: stock.marketCap ? `${stock.marketCap}B` : stock.exchange || '—',
+  }));
+
+  renderCryptoListTo(coins, 'mainStocksGrid');
+
 }
 
+// Guard: only init once
+let _stocksFiltersInited = false;
 function initStocksFilters() {
+  if (_stocksFiltersInited) return;
+  _stocksFiltersInited = true;
   const searchInput = document.getElementById('stocksSearch');
   const priceMin = document.getElementById('stocksPriceMin');
   const priceMax = document.getElementById('stocksPriceMax');
@@ -3063,10 +3195,10 @@ function filterStocks(searchTerm, sortBy, percentValue = 'all', minPrice = -Infi
 
 // === ИНИЦИАЛИЗАЦИЯ ОБРАБОТЧИКОВ КНОПОК ПЕРИОДА ДЛЯ АКЦИЙ ===
 function initializeStockPeriodButtons() {
-  console.log('Initializing stock period buttons...');
+
   
   const periodButtons = document.querySelectorAll('#stockDetailModal .period-btn');
-  console.log('Найдено кнопок периода для акций:', periodButtons.length);
+
   
   periodButtons.forEach((btn) => {
     // Удаляем все старые обработчики через замену
@@ -3076,14 +3208,14 @@ function initializeStockPeriodButtons() {
   
   // Переполучаем кнопки после клонирования
   const newPeriodButtons = document.querySelectorAll('#stockDetailModal .period-btn');
-  console.log('Инициализируем обработчики для', newPeriodButtons.length, 'кнопок');
+
   
   newPeriodButtons.forEach((btn, index) => {
     btn.addEventListener('click', handleStockPeriodButtonClick, false);
-    console.log(`Обработчик для кнопки ${index} добавлен`);
+
   });
   
-  console.log('Stock period buttons initialized');
+
 }
 
 // Отдельная функция для обработки клика по кнопке периода акции
@@ -3092,7 +3224,7 @@ async function handleStockPeriodButtonClick(e) {
   e.stopPropagation();
   
   const days = this.getAttribute('data-period');
-  console.log('Stock period button clicked:', days);
+
   
   // Обновляем активную кнопку
   const modal = document.getElementById('stockDetailModal');
@@ -3101,22 +3233,22 @@ async function handleStockPeriodButtonClick(e) {
   this.classList.add('active');
   
   if (!window.currentStockDetail) {
-    console.error('Нет данных о текущей акции');
+
     return;
   }
   
   const symbol = window.currentStockDetail.symbol;
-  console.log('Символ акции:', symbol);
+
   
   try {
     // Передаём days как есть, чтобы поддерживать значение 'all'
     await loadStockChart(symbol, days);
-    console.log('График акции обновлен');
+
     
     showNotification(`График обновлен: ${days === 'all' ? 'Все время' : `${days} дней`}`, 'success');
     
   } catch (error) {
-    console.error('Ошибка загрузки данных графика:', error);
+
     showNotification('Ошибка обновления графика', 'error');
   }
 }
@@ -3134,8 +3266,11 @@ window.app.showStockDetail = async (symbol) => {
   modal.style.display = '';
   
   modal.classList.add('active');
-  console.log('Stock modal opened');
-  
+
+  // Явно показываем легенду сразу при открытии (как в крипто-модале)
+  const stockLegendEl = document.getElementById('stockChartLegend');
+  if (stockLegendEl) stockLegendEl.style.display = 'flex';
+
   try {
     const stockData = await loadStockData(symbol);
     
@@ -3206,14 +3341,32 @@ window.app.showStockDetail = async (symbol) => {
       elDividend.textContent = dividends[symbol] || '0%';
     }
     
-    // Загружаем график с периодом 7 дней (активная кнопка)
-    await loadStockChart(symbol, 7);
+    // Загружаем график с периодом 7 дней (активная кнопка) — передаём контейнеры модалки
+    const modalPriceContainer = document.getElementById('stockDetailModal')?.querySelector('#stockPriceChartContainer');
+    const modalVolumeContainer = document.getElementById('stockDetailModal')?.querySelector('#stockVolumeChartContainer');
+    await loadStockChart(symbol, 7, modalPriceContainer, modalVolumeContainer);
+
+    // Гарантируем корректный ресайз/отрисовку (иногда LightweightCharts рендерит без осей при скрытом/анимированном modal)
+    setTimeout(() => {
+      try {
+        if (window.stockPriceChart) {
+          const pc = modalPriceContainer || document.getElementById('stockPriceChartContainer');
+          window.stockPriceChart.applyOptions({ width: pc.clientWidth, height: pc.clientHeight });
+          window.stockPriceChart.timeScale().fitContent();
+        }
+        if (window.stockVolumeChart) {
+          const vc = modalVolumeContainer || document.getElementById('stockVolumeChartContainer');
+          window.stockVolumeChart.applyOptions({ width: vc.clientWidth, height: vc.clientHeight });
+          window.stockVolumeChart.timeScale().fitContent();
+        }
+      } catch (e) { /* silent */ }
+    }, 80);
     
     // Инициализируем обработчики для кнопок периода
     initializeStockPeriodButtons();
     
   } catch (error) {
-    console.error('Ошибка загрузки деталей акции:', error);
+
     modal.classList.remove('active');
   }
 };
@@ -3287,7 +3440,7 @@ async function fetchYahooFinanceData(symbol, isAll, daysNum) {
           }
           
           if (validData.c.length > 0) {
-            console.log(`Успех через ${proxy.includes('corsproxy') ? 'corsproxy.io' : proxy.includes('allorigins') ? 'allorigins.win' : 'cors-anywhere'}`);
+
             return {
               ...validData,
               s: 'ok',
@@ -3301,7 +3454,7 @@ async function fetchYahooFinanceData(symbol, isAll, daysNum) {
         throw new Error('Некорректные данные');
         
       } catch (proxyError) {
-        console.warn(`Прокси ${i + 1}/${corsProxies.length} не работает:`, proxyError.message);
+
         if (i === corsProxies.length - 1) {
           // Последний прокси тоже не сработал
           throw proxyError;
@@ -3315,10 +3468,10 @@ async function fetchYahooFinanceData(symbol, isAll, daysNum) {
   } catch (error) {
     // Игнорируем ошибки отмены при переключении периодов
     if (error.name === 'AbortError' || error.message.includes('abort')) {
-      console.log(`⏹️ Запрос для ${symbol} отменен (переключение периода)`);
+
       return null;
     }
-    console.warn(`Yahoo Finance ошибка для ${symbol}:`, error.message);
+
     return null;
   }
 }
@@ -3348,7 +3501,7 @@ async function fetchAlphaVantageData(symbol, isAll, daysNum) {
       url += `&interval=${interval}`;
     }
     
-    console.log(`Alpha Vantage запрос: ${func}, outputsize: ${outputsize}`);
+
     
     const response = await fetch(url);
     
@@ -3390,7 +3543,7 @@ async function fetchAlphaVantageData(symbol, isAll, daysNum) {
     }
     
     if (!timeSeriesKey || !data[timeSeriesKey]) {
-      console.warn('Alpha Vantage ответ:', Object.keys(data));
+
       throw new Error('Нет данных временных рядов в ответе');
     }
     
@@ -3420,7 +3573,7 @@ async function fetchAlphaVantageData(symbol, isAll, daysNum) {
       throw new Error('Нет валидных данных после парсинга');
     }
     
-    console.log(`✓ Alpha Vantage распарсил: ${closes.length} точек`);
+
     
     return {
       t: timestamps,
@@ -3432,7 +3585,7 @@ async function fetchAlphaVantageData(symbol, isAll, daysNum) {
       source: 'Alpha Vantage'
     };
   } catch (error) {
-    console.warn(`Alpha Vantage ошибка для ${symbol}:`, error.message);
+
     return null;
   }
 }
@@ -3488,7 +3641,7 @@ async function fetchFinnhubCandles(symbol, isAll, daysNum) {
       source: 'Finnhub'
     };
   } catch (error) {
-    console.warn(`Finnhub ошибка для ${symbol}:`, error.message);
+
     return null;
   }
 }
@@ -3499,7 +3652,7 @@ const YAHOOFINANCE_API = 'https://query1.finance.yahoo.com/v10/finance/quoteSumm
 
 // Очищаем старый кеш с неправильными данными при загрузке
 if (typeof window !== 'undefined' && !window._stockCacheCleared) {
-  console.log('Очистка старого кеша акций...');
+
   Object.keys(localStorage).forEach((key) => {
     if (key.includes('cache_timeseries') || key.includes('stockDataCache')) {
       localStorage.removeItem(key);
@@ -3512,29 +3665,29 @@ if (typeof window !== 'undefined' && !window._stockCacheCleared) {
 // Глобальная переменная для отмены предыдущих запросов
 window.currentStockRequest = null;
 
-async function loadStockChart(symbol, days = 30) {
+async function loadStockChart(symbol, days = 30, priceContainerEl, volumeContainerEl) {
   // Отменяем предыдущий запрос, если он есть
   if (window.currentStockRequest) {
     window.currentStockRequest.abort();
     window.currentStockRequest = null;
   }
-  
-  const container = document.getElementById('stockPriceChartContainer');
-  if (!container) {
-    console.error('Stock chart container not found');
+
+  // Поддерживаем передачу явных контейнеров (используется при dock/undock)
+  const priceContainer = priceContainerEl || document.getElementById('stockPriceChartContainer');
+  const volumeContainer = volumeContainerEl || document.getElementById('stockVolumeChartContainer');
+
+  if (!priceContainer || !volumeContainer) {
+
     return;
   }
-  
+
   const isAll = (typeof days === 'string' && days.toLowerCase() === 'all');
   const daysNum = isAll ? 36500 : (parseInt(days) || 30);
 
-  console.log('Запрос исторических данных акции:', { symbol, days: isAll ? 'all' : daysNum });
   
   // НЕМЕДЛЕННО очищаем контейнеры для мгновенного отклика
-  const priceContainer = document.getElementById('stockPriceChartContainer');
-  const volumeContainer = document.getElementById('stockVolumeChartContainer');
-  if (priceContainer) priceContainer.innerHTML = '';
-  if (volumeContainer) volumeContainer.innerHTML = '';
+  priceContainer.innerHTML = '';
+  volumeContainer.innerHTML = '';
   
   // Очищаем существующие графики
   if (window.stockPriceChart && window.stockPriceChart.remove) {
@@ -3563,9 +3716,9 @@ async function loadStockChart(symbol, days = 30) {
     // Проверяем кеш - моментально скрываем spinner
     const cached = window.cacheManager?.get('timeseries', { symbol, days: newCacheKey });
     if (cached) {
-      console.log(`Из кеша: ${cached.points} точек`);
-      drawStockChart('stockPriceChartContainer', cached, symbol);
-      drawStockVolumeChart(cached);
+
+      await drawStockChart(priceContainer, cached, symbol);
+      drawStockVolumeChart(cached, volumeContainer);
       if (priceLoader) priceLoader.style.display = 'none';
       if (volumeLoader) volumeLoader.style.display = 'none';
       window.currentStockRequest = null;
@@ -3575,24 +3728,24 @@ async function loadStockChart(symbol, days = 30) {
     // Старый кеш
     if (window.stockDataCache.has(oldCacheKey)) {
       const data = window.stockDataCache.get(oldCacheKey);
-      console.log(`Из старого кеша: ${data.points} точек`);
-      drawStockChart('stockPriceChartContainer', data, symbol);
-      drawStockVolumeChart(data);
+
+      await drawStockChart(priceContainer, data, symbol);
+      drawStockVolumeChart(data, volumeContainer);
       if (priceLoader) priceLoader.style.display = 'none';
       if (volumeLoader) volumeLoader.style.display = 'none';
       window.currentStockRequest = null;
       return;
     }
     
-    console.log('Загрузка с Yahoo Finance...');
+
     
     try {
       const yahooData = await fetchYahooFinanceData(symbol, isAll, daysNum);
       if (yahooData && yahooData.points > 0) {
-        console.log(`✓ Yahoo Finance: ${yahooData.points} точек`);
+
         window.cacheManager?.set('timeseries', { symbol, days: newCacheKey }, yahooData);
-        drawStockChart('stockPriceChartContainer', yahooData, symbol);
-        drawStockVolumeChart(yahooData);
+        await drawStockChart(priceContainer, yahooData, symbol);
+        drawStockVolumeChart(yahooData, volumeContainer);
         if (priceLoader) priceLoader.style.display = 'none';
         if (volumeLoader) volumeLoader.style.display = 'none';
         window.currentStockRequest = null;
@@ -3601,20 +3754,20 @@ async function loadStockChart(symbol, days = 30) {
     } catch (error) {
       // Если запрос был отменен, выходим
       if (error.name === 'AbortError' || error.message.includes('abort')) {
-        console.log('⏹️ Запрос отменен');
+
         return;
       }
-      console.log('Yahoo недоступен:', error.message);
+
     }
     
     // Fallback: проверяем любой устаревший кеш
-    console.log('Yahoo недоступен, проверяем кеш...');
+
     const allCachedKeys = Object.keys(localStorage).filter((k) => k.includes('cache_timeseries'));
     for (const key of allCachedKeys) {
       try {
         const cached = JSON.parse(localStorage.getItem(key));
         if (cached?.data?.symbol === symbol || key.includes(symbol)) {
-          console.log(`Используем кеш: ${cached.data?.points || '?'} точек`);
+
           drawStockChart('stockPriceChartContainer', cached.data, symbol);
           drawStockVolumeChart(cached.data);
           if (priceLoader) priceLoader.style.display = 'none';
@@ -3625,12 +3778,12 @@ async function loadStockChart(symbol, days = 30) {
     }
     
     // Генерируем демо-данные для первого показа
-    console.warn('API недоступен, показываем демо-данные');
+
     const demoData = generateDemoStockData(symbol, daysNum);
     if (demoData && demoData.points > 0) {
-      console.log(`Демо-данные: ${demoData.points} точек`);
-      drawStockChart('stockPriceChartContainer', demoData, symbol);
-      drawStockVolumeChart(demoData);
+
+      await drawStockChart(priceContainer, demoData, symbol);
+      drawStockVolumeChart(demoData, volumeContainer);
       if (priceLoader) {
         priceLoader.innerHTML = '<div style="color: #f59e0b; font-size: 11px; padding: 8px;">Демо-данные (API временно недоступен)</div>';
         priceLoader.style.display = 'block';
@@ -3646,7 +3799,7 @@ async function loadStockChart(symbol, days = 30) {
     window.currentStockRequest = null;
     
   } catch (error) {
-    console.error('Критическая ошибка:', error);
+
     window.currentStockRequest = null;
     const priceLoader = document.getElementById('stockPriceChartLoader');
     const volumeLoader = document.getElementById('stockVolumeChartLoader');
@@ -3717,7 +3870,7 @@ function generateTestStockData(days, currentPrice = null) {
   
   // Используем только реальную цену, не генерируем случайную
   if (!currentPrice) {
-    console.warn('Нет текущей цены для генерации данных');
+
     currentPrice = 100; // fallback
   }
   
@@ -3768,19 +3921,19 @@ async function drawStockChart(container, data, symbol) {
   }
   
   if (!container) {
-    console.error('Stock chart container not found');
+
     return;
   }
   
   // Валидируем данные
   if (!data || !data.t || !data.c || data.c.length === 0) {
-    console.error('Неверные данные графика:', data);
+
     return;
   }
   
   // Проверяем на некорректные значения
   if (data.c.some((price) => !isFinite(price) || price <= 0)) {
-    console.error('Некорректные значения цен в данных:', data.c);
+
     return;
   }
   
@@ -3796,19 +3949,31 @@ async function drawStockChart(container, data, symbol) {
   
   // Очищаем контейнер
   container.innerHTML = '';
+
+  // Переносим tooltip внутрь container (как в крипто-модале): param.point координаты
+  // совпадают с container, а не с его родителем-wrapper.
+  let priceTooltip = document.getElementById('stockPriceChartTooltip');
+  if (priceTooltip && priceTooltip.parentNode !== container) {
+    container.appendChild(priceTooltip);
+  }
+  if (!priceTooltip) {
+    // Fallback: создаём программно (как в крипто-модале)
+    priceTooltip = document.createElement('div');
+    priceTooltip.id = 'stockPriceChartTooltip';
+    priceTooltip.className = 'chart-tooltip';
+    priceTooltip.style.cssText = 'position:absolute;display:none;pointer-events:none;z-index:200;';
+    container.appendChild(priceTooltip);
+  }
+  priceTooltip.style.display = 'none';
   
   // Получаем цвет акции из STOCK_INFO
   const info = window.STOCK_INFO && window.STOCK_INFO[symbol] ? 
     window.STOCK_INFO[symbol] : { color: '#3b82f6' };
   const lineColor = info.color || '#3b82f6';
   
-  // Создаем график Lightweight Charts
-  const width = container.clientWidth || 1000;
-  const height = container.clientHeight || 500;
-  
+  // Создаем график Lightweight Charts (autoSize:true — chart fills container regardless of timing)
   const chart = LightweightCharts.createChart(container, {
-    width: width,
-    height: height,
+    autoSize: true,
     layout: {
       background: { color: '#1a1d28' },
       textColor: '#d1d5db',
@@ -3860,7 +4025,7 @@ async function drawStockChart(container, data, symbol) {
   let compareFirstPrice = null;
   
   if (window.stockCompareSymbol && window.stockCompareSymbol !== symbol) {
-    console.log('Loading comparison stock:', window.stockCompareSymbol);
+
     
     try {
       // Пытаемся загрузить данные для сравнения
@@ -3868,7 +4033,7 @@ async function drawStockChart(container, data, symbol) {
       const compareRawData = await fetchYahooFinanceData(window.stockCompareSymbol, days > 365, days);
       
       if (compareRawData && compareRawData.c && compareRawData.c.length > 0) {
-        console.log(`Comparison data loaded: ${compareRawData.c.length} points`);
+
         
         // Синхронизируем временные метки (КАК В КРИПТОВАЛЮТАХ!)
         const mainTimes = new Set(data.t);
@@ -3910,6 +4075,9 @@ async function drawStockChart(container, data, symbol) {
           
           // Сохраняем ссылку на основную серию
           window.stockPriceChart._mainSeries = mainSeries;
+          document.dispatchEvent(new CustomEvent('lwcChartReady', {
+            detail: { chart: window.stockPriceChart, series: mainSeries, containerId: 'stockPriceChartWrapper', toolbarId: 'stockDrawingToolbar' },
+          }));
           
           // Добавляем график сравнения (LineSeries без заливки как в криптовалютах)
           const compareInfo = window.STOCK_INFO[window.stockCompareSymbol];
@@ -3923,7 +4091,7 @@ async function drawStockChart(container, data, symbol) {
           
           // Сохраняем ссылку на серию сравнения
           window.stockPriceChart._compareSeries = compareSeries;
-          console.log('Saved compareSeries:', compareSeries);
+
           
           compareData = { 
             normalized: normalizedCompare, 
@@ -3942,11 +4110,11 @@ async function drawStockChart(container, data, symbol) {
             change: normalizedCompare[normalizedCompare.length - 1].value
           });
           
-          console.log('Comparison chart added in percentage mode');
+
         }
       }
     } catch (error) {
-      console.error('Error loading comparison:', error);
+
     }
   }
   
@@ -3968,6 +4136,10 @@ async function drawStockChart(container, data, symbol) {
     
     // Сохраняем ссылку на основную серию
     window.stockPriceChart._mainSeries = areaSeries;
+    document.dispatchEvent(new CustomEvent('lwcChartReady', {
+      detail: { chart: window.stockPriceChart, series: areaSeries,
+                containerId: 'stockPriceChartWrapper', toolbarId: 'stockDrawingToolbar' },
+    }));
     
     // Обновляем легенду с текущей акцией
     updateStockLegend({
@@ -3978,7 +4150,7 @@ async function drawStockChart(container, data, symbol) {
   }
   
   // Tooltip при наведении (как в криптовалютах)
-  const priceTooltip = document.getElementById('stockPriceChartTooltip');
+  // priceTooltip уже определён выше (перенесён внутрь container)
   if (priceTooltip) {
     chart.subscribeCrosshairMove((param) => {
       if (!param.time || !param.point) {
@@ -4069,6 +4241,41 @@ async function drawStockChart(container, data, symbol) {
       
       priceTooltip.innerHTML = tooltipHTML;
       priceTooltip.style.display = 'block';
+
+      // Обновляем легенду при движении курсора (как в крипто-модале)
+      const legendEl1 = document.getElementById('stockLegend1');
+      if (legendEl1 && stockMainSeriesVisible) {
+        const originalData = originalStockData.find((d) => d.time === param.time);
+        if (originalData) {
+          const priceEl = legendEl1.querySelector('.legend-price');
+          const changeEl = legendEl1.querySelector('.legend-change');
+          if (priceEl) priceEl.textContent = `$${originalData.value.toFixed(2)}`;
+          if (changeEl) {
+            const idx = originalStockData.findIndex((d) => d.time === param.time);
+            if (idx > 0) {
+              const pct = ((originalData.value - originalStockData[0].value) / originalStockData[0].value) * 100;
+              changeEl.textContent = `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+              changeEl.className = `legend-change ${pct >= 0 ? 'positive' : 'negative'}`;
+            }
+          }
+        }
+      }
+      if (window.stockCompareSymbol && originalCompareData) {
+        const legendEl2 = document.getElementById('stockLegend2');
+        if (legendEl2) {
+          const cDataPoint = originalCompareData.find((d) => d.time === param.time);
+          if (cDataPoint) {
+            const priceEl2 = legendEl2.querySelector('.legend-price');
+            const changeEl2 = legendEl2.querySelector('.legend-change');
+            if (priceEl2) priceEl2.textContent = `$${cDataPoint.value.toFixed(2)}`;
+            if (changeEl2) {
+              const pct2 = ((cDataPoint.value - originalCompareData[0].value) / originalCompareData[0].value) * 100;
+              changeEl2.textContent = `${pct2 >= 0 ? '+' : ''}${pct2.toFixed(2)}%`;
+              changeEl2.className = `legend-change ${pct2 >= 0 ? 'positive' : 'negative'}`;
+            }
+          }
+        }
+      }
       
       // Position tooltip (like in crypto)
       const containerRect = container.getBoundingClientRect();
@@ -4085,33 +4292,12 @@ async function drawStockChart(container, data, symbol) {
     });
   }
   
-  // Автоматический resize
-  const resizeObserver = new ResizeObserver((entries) => {
-    if (entries.length === 0 || entries[0].target !== container) return;
-    const newWidth = container.clientWidth;
-    const newHeight = container.clientHeight || 500;
-    chart.applyOptions({ width: newWidth, height: newHeight });
-  });
-  
-  resizeObserver.observe(container);
-  
-  // Сохраняем ссылки для очистки
-  window.stockPriceChart = chart;
-  window.stockPriceChart._resizeObserver = resizeObserver;
-  // compareSeries уже сохранена выше, не перезаписываем
-  if (compareSeries) {
-    console.log('Final check - compareSeries saved:', window.stockPriceChart._compareSeries);
-  }
-  const originalRemove = chart.remove.bind(chart);
-  window.stockPriceChart.remove = () => {
-    resizeObserver.disconnect();
-    originalRemove();
-  };
+
   
   // Подгоняем график под данные
   chart.timeScale().fitContent();
   
-  console.log(`Stock chart drawn with Lightweight Charts: ${chartData.length} points`);
+
 }
 
 // Функция обновления легенды для акций (как в криптовалютах)
@@ -4138,9 +4324,9 @@ function updateStockLegend(stock1Data, stock2Data) {
   color1.onclick = () => toggleStockMainSeries();
   
   legend1.querySelector('.legend-symbol').textContent = stock1Data.symbol;
-  legend1.querySelector('.legend-price').textContent = `$${stock1Data.price.toFixed(2)}`;
+  legend1.querySelector('.legend-price').textContent = `$${(+stock1Data.price).toFixed(2)}`;
   
-  const change1 = stock1Data.change;
+  const change1 = parseFloat(stock1Data.change) || 0;
   const change1El = legend1.querySelector('.legend-change');
   change1El.textContent = `${change1 >= 0 ? '+' : ''}${change1.toFixed(2)}%`;
   change1El.className = `legend-change ${change1 >= 0 ? 'positive' : 'negative'}`;
@@ -4160,9 +4346,9 @@ function updateStockLegend(stock1Data, stock2Data) {
     color2.onclick = () => toggleStockCompareSeries();
     
     legend2.querySelector('.legend-symbol').textContent = stock2Data.symbol;
-    legend2.querySelector('.legend-price').textContent = `$${stock2Data.price.toFixed(2)}`;
+    legend2.querySelector('.legend-price').textContent = `$${(+stock2Data.price).toFixed(2)}`;
     
-    const change2 = stock2Data.change;
+    const change2 = parseFloat(stock2Data.change) || 0;
     const change2El = legend2.querySelector('.legend-change');
     change2El.textContent = `${change2 >= 0 ? '+' : ''}${change2.toFixed(2)}%`;
     change2El.className = `legend-change ${change2 >= 0 ? 'positive' : 'negative'}`;
@@ -4193,24 +4379,22 @@ function toggleStockMainSeries() {
 function toggleStockCompareSeries() {
   stockCompareSeriesVisible = !stockCompareSeriesVisible;
   
-  console.log('toggleStockCompareSeries called, new state:', stockCompareSeriesVisible);
-  console.log('Chart:', window.stockPriceChart);
-  console.log('Compare series:', window.stockPriceChart?._compareSeries);
+
   
   if (window.stockPriceChart && window.stockPriceChart._compareSeries) {
     window.stockPriceChart._compareSeries.applyOptions({ visible: stockCompareSeriesVisible });
-    console.log('Applied visibility:', stockCompareSeriesVisible);
+
   } else {
-    console.error('Compare series not found!');
+
   }
   
   // Обновляем визуальное состояние квадратика (как в криптовалютах)
   const color2 = document.getElementById('stockLegend2')?.querySelector('.legend-color');
   if (color2) {
     color2.className = `legend-color${stockCompareSeriesVisible ? '' : ' hidden'}`;
-    console.log('Updated color2 class:', color2.className);
+
   } else {
-    console.error('color2 not found!');
+
   }
 }
 
@@ -4218,10 +4402,10 @@ function toggleStockCompareSeries() {
 window.toggleStockMainSeries = toggleStockMainSeries;
 window.toggleStockCompareSeries = toggleStockCompareSeries;
 
-function drawStockVolumeChart(data) {
-  const container = document.getElementById('stockVolumeChartContainer');
+function drawStockVolumeChart(data, containerEl) {
+  const container = containerEl || document.getElementById('stockVolumeChartContainer');
   if (!container) {
-    console.warn('Stock volume chart container not found');
+
     return;
   }
   
@@ -4234,16 +4418,12 @@ function drawStockVolumeChart(data) {
   container.innerHTML = '';
   
   if (!data || !data.v || data.v.length === 0) {
-    console.warn('No volume data');
+
     return;
   }
   
-  const width = container.clientWidth || 1000;
-  const height = container.clientHeight || 250;
-  
   const chart = LightweightCharts.createChart(container, {
-    width: width,
-    height: height,
+    autoSize: true,
     layout: {
       background: { color: '#1a1d28' },
       textColor: '#d1d5db',
@@ -4284,27 +4464,11 @@ function drawStockVolumeChart(data) {
   
   histogramSeries.setData(volumeData);
   
-  // Автоматический resize
-  const resizeObserver = new ResizeObserver((entries) => {
-    if (entries.length === 0 || entries[0].target !== container) return;
-    const newWidth = container.clientWidth;
-    const newHeight = container.clientHeight || 250;
-    chart.applyOptions({ width: newWidth, height: newHeight });
-  });
-  
-  resizeObserver.observe(container);
-  
   window.stockVolumeChart = chart;
-  window.stockVolumeChart._resizeObserver = resizeObserver;
-  const originalRemove = chart.remove.bind(chart);
-  window.stockVolumeChart.remove = () => {
-    resizeObserver.disconnect();
-    originalRemove();
-  };
   
   chart.timeScale().fitContent();
   
-  console.log(`Stock volume chart drawn: ${volumeData.length} bars`);
+
 }
 
 // Удаляем старую функцию drawStockRangeChart
@@ -4349,14 +4513,11 @@ window.addStockToWatchlist = () => {
         showNotification('Функция избранного недоступна', 'error');
       }
     } catch (err) {
-      console.error('addStockToWatchlist error:', err);
+
       showNotification('Ошибка при добавлении акции в избранное', 'error');
     }
   })();
 };
-
-console.log('Stocks module loaded');
-
 
 // ==================== TRANSACTION STOCKS SUPPORT ====================
 
@@ -4369,18 +4530,18 @@ window.initCryptoSearch = () => {
     const selectedCryptoDiv = document.getElementById('selectedCrypto');
     
     if (!searchInput || !dropdown) {
-      console.warn('Элементы поиска не найдены');
+
       return;
     }
 
     // Prevent double-initialization when another module (ui.js) already set up the dropdown
     if (window.__cryptoSearchInitDone) {
-      console.log('initCryptoSearch: уже инициализировано, пропускаю.');
+
       return;
     }
     window.__cryptoSearchInitDone = true;
     
-    console.log('initCryptoSearch вызван');
+
     
     // Объединяем криптовалюты и акции для поиска
     const getAllAssets = () => {
@@ -4401,14 +4562,15 @@ window.initCryptoSearch = () => {
             });
         }
         
-        // Добавляем акции
-        if (window.stocksList && window.stocksList.length > 0) {
-            window.stocksList.forEach((stock) => {
-                const info = window.STOCK_INFO?.[stock.symbol] || {};
+        // Добавляем акции — STOCK_INFO всегда доступен статически;
+        // stocksRealData с реальными ценами берётся если есть, иначе 0
+        if (window.STOCK_INFO) {
+            Object.entries(window.STOCK_INFO).forEach(([symbol, info]) => {
+                const priceData = window.stocksRealData?.[symbol];
                 allAssets.push({
-                    symbol: stock.symbol,
-                    name: stock.name,
-                    price: stock.price,
+                    symbol: symbol,
+                    name: info.name,
+                    price: priceData?.price || 0,
                     icon: null,
                     type: 'stock',
                     color: info.color || '#3b82f6'
@@ -4416,7 +4578,7 @@ window.initCryptoSearch = () => {
             });
         }
         
-        console.log(`Всего активов для поиска: ${allAssets.length}`);
+
         return allAssets;
     };
     
@@ -4457,7 +4619,7 @@ window.initCryptoSearch = () => {
               iconHTML = `<img src="${getCoinCapIcon(asset.symbol)}" 
                        alt="${asset.symbol}" 
                        style="width: 100%; height: 100%; border-radius: 50%; object-fit: contain;"
-                       onerror="this.onerror=null; this.parentElement.innerHTML='${asset.symbol.charAt(0)}'">`;
+                       onerror="handleCryptoIconError(this, '${asset.symbol}', '3b82f6')">`;
             } else {
                 // Для акций используем логотипы компаний с fallback
                 iconHTML = getStockLogoHTML(asset.symbol, '100%').replace('border-radius: 4px', 'border-radius: 50%');
@@ -4514,7 +4676,7 @@ window.initCryptoSearch = () => {
                     selectedIconHTML = `<img src="${getCoinCapIcon(symbol)}" 
                                              alt="${symbol}" 
                                              style="width: 100%; height: 100%; border-radius: 50%; object-fit: contain;"
-                                             onerror="this.onerror=null; this.parentElement.innerHTML='${symbol.charAt(0)}'">`;
+                                             onerror="handleCryptoIconError(this, '${symbol}', '3b82f6')">`;
                 } else {
                     selectedIconHTML = getStockLogoHTML(symbol, '100%').replace('border-radius: 4px', 'border-radius: 50%');
                 }
@@ -4537,7 +4699,7 @@ window.initCryptoSearch = () => {
                 `;
                 selectedCryptoDiv.style.display = 'block';
                 
-                console.log(`Выбран ${type}: ${symbol} по цене $${price}`);
+
             });
         });
     };
@@ -4581,7 +4743,7 @@ window.initCryptoSearch = () => {
         }
     });
     
-    console.log('Обработчики поиска установлены');
+
 };
 
 window.clearSelectedCrypto = () => {
@@ -4604,8 +4766,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.initCryptoSearch) window.initCryptoSearch();
     }, 2000);
 });
-
-console.log('Transaction stocks support loaded');
 
 // ==================== REAL NEWS SYSTEM (FINNHUB API) ====================
 /**
@@ -4650,7 +4810,7 @@ function loadNewsCacheFromStorage() {
       }
     }
   } catch (e) {
-    console.warn('Ошибка загрузки кеша новостей из localStorage:', e);
+
   }
   return false;
 }
@@ -4660,7 +4820,7 @@ function saveNewsCacheToStorage(cache) {
   try {
     localStorage.setItem('newsCache', JSON.stringify(cache));
   } catch (e) {
-    console.warn('Ошибка сохранения кеша новостей в localStorage:', e);
+
   }
 }
 
@@ -4696,10 +4856,10 @@ window.currentNewsData = [];
  * @param {string} category - Категория новостей: 'all', 'crypto', 'forex', 'general'
  */
 async function loadNews(category = 'all') {
-    console.log('[loadNews] Вызвана с категорией:', category, 'isNewsLoading:', isNewsLoading);
+
     
     if (newsDebounceTimer) {
-      console.log('[loadNews] Debounce: игнорируем повторный вызов');
+
       clearTimeout(newsDebounceTimer);
     }
     
@@ -4713,10 +4873,10 @@ async function loadNews(category = 'all') {
 }
 
 async function _loadNewsInternal(category = 'all') {
-    console.log('[_loadNewsInternal] Загрузка с категорией:', category);
+
     if (window.ensureNewsFiltersInit) window.ensureNewsFiltersInit();
     if (isNewsLoading) {
-      console.warn('[_loadNewsInternal] Загрузка новостей уже выполняется, повторный вызов заблокирован.');
+
       return;
     }
     isNewsLoading = true;
@@ -4726,9 +4886,9 @@ async function _loadNewsInternal(category = 'all') {
     window.app.loadNews = loadNews;
 
     const container = document.getElementById('newsContainer');
-    console.log('[loadNews] Контейнер найден:', !!container, container);
+
     if (!container) {
-      console.warn('[loadNews] Контейнер новостей не найден');
+
       isNewsLoading = false;
       return;
     }
@@ -4752,7 +4912,7 @@ async function _loadNewsInternal(category = 'all') {
         if (isCacheValid) {
           const ageMinutes = Math.floor(cacheAge / 60000);
           const ageSeconds = Math.floor((cacheAge % 60000) / 1000);
-          console.log(`Загружаем новости из кэша (возраст: ${ageMinutes}м ${ageSeconds}с)`);
+
           renderNews(newsCache.data, category);
           updateNewsStats(newsCache.data.length);
           
@@ -4773,7 +4933,7 @@ async function _loadNewsInternal(category = 'all') {
         if (category === 'all') {
             // Загружаем только криптовалютные новости (экономия API лимитов)
             newsData = await fetchFinnhubNews('crypto');
-            console.log(`Загружено ${newsData.length} crypto новостей (оптимизация: 1 запрос вместо 3)`);
+
         } else {
             // Загружаем конкретную категорию
             const categoryParam = NEWS_CATEGORIES[category]?.param || 'crypto';
@@ -4818,26 +4978,26 @@ async function _loadNewsInternal(category = 'all') {
             });
             
             if (window.notificationIntegrations) {
-                console.log('Обрабатываем новости для уведомлений...');
+
                 try {
                     for (let i = 0; i < Math.min(3, newsData.length); i++) {
                         const news = newsData[i];
-                        console.log(`Обрабатываем новость ${i + 1}/${Math.min(3, newsData.length)}:`, news.title);
+
                         await window.notificationIntegrations.notifyAboutNews(news);
                     }
-                    console.log('Обработка новостей завершена');
+
                 } catch (error) {
-                    console.error('Ошибка при отправке уведомлений о новостях:', error);
+
                 }
             } else {
-                console.warn('window.notificationIntegrations не найден');
+
             }
         } else {
             showNotification('Новостей не найдено', 'warning');
         }
         
     } catch (error) {
-        console.error('Ошибка загрузки новостей:', error);
+
         showNotification('Ошибка загрузки новостей', 'error');
         
         container.innerHTML = `
@@ -4870,9 +5030,9 @@ try {
     if (!window.app) window.app = {};
     window.app.loadNews = loadNews;
   }
-  console.log('[api.js] window.loadNews real implementation registered');
+
 } catch (e) {
-  console.warn('[api.js] Failed to register real loadNews implementation:', e.message);
+
 }
 
 /**
@@ -4887,14 +5047,14 @@ async function fetchFinnhubNews(category = 'general') {
         // URL для News API
         const url = `https://finnhub.io/api/v1/news?category=${category}&token=${FINNHUB_TOKEN}`;
         
-        console.log(`Загрузка новостей (${category})...`);
+
         
         const data = await safeFetchJson(url, { signal: AbortSignal.timeout(10000) });
         if (!data || !Array.isArray(data)) {
-          console.warn('Некорректный или пустой ответ новостей:', url);
+
           return [];
         }
-        console.log(`Загружено ${data.length} новостей категории ${category}`);
+
         // Преобразуем в наш формат
         return data.map((item) => ({
           id: item.id || Math.random().toString(36).substr(2, 9),
@@ -4917,7 +5077,7 @@ async function fetchFinnhubNews(category = 'general') {
         }));
         
     } catch (error) {
-        console.error(`Ошибка загрузки Finnhub новостей (${category}):`, error);
+
         return [];
     }
 }
@@ -4937,7 +5097,7 @@ function renderNews(news, category = 'all', skipCategoryFilter = false) {
 
     const container = document.getElementById('newsContainer');
     if (!container) {
-      console.error('[renderNews] Контейнер newsContainer не найден!');
+
       return;
     }
 
@@ -4949,7 +5109,6 @@ function renderNews(news, category = 'all', skipCategoryFilter = false) {
     // Если контейнер невидим — всё равно рендерим содержимое (чтобы оно было готово к показу).
     // Наблюдаем за появлением элемента и запускаем animation/reflow тогда, когда он станет видимым.
     if (!isVisible) {
-      console.warn('[renderNews] Контейнер скрыт — рендерим в фоне и ожидаем появления для активации анимаций');
 
       if (!container._renderNewsObserver) {
         container._renderNewsObserver = new window.IntersectionObserver((entries, observer) => {
@@ -4986,7 +5145,7 @@ function renderNews(news, category = 'all', skipCategoryFilter = false) {
     }
 
     if (!news || !Array.isArray(news) || news.length === 0) {
-      console.warn('[renderNews] Нет новостей для отображения:', news);
+
       container.innerHTML = `
         <div class="no-data">
           <i class="bi bi-newspaper"></i>
@@ -5021,17 +5180,17 @@ function renderNews(news, category = 'all', skipCategoryFilter = false) {
 
     const duplicatesRemoved = originalCount - filteredNews.length;
     if (duplicatesRemoved > 0) {
-      console.log(`[renderNews] Удалено ${duplicatesRemoved} дубликатов из ${originalCount} новостей`);
+
     }
 
     const MAX_NEWS_TO_DISPLAY = 200;
     if (filteredNews.length > MAX_NEWS_TO_DISPLAY) {
-      console.warn(`[renderNews] Ограничение: показываем ${MAX_NEWS_TO_DISPLAY} из ${filteredNews.length} новостей`);
+
       filteredNews = filteredNews.slice(0, MAX_NEWS_TO_DISPLAY);
     }
 
     if (filteredNews.length === 0) {
-      console.warn('[renderNews] Нет новостей после фильтрации по категории:', category, news);
+
       container.innerHTML = `
         <div class="no-data">
           <i class="bi bi-funnel"></i>
@@ -5042,7 +5201,6 @@ function renderNews(news, category = 'all', skipCategoryFilter = false) {
       return;
     }
 
-
     // Сохраняем данные в глобальной переменной
     window.currentNewsData = filteredNews;
     // Сбросить fallback-таймер после успешного рендера
@@ -5050,8 +5208,6 @@ function renderNews(news, category = 'all', skipCategoryFilter = false) {
       window._onNewsRendered();
       window._onNewsRendered = null;
     }
-
-    console.log('[renderNews] Рендерим новости. Всего:', filteredNews.length, filteredNews[0]);
 
     // Добавляем sentiment analysis к новостям
     const newsWithSentiment = filteredNews.map((item) => {
@@ -5107,7 +5263,7 @@ function renderNews(news, category = 'all', skipCategoryFilter = false) {
                      alt="${escapeHtml(item.title)}" 
                      class="news-image" 
                      data-fallback="${escapeHtml(fallbackImage)}"
-                     onerror="console.warn('[News] Image failed:', this.src); this.onerror=null; this.src=this.dataset.fallback;">
+                     onerror="this.onerror=null; this.src=this.dataset.fallback;">
                 <div class="news-category-badge" style="background: ${categoryInfo.color};">
                     <i class="bi bi-${item.icon || 'newspaper'}"></i> ${categoryInfo.name}
                 </div>
@@ -5156,7 +5312,7 @@ function renderNews(news, category = 'all', skipCategoryFilter = false) {
     // Обновляем статистику
     updateNewsStats(newsWithSentiment.length);
     
-    console.log('Новости отрендерены');
+
 }
 
 // Экспортируем renderNews глобально для использования в других модулях
@@ -5172,28 +5328,28 @@ window.openNewsByIndex = (index, event) => {
         event.stopImmediatePropagation();
     }
     
-    console.log('Открытие новости по индексу:', index);
+
     
     if (!window.currentNewsData || !Array.isArray(window.currentNewsData)) {
-        console.error('Нет данных новостей');
+
         showNotification('Нет данных новостей', 'error');
         return;
     }
     
     const newsItem = window.currentNewsData[index];
     if (!newsItem) {
-        console.error('Новость не найдена по индексу:', index);
+
         showNotification('Новость не найдена', 'error');
         return;
     }
     
-    console.log('Найдена новость:', newsItem.title);
+
     openNewsModal(newsItem);
 };
 
 // Основная функция открытия модалки - теперь использует Vue.js
 function openNewsModal(newsItem) {
-    console.log('Открытие Vue.js модалки для:', newsItem.title);
+
     
     // Используем Vue.js компонент если доступен
     if (window.openNewsModalVue) {
@@ -5202,10 +5358,10 @@ function openNewsModal(newsItem) {
     }
     
     // Fallback на старую модалку если Vue не загружен
-    console.warn('Vue.js модалка недоступна, используем fallback');
+
     const modal = document.getElementById('newsDetailModal');
     if (!modal) {
-        console.error('Модальное окно не найдено!');
+
         return;
     }
     
@@ -5286,7 +5442,7 @@ function openNewsModal(newsItem) {
         }
         
         // Показываем модалку
-        console.log('Показываем модалку...');
+
         modal.style.display = 'flex';
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
@@ -5301,7 +5457,7 @@ function openNewsModal(newsItem) {
         }, 100);
         
     } catch (error) {
-        console.error('Ошибка при заполнении модалки:', error);
+
         showNotification('Ошибка при открытии новости', 'error');
     }
 }
@@ -5335,7 +5491,7 @@ async function translateNewsItem(newsItem) {
                         return data.responseData.translatedText;
                     }
                 } catch (error) {
-                    console.warn('Ошибка перевода:', error);
+
                 }
                 
                 return `${text} [Автоматический перевод недоступен]`;
@@ -5369,7 +5525,7 @@ async function translateNewsItem(newsItem) {
         }
         
     } catch (error) {
-        console.error('Ошибка перевода:', error);
+
         showNotification('Ошибка перевода', 'error');
     } finally {
         translateBtn.disabled = false;
@@ -5521,7 +5677,6 @@ function filterNewsBySearch(searchTerm) {
 // ==================== ИНИЦИАЛИЗАЦИЯ ФИЛЬТРОВ ====================
 
 function initNewsFilters() {
-  console.log('Инициализация фильтров новостей (delegation)');
 
   // Используем делегирование событий, чтобы обработчики оставались рабочими
   // даже если DOM-элементы будут перерисованы или заменены.
@@ -5581,7 +5736,7 @@ function initNewsFilters() {
           return;
         }
       } catch (err) {
-        console.warn('news filters delegation error', err);
+
       }
     }, false);
 
@@ -5598,7 +5753,7 @@ function initNewsFilters() {
         const clearBtnEl = document.getElementById('clearNewsSearch');
         if (clearBtnEl) clearBtnEl.style.display = e.target.value ? 'block' : 'none';
       } catch (err) {
-        console.warn('news search input error', err);
+
       }
     }, false);
   }
@@ -5666,10 +5821,7 @@ window.app.closeNewsModal = () => {
 
 // Функция для отладки
 window.debugNews = () => {
-    console.log('=== DEBUG NEWS ===');
-    console.log('currentNewsData:', window.currentNewsData);
-    console.log('Length:', window.currentNewsData?.length);
-    console.log('First item:', window.currentNewsData?.[0]);
+
 };
 
 // ==================== ИНИЦИАЛИЗАЦИЯ ====================
@@ -5684,7 +5836,7 @@ function scheduleLoadNews(category = 'all', maxRetries = 12, interval = 250) {
   // Назначаем функцию на window сразу после объявления
   window.scheduleLoadNews = scheduleLoadNews;
   if (isNewsLoadScheduled) {
-    console.warn('[scheduleLoadNews] Уже запланирована попытка загрузки, повторный вызов проигнорирован');
+
     return;
   }
   isNewsLoadScheduled = true;
@@ -5697,23 +5849,23 @@ function scheduleLoadNews(category = 'all', maxRetries = 12, interval = 250) {
     if (container) {
       // If real implementation is ready, call it; otherwise wait a bit.
       if (window._loadNewsReady) {
-        console.log('newsContainer найден и loadNews готов, вызываем loadNews');
+
         // Вызываем загрузку и снимаем блокировку после завершения
         window.loadNews(category)
           .catch((e) => {
-            console.error('[scheduleLoadNews] Ошибка при вызове loadNews:', e);
+
           })
           .finally(() => {
             isNewsLoadScheduled = false;
           });
         return;
       } else {
-        console.log('[scheduleLoadNews] newsContainer найден, но loadNews ещё не готов — ожидаем');
+
         if (attempts < maxRetries) {
           setTimeout(tryLoad, interval);
           return;
         } else {
-          console.warn('[scheduleLoadNews] loadNews не стал готовым после попыток, отмена');
+
           isNewsLoadScheduled = false;
           return;
         }
@@ -5721,12 +5873,11 @@ function scheduleLoadNews(category = 'all', maxRetries = 12, interval = 250) {
     }
 
     if (attempts < maxRetries) {
-      console.log(`newsContainer не найден, повторная попытка ${attempts}/${maxRetries}`);
+
       setTimeout(tryLoad, interval);
       return;
     }
 
-    console.warn('Не удалось найти newsContainer после нескольких попыток, отмена загрузки новостей');
     isNewsLoadScheduled = false;
   };
 
@@ -5740,14 +5891,14 @@ try {
   // Expose a reference for the early proxy to delegate to and flush buffered calls
   window._realScheduleLoadNews = scheduleLoadNews;
   if (window._earlyScheduleLoadRequests && window._earlyScheduleLoadRequests.length) {
-    console.log('[scheduleLoadNews] Flushing early buffered schedule calls:', window._earlyScheduleLoadRequests.length);
+
     const reqs = window._earlyScheduleLoadRequests.slice();
     window._earlyScheduleLoadRequests = [];
     reqs.forEach(args => {
       try {
         scheduleLoadNews(...args);
       } catch (e) {
-        console.warn('[scheduleLoadNews] Ошибка при выполнении отложённого запроса:', e.message);
+
       }
     });
   }
@@ -5755,7 +5906,7 @@ try {
   // безопасно игнорируем в средах без window
 }
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('Инициализация системы новостей');
+
   setTimeout(() => {
     initNewsFilters();
 

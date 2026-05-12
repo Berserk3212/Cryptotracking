@@ -4,18 +4,18 @@
     const contentType = response.headers.get('content-type') || '';
     
     if (!response.ok) {
-      console.warn('safeFetchJsonGlobal: response not ok', url, response.status);
+
       return null;
     }
     
     if (!contentType.includes('application/json')) {
-      console.warn('safeFetchJsonGlobal: CORB or non-JSON response', url, 'Content-Type:', contentType);
+
       return null;
     }
     
     return await response.json();
   } catch (e) {
-    console.warn('safeFetchJsonGlobal: fetch or parse error', url, e.message);
+
     return null;
   }
 }
@@ -38,11 +38,26 @@ export function setSelectedCurrency(currency) {
   fetchCurrencyRate();
 }
 
-export async function setSelectedCurrencyAsync(currency) {
+export function setSelectedCurrencyAsync(currency) {
   selectedCurrency = currency;
   localStorage.setItem(CURRENCY_KEY, currency);
+
+  // Мгновенно применяем кешированный курс до запроса к API
+  if (currency === BASE_CURRENCY) {
+    currencyRate = 1;
+  } else {
+    const cached = parseFloat(localStorage.getItem(`currency_rate_${currency}`));
+    if (cached > 0 && !isNaN(cached)) currencyRate = cached;
+  }
+  localStorage.setItem(RATE_KEY, currencyRate.toString());
+
+  // Мгновенный диспатч с уже правильным курсом
   window.dispatchEvent(new CustomEvent('currencyChanged', { detail: { currency, rate: currencyRate } }));
-  await fetchCurrencyRate();
+
+  // Фоновый фетч актуального курса (не блокирует вызывающий код)
+  fetchCurrencyRate().then(() => {
+    window.dispatchEvent(new CustomEvent('currencyChanged', { detail: { currency: selectedCurrency, rate: currencyRate } }));
+  }).catch(() => {});
 }
 
 export async function fetchCurrencyRate() {
@@ -50,6 +65,18 @@ export async function fetchCurrencyRate() {
     currencyRate = 1;
     localStorage.setItem(RATE_KEY, '1');
     return 1;
+  }
+
+  // Per-currency cache with 1-hour TTL for instant repeat lookups
+  const cacheKey = `currency_rate_${selectedCurrency}`;
+  const cacheTimeKey = `currency_rate_time_${selectedCurrency}`;
+  const cachedRate = parseFloat(localStorage.getItem(cacheKey));
+  const cachedTime = parseInt(localStorage.getItem(cacheTimeKey) || '0');
+  if (cachedRate > 0 && !isNaN(cachedRate) && Date.now() - cachedTime < 3_600_000) {
+    currencyRate = cachedRate;
+    localStorage.setItem(RATE_KEY, currencyRate.toString());
+    window.dispatchEvent(new CustomEvent('currencyRateUpdated', { detail: { currency: selectedCurrency, rate: currencyRate } }));
+    return currencyRate;
   }
 
   const providers = [
@@ -78,17 +105,20 @@ export async function fetchCurrencyRate() {
                 const parsed = Number(r);
                 // Защитная проверка: если API вернул ровно 1 для не-USD валюты — это подозрительно
                 if (parsed === 1 && selectedCurrency !== BASE_CURRENCY) {
-                    console.warn(`Fetched currency rate is 1 for ${selectedCurrency} — possible API/CORS error`);
+
                 }
                 currencyRate = parsed;
                 localStorage.setItem(RATE_KEY, currencyRate.toString());
+                // Save per-currency cache
+                localStorage.setItem(`currency_rate_${selectedCurrency}`, currencyRate.toString());
+                localStorage.setItem(`currency_rate_time_${selectedCurrency}`, Date.now().toString());
                 window.dispatchEvent(new CustomEvent('currencyRateUpdated', { detail: { currency: selectedCurrency, rate: currencyRate } }));
                 if (window.showNotification) window.showNotification(`Курс загружен: 1 USD = ${currencyRate} ${selectedCurrency}`, 'success');
                 return currencyRate;
             }
         } catch (err) {
             // игнорируем провайдера и пробуем следующий
-            console.warn('Currency provider failed:', err);
+
         }
     }
 
@@ -101,7 +131,7 @@ export async function fetchCurrencyRate() {
     }
 
     if (currencyRate === 1 && selectedCurrency !== BASE_CURRENCY) {
-        console.error('Failed to fetch valid currency rate; falling back to', currencyRate);
+
         if (window.showNotification) window.showNotification('Не удалось загрузить корректный курс валюты — используется последний доступный или 1', 'error');
     }
 

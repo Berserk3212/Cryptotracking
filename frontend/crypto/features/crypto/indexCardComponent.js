@@ -1,4 +1,25 @@
 ﻿(function() {
+  // --- Хелперы валюты (читаем из localStorage, как currency.js) ---
+  function _idxCurrencySymbol() {
+    const cur = localStorage.getItem('selectedCurrency') || 'USD';
+    const map = { USD:'$', EUR:'€', RUB:'₽', GBP:'£', JPY:'¥', CNY:'¥', CAD:'$', AUD:'$', CHF:'Fr' };
+    return map[cur] || '$';
+  }
+  function _idxCurrencyRate() {
+    const rate = parseFloat(localStorage.getItem('currencyRate'));
+    return (rate && rate > 0) ? rate : 1;
+  }
+  function _idxFmt(usdValue) {
+    const v = parseFloat(usdValue);
+    if (isNaN(v)) return usdValue;
+    const converted = v * _idxCurrencyRate();
+    const sym = _idxCurrencySymbol();
+    // Форматируем с локалью: большие числа с разделителями
+    const formatted = converted >= 1000
+      ? converted.toLocaleString('ru-RU', { maximumFractionDigits: 2 })
+      : converted.toFixed(2);
+    return sym + formatted;
+  }
   const catmullRom2bezier = (points, tension = 0.5) => {
     const d = [];
     for (let i = 0; i < points.length; i++) {
@@ -53,14 +74,14 @@
         <div class="index-card" :style="{ animationDelay: (index * 70) + 'ms' }" @mouseenter="hover=true" @mouseleave="hover=false">
           <div class="index-header">
             <div class="index-left">
-              <div class="index-icon">{{item.symbol.charAt(0)}}</div>
+              <div class="index-icon notranslate" translate="no">{{item.symbol.charAt(0)}}</div>
               <div class="index-meta">
                 <div class="index-name notranslate" translate="no">{{item.name}}</div>
                 <div class="index-symbol notranslate" translate="no">{{item.symbol}}</div>
               </div>
             </div>
             <div class="index-right">
-              <div class="index-value notranslate" translate="no">{{item.value}}</div>
+              <div class="index-value notranslate" translate="no">{{fmtVal(item.value)}}</div>
               <div :class="['index-change', parseFloat(item.changePercent) >= 0 ? 'positive' : 'negative']" class="notranslate" translate="no">{{formatChange(item.changePercent)}}</div>
             </div>
           </div>
@@ -79,8 +100,8 @@
               </svg>
             </div>
             <div class="index-details">
-              <div class="notranslate" translate="no"><small>Мин:</small> {{item.low}}</div>
-              <div class="notranslate" translate="no"><small>Объём:</small> {{item.volume}}</div>
+              <div class="notranslate" translate="no"><small translate="no">Мин:</small> {{fmtVal(item.low)}}</div>
+              <div class="notranslate" translate="no"><small translate="no">Объём:</small> {{item.volume}}</div>
             </div>
           </div>
         </div>
@@ -88,6 +109,7 @@
       data(){ return { hover:false }},
       mounted(){ this.renderDecorativeSpark(); },
       methods:{
+        fmtVal(v){ return _idxFmt(v); },
         formatChange(v){ return (parseFloat(v) >=0 ? '+' : '') + v + '%'; },
 
         renderDecorativeSpark(){
@@ -146,10 +168,16 @@
     // mount or remount
     const mountPoint = document.getElementById('indicesGrid');
     if (!mountPoint) return;
+    // Unmount previous instance before remounting to prevent Vue double-mount warning
+    if (window._indicesVueApp) {
+      try { window._indicesVueApp.unmount(); } catch (e) {}
+      window._indicesVueApp = null;
+    }
     mountPoint.innerHTML = '';
     app.mount(mountPoint);
+    window._indicesVueApp = app;
     // expose updater
-    window.updateIndexCards = (newData)=>{ app._instance.data.indices = newData; };
+    window.updateIndexCards = (newData) => { app._instance.data.indices = newData; };
   }
 
   // expose mount function

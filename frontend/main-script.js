@@ -1,9 +1,51 @@
 const { createApp, ref, reactive, onMounted, computed } = Vue;
 
+// ─── Вспомогательные функции для работы с валютой ─────────────────────────
+// Дублируем логику currency.js, т.к. main-script.js не является ES-модулем
+const CURRENCY_SYMBOLS = { USD: '$', RUB: '₽', EUR: '€', GBP: '£', CNY: '¥' };
+
+function getCurrencySymbol() {
+  const cur = localStorage.getItem('selectedCurrency') || 'USD';
+  return CURRENCY_SYMBOLS[cur] || cur;
+}
+
+function getCurrencyRate() {
+  const rate = parseFloat(localStorage.getItem('currencyRate'));
+  return (!isNaN(rate) && rate > 0) ? rate : 1;
+}
+
+async function fetchSelectedCurrencyRate(currency) {
+  if (!currency || currency === 'USD') {
+    localStorage.setItem('currencyRate', '1');
+    return 1;
+  }
+  // Проверяем per-currency кэш (1 час)
+  const cachedRate = parseFloat(localStorage.getItem(`currency_rate_${currency}`));
+  const cachedTime = parseInt(localStorage.getItem(`currency_rate_time_${currency}`) || '0');
+  if (cachedRate > 0 && !isNaN(cachedRate) && Date.now() - cachedTime < 3_600_000) {
+    localStorage.setItem('currencyRate', cachedRate.toString());
+    return cachedRate;
+  }
+  try {
+    const res = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${currency}`);
+    const json = await res.json();
+    const rate = json?.rates?.[currency];
+    if (rate && !isNaN(rate) && rate > 0) {
+      localStorage.setItem('currencyRate', rate.toString());
+      localStorage.setItem(`currency_rate_${currency}`, rate.toString());
+      localStorage.setItem(`currency_rate_time_${currency}`, Date.now().toString());
+      return rate;
+    }
+  } catch (e) { /* fallback */ }
+  return getCurrencyRate();
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 createApp({
   setup() {
     // Состояние приложения
     const loading = ref(true);
+    const isAuthenticated = ref(false);
     const user = reactive({
       fullName: 'Пользователь',
       email: '—',
@@ -32,9 +74,11 @@ createApp({
     // Вычисляемые свойства
     const balanceDisplay = computed(() => {
       try {
-        return `₽${new Intl.NumberFormat('ru-RU').format(balance.value || 0)}`;
+        // Читаем символ валюты из currency.js (через localStorage как фоллбэк)
+        const sym = getCurrencySymbol();
+        return `${sym}${new Intl.NumberFormat('ru-RU').format(balance.value || 0)}`;
       } catch (e) {
-        return '₽0';
+        return `₽0`;
       }
     });
 
@@ -107,30 +151,30 @@ createApp({
       }
     };
 
-    // Проверка аутентификации
-    const checkAuth = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Session error:', error);
-          throw error;
-        }
+    // Проверка аутентификации через onAuthStateChange (Supabase v2 стреляет INITIAL_SESSION сразу)
+    const checkAuth = () => {
+      return new Promise((resolve) => {
+        let resolved = false;
+        let authSubscription = null;
 
-        if (!session) {
-          showToast('error', 'Ошибка доступа', 'Пожалуйста, войдите в систему');
-          setTimeout(() => {
-            window.location.href = 'login.html';
-          }, 2000);
-          return false;
-        }
+        const resolveOnce = (user) => {
+          if (resolved) return;
+          resolved = true;
+          if (authSubscription) authSubscription.unsubscribe();
+          resolve(user);
+        };
 
-        return session.user;
-      } catch (error) {
-        console.error('Auth check error:', error);
-        showToast('error', 'Ошибка', 'Не удалось проверить авторизацию');
-        return false;
-      }
+        // Таймаут-страховка: если Supabase не ответил за 5 секунд — гостевой режим
+        const timeout = setTimeout(() => resolveOnce(null), 5000);
+
+        // onAuthStateChange в Supabase v2 немедленно стреляет INITIAL_SESSION
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+          clearTimeout(timeout);
+          resolveOnce(session?.user || null);
+        });
+
+        authSubscription = subscription;
+      });
     };
 
     // Загрузка профиля пользователя
@@ -233,50 +277,51 @@ createApp({
           return;
         }
 
-        // Группируем позиции и рассчитываем среднюю цену покупки и сумму инвестиций
+        // Группируем позиции (как в dashboard.js calculatePortfolioStats)
         const assets = {};
-        let totalInvestedUSD = 0;
 
         transactions.forEach(tx => {
           const symbol = tx.symbol;
-          if (!assets[symbol]) assets[symbol] = { quantity: 0, totalCost: 0, totalBought: 0, asset_type: tx.asset_type || tx.asset_type || 'CRYPTO' };
+          if (!assets[symbol]) {
+            assets[symbol] = { quantity: 0, totalCost: 0, totalBought: 0 };
+          }
           const qty = Number(tx.quantity) || 0;
           const price = Number(tx.price) || 0;
           if (tx.type === 'BUY') {
             assets[symbol].quantity += qty;
             assets[symbol].totalCost += qty * price;
             assets[symbol].totalBought += qty;
-            totalInvestedUSD += qty * price;
           } else if (tx.type === 'SELL') {
             assets[symbol].quantity -= qty;
-            // При продаже не уменьшаем totalCost (простая модель)
           }
         });
 
-        // Получаем список символов и текущие цены через Binance (USD-цену)
+        // Только активы с положительным остатком (как в dashboard.js)
         const symbols = Object.keys(assets).filter(s => assets[s].quantity > 0);
         const binanceMap = symbolListToBinance(symbols);
 
         // Запрос цен к Binance
         const prices = await fetchBinancePrices(Object.values(binanceMap));
 
-        // Рассчитываем текущую стоимость
+        // Считаем вложения и стоимость только по оставшимся активам
+        let totalInvestedUSD = 0;
         let totalCurrentUSD = 0;
         for (const sym of symbols) {
+          const asset = assets[sym];
+          totalInvestedUSD += asset.totalCost; // все покупки по этому активу
           const binSym = binanceMap[sym];
-          const price = prices[binSym] || 0;
-          const qty = assets[sym].quantity;
-          const value = qty * price;
-          totalCurrentUSD += value;
+          const currentPrice = prices[binSym] || 0;
+          // Фоллбэк для акций и неизвестных активов (как в dashboard.js)
+          const avgBuyPrice = asset.totalBought > 0 ? asset.totalCost / asset.totalBought : 0;
+          if (currentPrice > 0) {
+            totalCurrentUSD += asset.quantity * currentPrice;
+          } else if (avgBuyPrice > 0) {
+            totalCurrentUSD += asset.quantity * avgBuyPrice;
+          }
         }
 
-        // Конвертируем USD в выбранную валюту (предположим рубли — ₽)
-        // Если в проекте есть функция конверсии, можно вызвать её; иначе показываем в рублях по фиксированному курсу
-        const usdToRub = window.exchangeRates?.USD_TO_RUB || 80; // fallback
-        const totalCurrentRub = Math.round(totalCurrentUSD * usdToRub);
-        const investedRub = Math.round(totalInvestedUSD * usdToRub);
-
-        balance.value = totalCurrentRub;
+        // Конвертируем в выбранную валюту
+        balance.value = Math.round(totalCurrentUSD * getCurrencyRate());
 
         // Доходность в процентах
         let profitPct = 0;
@@ -340,24 +385,35 @@ createApp({
         btnProfile.addEventListener('click', openProfileModal);
       }
 
-      // Закрытие модалки
+      // Закрытие профиля
       const closeProfileModal = document.getElementById('closeProfileModal');
       if (closeProfileModal) {
-        closeProfileModal.addEventListener('click', closeModal);
+        closeProfileModal.addEventListener('click', () => closeModal('profileModal'));
       }
 
       const cancelProfileBtn = document.getElementById('cancelProfileBtn');
       if (cancelProfileBtn) {
-        cancelProfileBtn.addEventListener('click', closeModal);
+        cancelProfileBtn.addEventListener('click', () => closeModal('profileModal'));
       }
 
-      // Клик вне модалки
+      // Клик вне модалки профиля
       const profileModal = document.getElementById('profileModal');
       if (profileModal) {
         profileModal.addEventListener('click', (e) => {
-          if (e.target === profileModal) {
-            closeModal();
-          }
+          if (e.target === profileModal) closeModal('profileModal');
+        });
+      }
+
+      // Закрытие настроек
+      const closeSettingsModal = document.getElementById('closeSettingsModal');
+      if (closeSettingsModal) {
+        closeSettingsModal.addEventListener('click', () => closeModal('settingsModal'));
+      }
+
+      const settingsModal = document.getElementById('settingsModal');
+      if (settingsModal) {
+        settingsModal.addEventListener('click', (e) => {
+          if (e.target === settingsModal) closeModal('settingsModal');
         });
       }
 
@@ -376,15 +432,56 @@ createApp({
       // Настройки
       const btnSettings = document.getElementById('btnSettings');
       if (btnSettings) {
-        btnSettings.addEventListener('click', () => {
-          showToast('info', 'В разработке', 'Настройки скоро будут доступны');
-        });
+        btnSettings.addEventListener('click', openSettingsModal);
       }
 
       // Выход
       const btnLogout = document.getElementById('btnLogout');
       if (btnLogout) {
         btnLogout.addEventListener('click', handleLogout);
+      }
+    };
+
+    // Настройка гостевых обработчиков
+    const setupGuestEventListeners = () => {
+      // Обзор — переход в cryptotracking в гостевом режиме
+      const btnGuestExplore = document.getElementById('btnGuestExplore');
+      if (btnGuestExplore) {
+        btnGuestExplore.addEventListener('click', async () => {
+          // Проверяем, разрешён ли гостевой режим системными настройками
+          try {
+            const { data } = await supabase
+              .from('system_settings')
+              .select('value')
+              .eq('key', 'guest_mode_enabled')
+              .maybeSingle();
+            const guestAllowed = data ? (data.value === 'true' || data.value === true) : true;
+            if (!guestAllowed) {
+              alert('Гостевой доступ временно отключён. Пожалуйста, войдите в аккаунт.');
+              return;
+            }
+          } catch {
+            // при ошибке сети — разрешаем гостевой доступ
+          }
+          localStorage.setItem('guestMode', 'true');
+          window.location.href = 'crypto/cryptotracking.html';
+        });
+      }
+
+      // Войти
+      const btnGuestLogin = document.getElementById('btnGuestLogin');
+      if (btnGuestLogin) {
+        btnGuestLogin.addEventListener('click', () => {
+          window.location.href = 'login.html';
+        });
+      }
+
+      // Регистрация
+      const btnGuestRegister = document.getElementById('btnGuestRegister');
+      if (btnGuestRegister) {
+        btnGuestRegister.addEventListener('click', () => {
+          window.location.href = 'register.html';
+        });
       }
     };
 
@@ -441,13 +538,16 @@ createApp({
       }
     };
 
-    // Закрытие модального окна
-    const closeModal = () => {
-      const modal = document.getElementById('profileModal');
+    // Закрытие модального окна (универсальное)
+    const closeModal = (id) => {
+      const modalId = id || 'profileModal';
+      const modal = document.getElementById(modalId);
       if (modal) {
         modal.style.display = 'none';
       }
     };
+    // Глобальный доступ (для onclick-атрибутов)
+    window.closeModal = closeModal;
 
     // Загрузка аватара
     const handleAvatarUpload = async (e) => {
@@ -568,6 +668,142 @@ createApp({
       }
     };
 
+    // =========================================================
+    // НАСТРОЙКИ
+    // =========================================================
+
+    // Открытие модала настроек
+    const openSettingsModal = () => {
+      const modal = document.getElementById('settingsModal');
+      if (!modal) return;
+      modal.style.display = 'flex';
+      initSettingsModal();
+    };
+
+    // Инициализация состояния (выделить сохранённые значения)
+    const initSettingsModal = () => {
+      // Язык — читаем из app_language (ключ google-translate.js), с фоллбэком на preferredLanguage
+      const savedLang = localStorage.getItem('app_language') || localStorage.getItem('preferredLanguage') || 'ru';
+      document.querySelectorAll('#settingsModal [data-value]').forEach(card => {
+        const tab = card.closest('.settings-tab-content');
+        if (tab && tab.id === 'languageTab') {
+          card.classList.toggle('selected', card.dataset.value === savedLang);
+        }
+      });
+
+      // Валюта — читаем из selectedCurrency (ключ currency.js), с фоллбэком на preferredCurrency
+      const savedCurrency = localStorage.getItem('selectedCurrency') || localStorage.getItem('preferredCurrency') || 'USD';
+      document.querySelectorAll('#settingsModal [data-value]').forEach(card => {
+        const tab = card.closest('.settings-tab-content');
+        if (tab && tab.id === 'currencyTab') {
+          card.classList.toggle('selected', card.dataset.value === savedCurrency);
+        }
+      });
+
+      // Тема
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      document.querySelectorAll('#settingsModal .theme-card').forEach(card => {
+        card.classList.toggle('active', card.dataset.theme === savedTheme);
+      });
+
+      // Слушатели вкладок
+      document.querySelectorAll('#settingsModal .settings-tab').forEach(btn => {
+        btn.onclick = () => switchSettingsTab(btn.dataset.tab);
+      });
+
+      // Слушатели язык/валюта
+      document.querySelectorAll('#settingsModal #languageTab .settings-card').forEach(card => {
+        card.onclick = () => selectSetting('language', card.dataset.value);
+      });
+      document.querySelectorAll('#settingsModal #currencyTab .settings-card').forEach(card => {
+        card.onclick = () => selectSetting('currency', card.dataset.value);
+      });
+
+      // Слушатели темы
+      document.querySelectorAll('#settingsModal .theme-card').forEach(card => {
+        card.onclick = () => applySettingsTheme(card.dataset.theme);
+      });
+
+      // Поиск языков
+      const langSearch = document.getElementById('languageSearch');
+      if (langSearch) {
+        langSearch.oninput = (e) => {
+          const q = e.target.value.toLowerCase();
+          document.querySelectorAll('#languageTab .settings-card').forEach(card => {
+            const text = card.textContent.toLowerCase();
+            card.style.display = text.includes(q) ? '' : 'none';
+          });
+        };
+      }
+
+      // Поиск валют
+      const currSearch = document.getElementById('currencySearch');
+      if (currSearch) {
+        currSearch.oninput = (e) => {
+          const q = e.target.value.toLowerCase();
+          document.querySelectorAll('#currencyTab .settings-card').forEach(card => {
+            const text = card.textContent.toLowerCase();
+            card.style.display = text.includes(q) ? '' : 'none';
+          });
+        };
+      }
+    };
+
+    // Переключение вкладок настроек
+    const switchSettingsTab = (tab) => {
+      document.querySelectorAll('#settingsModal .settings-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tab);
+      });
+      document.querySelectorAll('#settingsModal .settings-tab-content').forEach(content => {
+        content.classList.toggle('active', content.id === tab + 'Tab');
+      });
+    };
+
+    // Выбор языка / валюты
+    const selectSetting = (type, value) => {
+      if (type === 'language') {
+        localStorage.setItem('preferredLanguage', value);
+        localStorage.setItem('app_language', value);
+        document.querySelectorAll('#languageTab .settings-card').forEach(card => {
+          card.classList.toggle('selected', card.dataset.value === value);
+        });
+        showToast('success', 'Язык изменён', `Выбран: ${value.toUpperCase()}`);
+        // Применяем через Google Translate (google-translate.js загружен в head)
+        if (typeof window.changeLanguageGoogle === 'function') {
+          window.changeLanguageGoogle(value);
+        }
+      } else if (type === 'currency') {
+        localStorage.setItem('preferredCurrency', value);
+        localStorage.setItem('selectedCurrency', value);   // ключ currency.js
+        // Сбрасываем кэш курса чтобы fetchCurrencyRate перезагрузился
+        localStorage.removeItem('currencyRate');
+        document.querySelectorAll('#currencyTab .settings-card').forEach(card => {
+          card.classList.toggle('selected', card.dataset.value === value);
+        });
+        showToast('success', 'Валюта изменена', `Выбрана: ${value}`);
+        // Перезагружаем курс и обновляем баланс
+        fetchSelectedCurrencyRate(value).then(() => loadUserStats());
+      }
+    };
+
+    // Применение темы из настроек
+    const applySettingsTheme = (themeName) => {
+      let resolved = themeName;
+      if (themeName === 'system') {
+        resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', resolved);
+      theme.value = resolved;
+      localStorage.setItem('theme', themeName); // сохраняем оригинальное (system/dark/light)
+
+      document.querySelectorAll('#settingsModal .theme-card').forEach(card => {
+        card.classList.toggle('active', card.dataset.theme === themeName);
+      });
+
+      const names = { light: 'Светлая', dark: 'Темная', system: 'Системная' };
+      showToast('success', 'Тема изменена', names[themeName] || themeName);
+    };
+
     // Выход из системы
     const handleLogout = async () => {
       try {
@@ -611,21 +847,42 @@ createApp({
 
         // Проверка аутентификации
         const authUser = await checkAuth();
-        if (!authUser) return;
+        
+        if (authUser) {
+          // ===== АВТОРИЗОВАННЫЙ РЕЖИМ =====
+          isAuthenticated.value = true;
 
-        // Загрузка профиля
-        const userData = await loadUserProfile(authUser.id);
-        if (userData) {
-          user.fullName = userData.fullName || userData.full_name || 'Пользователь';
-          user.email = userData.email || '—';
-          user.shortId = userData.shortId || userData.id?.substring(0, 8) + '...' || '--------';
+          // Загрузка профиля
+          const userData = await loadUserProfile(authUser.id);
+          if (userData) {
+            user.fullName = userData.fullName || userData.full_name || 'Пользователь';
+            user.email = userData.email || '—';
+            user.shortId = userData.shortId || userData.id?.substring(0, 8) + '...' || '--------';
+          }
+
+          // Загрузка статистики
+          loadUserStats();
+
+          // Настройка обработчиков событий
+          setupEventListeners();
+
+          // Показ приветственного сообщения
+          setTimeout(() => {
+            showToast('success', 'Добро пожаловать!', 'Успешный вход в InvestApp');
+          }, 1000);
+
+        } else {
+          // ===== ГОСТЕВОЙ РЕЖИМ =====
+          isAuthenticated.value = false;
+
+          // Настройка гостевых обработчиков
+          setupGuestEventListeners();
+
+          // Приветствие гостя
+          setTimeout(() => {
+            showToast('info', 'Гостевой режим', 'Авторизуйтесь для полного доступа к функциям');
+          }, 1000);
         }
-
-        // Загрузка статистики
-        loadUserStats();
-
-        // Настройка обработчиков событий
-        setupEventListeners();
 
         // Анимация появления
         setTimeout(() => {
@@ -669,14 +926,12 @@ createApp({
           });
         });
 
-        // Показ приветственного сообщения
-        setTimeout(() => {
-          showToast('success', 'Добро пожаловать!', 'Успешный вход в InvestApp');
-        }, 1000);
-
       } catch (error) {
         console.error('App initialization error:', error);
-        showToast('error', 'Ошибка', 'Не удалось загрузить данные');
+        // Даже при ошибке — показываем гостевой режим
+        isAuthenticated.value = false;
+        setupGuestEventListeners();
+        showToast('error', 'Ошибка', 'Не удалось загрузить данные. Доступен гостевой режим.');
       } finally {
         loading.value = false;
       }
@@ -684,14 +939,30 @@ createApp({
 
     // Инициализация при загрузке
     onMounted(() => {
+      // Убираем заглушку-скелетон как только Vue смонтировался
+      const skeleton = document.getElementById('appSkeleton');
+      if (skeleton) skeleton.remove();
+
+      // Загружаем актуальный курс при старте (async, не блокирует)
+      const savedCur = localStorage.getItem('selectedCurrency') || 'USD';
+      fetchSelectedCurrencyRate(savedCur);
+
       initializeApp();
       
       // Добавляем глобальную функцию showToast для использования из других скриптов
       window.showToast = showToast;
+
+      // При смене валюты в других вкладках — перезагружаем статистику
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'selectedCurrency' || e.key === 'currencyRate') {
+          loadUserStats().catch(() => {});
+        }
+      });
     });
 
     return {
       loading,
+      isAuthenticated,
       user,
       balance,
       profit,

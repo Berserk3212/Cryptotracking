@@ -10,29 +10,32 @@ const lastConcentrationNotifications = new Map();
 
 async function createNotification({ title, message, type, priority = 'normal', related_symbol = null }) {
   try {
-    console.log('createNotification called:', { title, message, type, priority });
+
     
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      console.warn('User not authorized');
+
       return null;
     }
 
-    console.log('User:', user.id);
-
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { data: recentNotifications } = await supabase
       .from('notifications')
       .select('id, title, message')
       .eq('user_id', user.id)
       .eq('title', title)
-      .eq('message', message)
-      .gte('created_at', fiveMinutesAgo)
+      .eq('type', type)
+      .gte('created_at', oneDayAgo)
       .limit(1);
 
     if (recentNotifications && recentNotifications.length > 0) {
-      console.log('Skipping duplicate notification:', title);
-      return null;
+      const existingId = recentNotifications[0].id;
+      await supabase
+        .from('notifications')
+        .update({ created_at: new Date().toISOString(), is_read: false, is_dismissed: false })
+        .eq('id', existingId);
+
+      return existingId;
     }
 
     const { data: prefs, error: prefsError } = await supabase
@@ -42,36 +45,32 @@ async function createNotification({ title, message, type, priority = 'normal', r
       .single();
 
     if (prefsError && prefsError.code !== 'PGRST116') {
-      console.warn('Error fetching preferences:', prefsError);
+
     }
 
-    console.log('Notification preferences:', prefs);
-
     if (prefs && !prefs.enabled) {
-      console.warn('Notifications disabled in settings');
+
       return null;
     }
 
     if (prefs) {
       if (type === 'price_alert' && !prefs.price_alerts_enabled) {
-        console.warn('Price alerts disabled');
+
         return null;
       }
       if (type === 'portfolio' && !prefs.portfolio_alerts_enabled) {
-        console.warn('Portfolio alerts disabled');
+
         return null;
       }
       if (type === 'news' && !prefs.news_alerts_enabled) {
-        console.warn('News alerts disabled');
+
         return null;
       }
       if (type === 'recommendation' && !prefs.recommendation_alerts_enabled) {
-        console.warn('Recommendation alerts disabled');
+
         return null;
       }
     }
-
-    console.log('Creating notification in DB...');
 
     const { data, error } = await supabase
       .from('notifications')
@@ -87,14 +86,13 @@ async function createNotification({ title, message, type, priority = 'normal', r
       .single();
 
     if (error) {
-      console.error('Ошибка создания уведомления:', error);
+
       return null;
     }
 
-    console.log('Уведомление успешно создано:', data);
     return data;
   } catch (error) {
-    console.error('Исключение при создании уведомления:', error);
+
     return null;
   }
 }
@@ -104,33 +102,29 @@ async function createNotification({ title, message, type, priority = 'normal', r
  */
 export async function notifyAboutNews(news) {
   try {
-    console.log('notifyAboutNews вызвана для новости:', news.title);
+
     
     // Проверяем, не обрабатывали ли мы эту новость
     const newsId = news.id || `${news.title}_${news.datetime || news.publishedAt}`;
     if (processedNewsIds.has(newsId)) {
-      console.log('⏭️ Новость уже обработана, пропускаем');
+
       return;
     }
     
     // Загружаем активы пользователя из портфелей
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      console.warn('Пользователь не авторизован');
+
       return;
     }
-
-    console.log('Пользователь авторизован:', user.id);
 
     const { data: portfolios } = await supabase
       .from('portfolios')
       .select('*')
       .eq('user_id', user.id);
 
-    console.log('Портфели:', portfolios?.length || 0);
-
     if (!portfolios || portfolios.length === 0) {
-      console.warn('Нет портфелей');
+
       return;
     }
 
@@ -140,10 +134,8 @@ export async function notifyAboutNews(news) {
       .select('*')
       .eq('user_id', user.id);
 
-    console.log('Транзакции:', transactions?.length || 0);
-
     if (!transactions || transactions.length === 0) {
-      console.warn('Нет транзакций');
+
       return;
     }
 
@@ -152,8 +144,6 @@ export async function notifyAboutNews(news) {
       transactions.map(t => String(t.symbol || '').toUpperCase())
     );
 
-    console.log('🪙 Активы пользователя:', Array.from(userSymbols));
-
     // Проверяем, связана ли новость с активами пользователя
     const newsText = `${news.title} ${news.summary || news.description || ''}`.toUpperCase();
     let relatedSymbol = null;
@@ -161,14 +151,14 @@ export async function notifyAboutNews(news) {
     for (const symbol of userSymbols) {
       if (newsText.includes(symbol)) {
         relatedSymbol = symbol;
-        console.log('Найдено совпадение с активом:', symbol);
+
         break;
       }
     }
 
     // Если новость связана с активами пользователя, создаем уведомление
     if (relatedSymbol) {
-      console.log('Создаем уведомление о новости...');
+
       
       await createNotification({
         title: `${relatedSymbol}: ${news.title}`,
@@ -186,10 +176,10 @@ export async function notifyAboutNews(news) {
         processedNewsIds = new Set(arr.slice(-50));
       }
     } else {
-      console.log('⏭️ Новость не связана с активами пользователя');
+
     }
   } catch (error) {
-    console.error('Ошибка при создании уведомления о новости:', error);
+
   }
 }
 
@@ -198,11 +188,11 @@ export async function notifyAboutNews(news) {
  */
 export async function notifyAboutPortfolioChange(currentValue, portfolioData) {
   try {
-    console.log('notifyAboutPortfolioChange вызвана:', { currentValue, lastPortfolioValue });
+
     
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      console.warn('Пользователь не авторизован');
+
       return;
     }
 
@@ -210,7 +200,7 @@ export async function notifyAboutPortfolioChange(currentValue, portfolioData) {
     if (lastPortfolioValue === null) {
       lastPortfolioValue = currentValue;
       lastPortfolioData = portfolioData;
-      console.log('Сохранено начальное значение портфеля:', currentValue);
+
       return;
     }
 
@@ -232,15 +222,11 @@ export async function notifyAboutPortfolioChange(currentValue, portfolioData) {
 
     const threshold = prefs?.portfolio_change_threshold || 5; // Снижено с 10 до 5 для тестирования
 
-    console.log('Порог срабатывания:', threshold + '%');
-
     // Если изменение превышает порог
     if (Math.abs(change) >= threshold) {
       const isPositive = change > 0;
       const verb = isPositive ? 'вырос' : 'упал';
       const priority = Math.abs(change) >= 15 ? 'high' : 'normal';
-
-      console.log('Создаем уведомление об изменении портфеля...');
 
       await createNotification({
         title: `Портфель ${verb} на ${Math.abs(change).toFixed(2)}%`,
@@ -253,12 +239,12 @@ export async function notifyAboutPortfolioChange(currentValue, portfolioData) {
       // Обновляем последнее значение
       lastPortfolioValue = currentValue;
       lastPortfolioData = portfolioData;
-      console.log('Обновлено последнее значение портфеля');
+
     } else {
-      console.log('⏭️ Изменение не достигло порога (' + Math.abs(change).toFixed(2) + '% < ' + threshold + '%)');
+
     }
   } catch (error) {
-    console.error('Ошибка при создании уведомления об изменении портфеля:', error);
+
   }
 }
 
@@ -305,7 +291,7 @@ export async function notifyAboutPriceChange(symbol, currentPrice, previousPrice
       lastPriceCheck[symbol] = now;
     }
   } catch (error) {
-    console.error('Ошибка при создании уведомления об изменении цены:', error);
+
   }
 }
 
@@ -321,7 +307,7 @@ export async function notifyAboutRecommendation(title, message, priority = 'norm
       priority
     });
   } catch (error) {
-    console.error('Ошибка при создании уведомления о рекомендации:', error);
+
   }
 }
 
@@ -341,11 +327,12 @@ export async function checkPortfolioDiversification(holdings) {
       const percentage = (holding.value / totalValue) * 100;
       
       if (percentage > 50) {
-        // Проверяем, отправляли ли мы уже такое уведомление недавно
-        const notificationKey = `concentration_${symbol}_${percentage.toFixed(1)}`;
+        // Проверяем, отправляли ли мы уже такое уведомление недавно (сначала in-memory, потом Supabase)
+        const notificationKey = `concentration_${symbol}`;
         const lastNotificationTime = lastConcentrationNotifications.get(notificationKey);
+        const MEMORY_COOLDOWN = 10 * 60 * 1000; // 10 мин в памяти
         
-        if (!lastNotificationTime || (now - lastNotificationTime) > NOTIFICATION_COOLDOWN) {
+        if (!lastNotificationTime || (now - lastNotificationTime) > MEMORY_COOLDOWN) {
           await notifyAboutRecommendation(
             'Высокая концентрация',
             `${symbol} составляет ${percentage.toFixed(1)}% портфеля. Рассмотрите диверсификацию для снижения рисков.`,
@@ -353,7 +340,7 @@ export async function checkPortfolioDiversification(holdings) {
           );
           lastConcentrationNotifications.set(notificationKey, now);
         } else {
-          console.log(`⏭️ Пропускаем дубликат уведомления о концентрации ${symbol}`);
+
         }
       }
     }
@@ -372,11 +359,11 @@ export async function checkPortfolioDiversification(holdings) {
         );
         lastConcentrationNotifications.set(notificationKey, now);
       } else {
-        console.log(`⏭️ Пропускаем дубликат уведомления о диверсификации`);
+
       }
     }
   } catch (error) {
-    console.error('Ошибка при проверке диверсификации:', error);
+
   }
 }
 
@@ -384,7 +371,7 @@ export async function checkPortfolioDiversification(holdings) {
  * Инициализация интеграции - вызывается один раз при загрузке приложения
  */
 export function initNotificationIntegrations() {
-  console.log('Инициализация интеграции уведомлений с приложением');
+
   
   // Очищаем старые данные
   processedNewsIds.clear();
@@ -400,7 +387,7 @@ export function initNotificationIntegrations() {
     checkPortfolioDiversification,
     // Тестовая функция для проверки создания уведомлений
     testNotification: async (type = 'portfolio') => {
-      console.log('🧪 Создаем тестовое уведомление типа:', type);
+
       const testData = {
         'portfolio': {
           title: 'Тест: Портфель вырос',
@@ -434,20 +421,15 @@ export function initNotificationIntegrations() {
       const result = await createNotification(data);
       
       if (result) {
-        console.log('Тестовое уведомление создано:', result);
+
       } else {
-        console.error('Не удалось создать тестовое уведомление');
+
       }
       return result;
     }
   };
   
-  console.log('Интеграция уведомлений готова');
-  console.log('📋 Доступные функции:', Object.keys(window.notificationIntegrations));
-  console.log('');
-  console.log('Для тестирования выполните в консоли:');
-  console.log('   await window.notificationIntegrations.testNotification("portfolio")');
-  console.log('   await window.notificationIntegrations.testNotification("news")');
+
 }
 
 // Экспорт для использования в других модулях

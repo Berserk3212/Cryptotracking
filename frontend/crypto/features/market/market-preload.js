@@ -1,12 +1,11 @@
-import { loadStocks, loadCryptoList, loadIndices } from '../../api/api.js';
+import { loadStocks, loadCrypto, loadCryptoList, loadIndices } from '../../api/api.js';
 
 if (!window.app) window.app = {};
 
+// КРИТИЧНО: loadCrypto для раздела "Рынок" → таб "Криптовалюты" (marketCryptoGrid)
+//           loadCryptoList для раздела "Криптовалюты" (mainCryptoGrid)
 window.app.loadStocks = loadStocks;
-window.app.loadCrypto = loadCryptoList;
+window.app.loadCrypto = loadCrypto;  // ← ИСПРАВЛЕНО: используем loadCrypto, а не loadCryptoList
+window.app.loadCryptoList = loadCryptoList;  // ← добавляем отдельно для секции "Криптовалюты"
 window.app.loadIndices = loadIndices;
 
-console.log('Market preload functions ready');
-console.log('   - window.app.loadStocks');
-console.log('   - window.app.loadCrypto');
-console.log('   - window.app.loadIndices');

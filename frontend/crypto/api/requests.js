@@ -9,26 +9,19 @@ const storage = {
       if (useLocalForage) return await localforage.getItem(key);
       const raw = localStorage.getItem(key);
       return raw ? JSON.parse(raw) : null;
-    } catch (e) {
-      console.warn('storage.get error', e);
-      return null;
-    }
+    } catch (_) { return null; }
   },
   async set(key, val) {
     try {
       if (useLocalForage) return await localforage.setItem(key, val);
       localStorage.setItem(key, JSON.stringify(val));
-    } catch (e) {
-      console.warn('storage.set error', e);
-    }
+    } catch (_) {}
   },
   async remove(key) {
     try {
       if (useLocalForage) return await localforage.removeItem(key);
       localStorage.removeItem(key);
-    } catch (e) {
-      console.warn('storage.remove', e);
-    }
+    } catch (_) {}
   }
 };
 
@@ -37,8 +30,7 @@ let limiter = null;
 if (typeof Bottleneck !== 'undefined') {
   try {
     limiter = new Bottleneck({ minTime: DEFAULT_MIN_INTERVAL });
-  } catch (e) {
-    console.warn('Bottleneck init failed', e);
+  } catch (_) {
     limiter = null;
   }
 }
@@ -103,11 +95,11 @@ export async function safeFetch(url, opts = {}) {
         } catch (e) { /* ignore */ }
       };
       bc.addEventListener('message', handler);
-      // timeout to avoid hanging
+    // Таймаут — чтобы не зависать вечно
       setTimeout(() => { bc.removeEventListener('message', handler); resolve(null); }, 10000);
     });
-    // notify others we want this url (they may be working on it)
-    try { bc.postMessage({ type: 'req_watch', url }); } catch (e) { /* ignore */ }
+    // Сообщаем другим вкладкам что ждём этот URL
+    try { bc.postMessage({ type: 'req_watch', url }); } catch (_) {}
   }
 
   // If other tab already has result shortly, use it
@@ -120,11 +112,11 @@ export async function safeFetch(url, opts = {}) {
     }
   }
 
-  // perform fetch (dedupe promise in this tab)
+  // Дедупликация promise в этой вкладке
   const p = (async () => {
     try {
-      // announce start
-      if (bc) try { bc.postMessage({ type: 'req_start', url }); } catch (e) {}
+      // Объявляем о начале запроса
+      if (bc) try { bc.postMessage({ type: 'req_start', url }); } catch (_) {}
 
       const resp = await _performFetch(url, {}, maxRetries);
       if (!resp) return null;
@@ -162,7 +154,7 @@ export const requestsCache = {
   async clearPrefix(prefix = 'req_cache:') {
     // localForage doesn't support listing keys reliably without config; attempt best-effort for localStorage
     if (useLocalForage) {
-      console.warn('clearPrefix: not implemented for localForage in this helper');
+
       return;
     }
     Object.keys(localStorage).forEach(k => { if (k.startsWith(prefix)) localStorage.removeItem(k); });

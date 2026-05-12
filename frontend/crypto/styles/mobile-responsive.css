@@ -1,0 +1,1811 @@
+/* ============================================
+   МОБИЛЬНАЯ АДАПТИВНОСТЬ — MASTER OVERRIDE FILE
+   Загружается ПОСЛЕДНИМ, перебивает все стили.
+   Responsive Design для экранов ≤ 768px
+   v3.0 — Полная переработка
+   ============================================ */
+
+/* ============================================
+   0. ПРОИЗВОДИТЕЛЬНОСТЬ: GPU-слои и плавный скролл
+   (глобально, без медиа-запросов)
+   ============================================ */
+
+/* === БАЗОВЫЙ ЗАПРЕТ ГОРИЗОНТАЛЬНОЙ ПРОКРУТКИ ===
+   html + body — обязательно оба, иначе iOS Safari игнорирует */
+html {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Боковая панель — GPU compositing */
+.sidebar {
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.sidebar-overlay {
+  will-change: opacity;
+}
+
+/* Основной контент: плавная прокрутка */
+.main-content {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Модальные окна — не пропускаем прокрутку на body */
+.modal-overlay-news,
+.modal.crypto-detail-modal {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Reduced motion для пользователей, предпочитающих меньше анимаций */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================
+   1. МОБИЛЬНЫЕ УСТРОЙСТВА ≤ 768px — ОСНОВНОЙ БЛОК
+   ============================================ */
+
+/* ── Компенсация fixed top-bar ──────────────────
+   styles_new.css @768 делает padding: 1rem на .content,
+   затирая padding-top: calc(2rem + 73px) — без него
+   fixed top-bar (~64px) перекрывает верх каждого раздела.
+   Применяем на ≤1024px так как top-bar становится fixed=left:0
+   уже при этом брейкпойнте.
+   Высота сжатого top-bar: 0.5rem(top-pad) + 38px(icon) + 0.5rem(bot-pad) + 1px(border) = 55px
+   ─────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  html {
+    overflow-x: hidden;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+    min-width: 0;
+    width: 100%;
+    max-width: 100vw;
+  }
+
+  .content {
+    padding-top: calc(0.75rem + 55px) !important;  /* 55px = высота сжатого мобильного top-bar */
+  }
+}
+
+@media (max-width: 768px) {
+
+  /* === 1.1 БАЗОВЫЕ СТИЛИ === */
+  html {
+    overflow-x: hidden !important;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  body {
+    font-size: 14px;
+    overflow-x: hidden !important;
+    overscroll-behavior-x: none;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .app {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+
+  .container,
+  .main-content {
+    padding: 10px !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Предотвращаем выход элементов за экран */
+  img, table, canvas, video, iframe {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* === 1.2 ТИПОГРАФИКА === */
+  h1 { font-size: 24px !important; }
+  h2 { font-size: 20px !important; }
+  h3 { font-size: 18px !important; }
+
+  /* === 1.3 НАВИГАЦИЯ И ШАПКА === */
+  header,
+  .header {
+    padding: 10px !important;
+    flex-wrap: wrap;
+  }
+
+  nav:not(.sidebar-nav),
+  .nav-tabs,
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  nav:not(.sidebar-nav)::-webkit-scrollbar,
+  .nav-tabs::-webkit-scrollbar,
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Сайдбар-навигация — вертикальная прокрутка, не горизонтальная */
+  .sidebar-nav {
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .tab-button,
+  .nav-button,
+  button.tab {
+    min-width: 80px;
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+    white-space: nowrap;
+  }
+
+  /* === 1.3b TOP-BAR: компактный режим — все 4 кнопки в одну строку ===
+     ВНИМАНИЕ: «header { flex-wrap: wrap }» из 1.3 заставлял .top-bar переносить
+     кнопки на вторую строку → высота шапки ~108px → контент перекрывался.
+     Переопределяем специфичными селекторами и !important.              */
+  .top-bar {
+    flex-wrap: nowrap !important;         /* отменяем flex-wrap: wrap из 1.3 */
+    padding: 0.5rem 0.75rem !important;   /* 8px top/bot, 12px sides */
+    gap: 0.5rem !important;
+    height: auto !important;
+    align-items: center !important;
+    box-sizing: border-box !important;    /* padding не расширяет width */
+    max-width: 100vw !important;          /* жёсткий потолок — шире вьюпорта быть не может */
+  }
+
+  .top-bar h1 {
+    flex: 1 1 0 !important;              /* явный grow:1 shrink:1 basis:0 — не распирает шапку */
+    min-width: 0 !important;             /* разрешаем flex сжать h1 до нуля */
+    font-size: 1rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    /* Gradient-текст (-webkit-text-fill-color: transparent) скрывает ellipsis */
+    -webkit-text-fill-color: #F8FAFC !important;
+    background: none !important;
+    -webkit-background-clip: initial !important;
+    background-clip: initial !important;
+  }
+
+  .top-actions {
+    display: flex !important;
+    flex-shrink: 0 !important;           /* top-actions НЕ сжимается */
+    align-items: center !important;
+    gap: 0.25rem !important;
+  }
+
+  .top-bar .icon-btn {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 10px !important;
+    font-size: 0.875rem !important;
+    flex-shrink: 0 !important;           /* кнопки не сжимаются */
+    padding: 0 !important;               /* убираем любой лишний внутренний отступ */
+  }
+
+  .top-bar .menu-btn {
+    flex-shrink: 0 !important;
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 1.125rem !important;
+    padding: 0 !important;
+  }
+
+  /* === 1.3c TOP-BAR: сверх-компактный режим для очень узких экранов (≤380px) ===
+     На Samsung Galaxy A/S (360px), iPhone SE (375px) 4 кнопки по 38px
+     не помещаются с привычным паддингом — уменьшаем до 32px              */
+
+  /* === 1.4 СЕТКИ — ФИКС OVERFLOW НА 320-375px ЭКРАНАХ ===
+     Главная проблема: minmax(350px+, 1fr) не помещается.
+     Принудительно 1 колонка на мобильных.              */
+  .crypto-grid,
+  .portfolios-grid,
+  .charts-row,
+  .stats-grid,
+  .news-container,
+  .dashboard-widgets-container {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  /* === 1.5 РАЗДЕЛ РЫНОК (MARKET) === */
+  #market-section,
+  #market {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  #market-section .table-container,
+  #market .table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #market-section table,
+  #market table,
+  .market-table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+  }
+
+  #market-section table th,
+  #market-section table td,
+  #market table th,
+  #market table td {
+    padding: 10px 6px !important;
+    font-size: 12px !important;
+    min-width: 80px;
+    white-space: nowrap;
+  }
+
+  /* Первая колонка (название) — sticky */
+  #market-section table th:first-child,
+  #market-section table td:first-child {
+    min-width: 120px;
+    position: sticky;
+    left: 0;
+    background: var(--background-dark, #1a1a2e);
+    z-index: 5;
+  }
+
+  /* === 1.6 КРИПТОВАЛЮТЫ (CRYPTO CARDS) === */
+  #crypto-section .crypto-grid,
+  .crypto-cards-container,
+  .grid-stack {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 15px !important;
+    padding: 10px !important;
+  }
+
+  #marketCryptoGrid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 15px !important;
+    padding: 10px !important;
+  }
+
+  .crypto-card,
+  #crypto-section .crypto-card,
+  .grid-stack-item,
+  .crypto-widget {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    position: relative !important;
+    height: auto !important;
+    min-height: 200px;
+  }
+
+  #crypto-section .crypto-card .card-content,
+  .crypto-widget .widget-content {
+    padding: 15px !important;
+    overflow: visible !important;
+  }
+
+  /* Sparkline графики в карточках */
+  #crypto-section .sparkline-container,
+  .mini-chart-container {
+    width: 100% !important;
+    height: 60px !important;
+    margin-top: 10px;
+  }
+
+  #crypto-section canvas {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* === 1.7 ТРАНЗАКЦИИ === */
+  #transactions-section .table-container,
+  .transactions-table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #transactions-section table,
+  #transactionsTable,
+  .transactions-table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+  }
+
+  #transactions-section th,
+  #transactions-section td {
+    padding: 10px 6px !important;
+    font-size: 12px !important;
+    min-width: 80px;
+    white-space: nowrap;
+  }
+
+  /* === 1.7b ТРАНЗАКЦИИ — КАРТОЧКИ: исправление чёрного текста ===
+     Проблема: --text-secondary = #000000, поэтому ::before метки
+     (Дата / Тип / Актив ...) невидимы на тёмном фоне карточки.
+     Также td:nth-child(3) имеет жёсткий color: #0f172a (почти чёрный).
+     Все значения ячеек тоже наследуют тёмный цвет от body.          */
+  .transactions-table td {
+    color: #e2e8f0 !important;           /* светлый текст для значений */
+  }
+
+  .transactions-table td::before {
+    color: #94a3b8 !important;           /* slate-400 — читаемые метки */
+  }
+
+  /* Переопределяем жёстко заданный #0f172a на колонке Актив */
+  .transactions-table tbody td:nth-child(3) {
+    color: #f1f5f9 !important;
+  }
+
+  /* Карточка-строка — тёмный фон чтобы текст был читаем */
+  .transactions-table tr {
+    background: rgba(30, 41, 59, 0.85) !important;  /* slate-800 */
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  }
+
+  #transactions-section th:nth-child(2),
+  #transactions-section td:nth-child(2) {
+    position: sticky;
+    left: 0;
+    background: var(--background-dark, #1a1a2e);
+    z-index: 5;
+  }
+
+  .transaction-filters,
+  .filters-container {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  .transaction-filters select,
+  .transaction-filters input,
+  .transaction-filters button {
+    width: 100% !important;
+    margin: 5px 0 !important;
+  }
+
+  /* === 1.7c ДАШБОРД — История портфеля ===
+     #historyChart имеет inline style="height:400px" — CSS !important перебивает его.
+     400px чрезмерно велики на экране телефона, уменьшаем до 240px. */
+  #historyChart {
+    height: 240px !important;
+  }
+
+  /* === 1.8 АНАЛИТИКА === */
+  #analytics-section .charts-grid,
+  .analytics-charts-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 15px !important;
+  }
+
+  #analytics-section .chart-container,
+  .analytics-chart-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 300px !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    overflow: hidden;
+  }
+
+  #analytics-section canvas {
+    max-width: 100% !important;
+    height: 100% !important;
+  }
+
+  #analytics-section table,
+  .analytics-stats-table {
+    display: block;
+    overflow-x: auto;
+    font-size: 12px !important;
+  }
+
+  #analytics-section th,
+  #analytics-section td {
+    padding: 6px 4px !important;
+    min-width: 80px;
+  }
+
+  .analytics-actions,
+  .export-buttons {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  .analytics-actions button,
+  .export-buttons button {
+    width: 100% !important;
+  }
+
+  /* === 1.9 ИЗБРАННОЕ === */
+  #favorites-section .table-container,
+  .favorites-table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #favorites-section table,
+  #favoritesTable,
+  .favorites-table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+  }
+
+  #favorites-section th,
+  #favorites-section td {
+    padding: 10px 6px !important;
+    font-size: 12px !important;
+    min-width: 80px;
+    white-space: nowrap;
+  }
+
+  #favorites-section th:first-child,
+  #favorites-section td:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--background-dark, #1a1a2e);
+    z-index: 5;
+  }
+
+  .favorites-grid,
+  .favorites-cards {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  .favorite-card {
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  /* Кнопки в панели избранного — увеличиваем до 44px */
+  .fav-panel-btn {
+    min-height: 44px !important;
+    height: 44px !important;
+    padding: 0.5rem 0.75rem !important;
+  }
+
+  /* === 1.10 ТОРГОВЫЕ ИНСТРУМЕНТЫ === */
+  #trading-tools-section .tools-grid,
+  .trading-tools-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 15px !important;
+  }
+
+  .trading-tool-card,
+  .calculator-card,
+  .converter-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 15px !important;
+    margin: 0 !important;
+  }
+
+  .trading-form,
+  .calculator-form {
+    flex-direction: column !important;
+  }
+
+  .trading-form input,
+  .trading-form select,
+  .calculator-form input,
+  .calculator-form select {
+    width: 100% !important;
+    margin: 5px 0 !important;
+  }
+
+  .trading-form button,
+  .calculator-form button {
+    width: 100% !important;
+    margin-top: 10px !important;
+  }
+
+  /* Step buttons в калькуляторах — увеличиваем до 44px */
+  .step-btn {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
+  /* === 1.11 НОВОСТИ === */
+  #news-section .news-grid,
+  .news-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1rem !important;
+  }
+
+  .news-card,
+  .news-article-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .news-card img,
+  .news-article-card img {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 200px !important;
+    object-fit: cover;
+  }
+
+  .news-card .news-content,
+  .news-item .news-text {
+    font-size: 14px !important;
+  }
+
+  .news-card .news-title,
+  .news-article-card .news-title {
+    font-size: 1.05rem !important;
+    line-height: 1.4 !important;
+  }
+
+  .news-filters,
+  .news-category-filter {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  .news-filters select,
+  .news-filters input,
+  .news-filters button,
+  .category-btn {
+    width: 100% !important;
+  }
+
+  /* News Vue Modal — fullscreen */
+  .news-modal-overlay {
+    padding: 0 !important;
+  }
+
+  .news-modal-container {
+    max-width: 100% !important;
+    max-height: 100vh !important;
+    height: 100vh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+
+  .news-modal-header-new {
+    padding: 0.75rem 1rem !important;
+  }
+
+  .news-modal-scroll-content {
+    padding: 1rem !important;
+  }
+
+  .news-modal-title-new {
+    font-size: 1.25rem !important;
+    line-height: 1.3 !important;
+  }
+
+  .news-modal-meta-new {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  .news-modal-footer-new {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    padding: 0.75rem 1rem !important;
+  }
+
+  /* === 1.12 ГРАФИКИ И ЧАРТЫ (общие) === */
+  .chart-wrapper,
+  .tradingview-widget-container,
+  #chart-container {
+    width: 100% !important;
+    height: 300px !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .tv-lightweight-charts {
+    width: 100% !important;
+  }
+
+  /* === 1.13 МОДАЛЬНЫЕ ОКНА (общие) === */
+  .modal,
+  .modal-dialog,
+  #cryptoModal,
+  #stockModal {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .modal-content {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100vh !important;
+    padding: 10px !important;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-radius: 0 !important;
+  }
+
+  /* Crypto-detail-modal имеет свои правила в styles_new.css */
+  .crypto-detail-modal .modal-content {
+    padding: 0 !important;
+  }
+
+  .modal-header {
+    position: sticky;
+    top: 0;
+    background: var(--background-dark, #1a1a2e);
+    z-index: 100;
+    padding: 10px !important;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .modal-header h2,
+  .modal-header h3 {
+    font-size: 18px !important;
+    margin: 0;
+    flex: 1;
+  }
+
+  .modal-header .close,
+  .modal-header .btn-close {
+    position: sticky;
+    right: 10px;
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 24px;
+  }
+
+  .modal-body {
+    padding: 10px !important;
+    overflow-x: hidden;
+  }
+
+  /* Графики в модальных окнах (кроме crypto-detail-modal) */
+  .modal-body .chart-container,
+  .modal-body #cryptoDetailChart,
+  .modal-body #stockDetailChart,
+  .modal-body .tv-lightweight-charts {
+    width: 100% !important;
+    height: 250px !important;
+    max-width: 100% !important;
+    margin: 10px 0 !important;
+  }
+
+  .crypto-detail-modal .modal-body .chart-container,
+  .crypto-detail-modal .modal-body .tv-lightweight-charts,
+  .crypto-detail-modal .crypto-detail-chart-container,
+  .crypto-detail-modal .crypto-detail-chart-container.enhanced {
+    height: 60vh !important;
+    min-height: 350px !important;
+    max-height: 500px !important;
+    margin: 0.5rem 0 !important;
+  }
+
+  .modal-body .charts-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 15px !important;
+  }
+
+  .modal-body .chart-tabs,
+  .modal-body .tabs {
+    display: flex;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    margin-bottom: 10px;
+  }
+
+  .modal-body .chart-tabs button,
+  .modal-body .tabs button {
+    min-width: 60px;
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .modal-footer {
+    position: sticky;
+    bottom: 0;
+    background: var(--background-dark, #1a1a2e);
+    padding: 10px !important;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .modal-footer button {
+    width: 100% !important;
+    min-height: 44px;
+  }
+
+  /* === 1.14 КНОПКИ И ФОРМЫ === */
+  button,
+  .btn {
+    padding: 10px 15px !important;
+    font-size: 14px !important;
+    min-height: 44px; /* Apple HIG touch target */
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px !important; /* Предотвращает зум на iOS */
+    padding: 10px !important;
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* === 1.15 УВЕДОМЛЕНИЯ === */
+  .notification,
+  .toast,
+  .alert {
+    width: calc(100% - 2rem) !important;
+    max-width: calc(100% - 2rem) !important;
+    font-size: 14px !important;
+  }
+
+  .notifications-panel {
+    width: 100vw !important;
+    right: -100vw !important;
+    border-radius: 0 !important;
+    top: 0 !important;
+    height: 100vh !important;
+  }
+
+  .notifications-panel.active {
+    right: 0 !important;
+  }
+
+  /* Увеличиваем кнопки уведомлений до 44px */
+  .notification-btn {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    font-size: 16px !important;
+  }
+
+  .notification-toast {
+    top: 12px !important;
+    right: 12px !important;
+    left: 12px !important;
+    max-width: none !important;
+    padding: 14px 18px !important;
+  }
+
+  /* === 1.16 ПОИСК === */
+  .search-container,
+  .search-box {
+    width: 100% !important;
+    margin: 10px 0 !important;
+  }
+
+  .search-input {
+    width: 100% !important;
+    font-size: 16px !important;
+  }
+
+  .search-results {
+    width: 100% !important;
+    max-height: 300px !important;
+    overflow-y: auto;
+  }
+
+  /* === 1.17 STICKY HEADERS В ТАБЛИЦАХ === */
+  table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--background-dark, #1a1a2e);
+    z-index: 10;
+  }
+
+  /* === 1.18 СКРОЛЛБАРЫ === */
+  .table-container::-webkit-scrollbar,
+  table::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .table-container::-webkit-scrollbar-thumb,
+  table::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+  }
+
+  /* === 1.19 GRID/FLEXBOX LAYOUTS === */
+  .row,
+  .grid,
+  .flex-container {
+    flex-direction: column !important;
+  }
+
+  .col,
+  .grid-item,
+  .flex-item {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* === 1.20 ПРОФИЛЬ И НАСТРОЙКИ === */
+  .profile-section,
+  .settings-section {
+    padding: 15px !important;
+  }
+
+  .profile-form,
+  .settings-form {
+    flex-direction: column !important;
+  }
+
+  .form-group {
+    width: 100% !important;
+    margin: 10px 0 !important;
+  }
+
+  /* Settings grid — 1 колонка */
+  .settings-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* === 1.21 DASHBOARD === */
+  .dashboard-grid,
+  .widgets-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 15px !important;
+  }
+
+  .widget,
+  .dashboard-card,
+  .dashboard-widget {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 1rem !important;
+    min-height: auto !important;
+  }
+
+  /* Widget: отключаем grab cursor и resize */
+  .dashboard-widget {
+    cursor: default !important;
+  }
+
+  .widget-resizer {
+    display: none !important;
+  }
+
+  /* === 1.22 СТАТИСТИКА === */
+  .stats-row,
+  .metrics-container {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  .stat-card,
+  .metric-card {
+    width: 100% !important;
+    min-width: auto !important;
+  }
+
+  /* === 1.23 ПРОИЗВОДИТЕЛЬНОСТЬ НА МОБИЛЬНЫХ ===
+     Упрощаем тени и снимаем тяжёлые декоративные эффекты */
+  .news-article-card,
+  .news-card,
+  .card,
+  .dashboard-widget,
+  .crypto-card {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  /* Shimmer-анимация на модальном окне — убираем */
+  .crypto-detail-modal .modal-content::before {
+    display: none !important;
+  }
+
+  /* Убираем hover-трансформы — на мобильных нет hover */
+  .news-article-card:hover,
+  .news-item-widget:hover,
+  .stock-card-mobile:hover,
+  .asset-card-mobile:hover {
+    transform: none !important;
+  }
+
+  /* === 1.24 ФИЛЬТРЫ === */
+  .filter-input {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .filter-select {
+    width: 100% !important;
+  }
+
+  .custom-select-dropdown {
+    max-height: 250px !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+} /* конец @media (max-width: 768px) */
+
+
+/* ============================================
+   2. ОЧЕНЬ МАЛЕНЬКИЕ ЭКРАНЫ ≤ 480px
+   ============================================ */
+@media (max-width: 480px) {
+
+  body {
+    font-size: 13px;
+  }
+
+  h1 { font-size: 20px !important; }
+  h2 { font-size: 18px !important; }
+  h3 { font-size: 16px !important; }
+
+  /* Компактные таблицы */
+  table th,
+  table td {
+    padding: 8px 4px !important;
+    font-size: 11px !important;
+    min-width: 70px !important;
+  }
+
+  /* Компактные кнопки (но не менее 44px!) */
+  button,
+  .btn {
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+    min-height: 44px;
+  }
+
+  /* Компактные карточки */
+  .card,
+  .crypto-card,
+  .news-card,
+  .widget {
+    padding: 10px !important;
+  }
+
+  /* Графики */
+  .chart-container,
+  .chart-wrapper {
+    height: 200px !important;
+  }
+
+  .crypto-detail-modal .chart-container,
+  .crypto-detail-modal .crypto-detail-chart-container,
+  .crypto-detail-modal .crypto-detail-chart-container.enhanced {
+    height: 55vh !important;
+    min-height: 300px !important;
+    max-height: 450px !important;
+  }
+
+  /* Favorites actions column compact */
+  #favorites-section th:last-child,
+  #favorites-section td:last-child {
+    min-width: 60px;
+  }
+}
+
+
+/* ============================================
+   3. LANDSCAPE РЕЖИМ НА МОБИЛЬНЫХ
+   ============================================ */
+@media (max-width: 768px) and (orientation: landscape) {
+
+  .modal-content {
+    max-height: 100vh;
+  }
+
+  .chart-container,
+  .chart-wrapper {
+    height: 250px !important;
+  }
+
+  /* Графики в crypto-detail-modal — landscape: обновляем размер wrapper, не container */
+  .crypto-detail-modal .crypto-detail-chart-container,
+  .crypto-detail-modal .crypto-detail-chart-container.enhanced {
+    height: auto !important;  /* container по-прежнему auto */
+  }
+  .crypto-detail-modal .chart-area-wrapper,
+  .crypto-detail-modal #chartAreaWrapper {
+    height: 65vh !important;
+    min-height: 180px !important;
+    max-height: 400px !important;
+  }
+
+  .crypto-card,
+  .news-card {
+    min-height: 150px;
+  }
+
+  /* Sticky actions на landscape — горизонтально */
+  .crypto-detail-modal .crypto-detail-actions {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+  }
+}
+
+
+/* ============================================
+   4. ПЛАНШЕТЫ (769px – 1024px)
+   ============================================ */
+@media (min-width: 769px) and (max-width: 1024px) {
+
+  .crypto-grid,
+  #marketCryptoGrid,
+  .news-container,
+  .news-grid,
+  .tools-grid,
+  .portfolios-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 20px !important;
+  }
+
+  .charts-row,
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 1rem !important;
+  }
+
+  table th,
+  table td {
+    padding: 10px 8px !important;
+    font-size: 13px !important;
+  }
+
+  .chart-container {
+    height: 350px !important;
+  }
+}
+
+
+/* ============================================
+   5. TOUCH OPTIMIZATIONS
+   ============================================ */
+@media (hover: none) and (pointer: coarse) {
+
+  /* Touch targets ≥ 44px */
+  button,
+  a.btn,
+  .clickable,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Accessibility focus */
+  *:focus-visible {
+    outline: 2px solid var(--accent-color, #00d4ff);
+    outline-offset: 2px;
+  }
+
+  /* Убираем hover-эффекты — на touch нет hover */
+  .btn:hover,
+  button:hover {
+    transform: none !important;
+  }
+}
+
+
+/* ============================================================
+   6. CRYPTO / STOCK DETAIL MODAL — МОБИЛЬНАЯ ДОРАБОТКА
+   Перебивает правила из styles_new.css (загружается после)
+   ============================================================ */
+@media (max-width: 768px) {
+
+  /* ── 6.1 Wrapper: два ряда колонкой ── */
+  .crypto-detail-modal .chart-controls-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.375rem !important;
+    padding: 0.5rem !important;
+    margin-bottom: 0.625rem !important;
+    background: rgba(15, 23, 42, 0.7) !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.07) !important;
+    overflow: visible !important;
+  }
+
+  /* ── 6.2 Ряд 1 (.chart-tabs): горизонтальный скролл, touch-action: pan-x ── */
+  .crypto-detail-modal .chart-tabs {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-x: contain !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    touch-action: pan-x !important;
+    gap: 0.25rem !important;
+    padding: 0.25rem !important;
+    background: rgba(15, 23, 42, 0.4) !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    align-items: center !important;
+  }
+  .crypto-detail-modal .chart-tabs::-webkit-scrollbar { display: none !important; }
+
+  /* Иконки скрываем — экономим место */
+  .crypto-detail-modal .chart-tab i { display: none !important; }
+
+  /* Кнопки вкладок — компактные, не переносятся */
+  .crypto-detail-modal .chart-tab {
+    flex: 0 0 auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0.45rem 0.7rem !important;
+    min-height: 34px !important;
+    font-size: 0.76rem !important;
+    white-space: nowrap !important;
+    border-radius: 6px !important;
+    line-height: 1 !important;
+  }
+
+  /* Compare кнопка */
+  .crypto-detail-modal .chart-compare-dropdown {
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+    align-items: center !important;
+  }
+  .crypto-detail-modal .chart-compare-dropdown .compare-btn {
+    padding: 0.45rem 0.7rem !important;
+    font-size: 0.76rem !important;
+    white-space: nowrap !important;
+    min-height: 34px !important;
+  }
+  .crypto-detail-modal .compare-dropdown-menu {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 90vw !important;
+    max-width: 340px !important;
+    max-height: 60vh !important;
+    overflow-y: auto !important;
+    z-index: 9999 !important;
+  }
+
+  /* Log кнопка */
+  .crypto-detail-modal .chart-scale-btn {
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+    align-items: center !important;
+    padding: 0.45rem 0.7rem !important;
+    font-size: 0.76rem !important;
+    white-space: nowrap !important;
+    min-height: 34px !important;
+  }
+
+  /* ── 6.3 Ряд 2 (.chart-period-selector): прямой дочерний элемент wrapper ──
+     HTML переструктурирован: period-selector теперь вне .chart-tabs       */
+  .crypto-detail-modal .chart-controls-wrapper > .chart-period-selector {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-x: contain !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    touch-action: pan-x !important;
+    gap: 0.3rem !important;
+    padding: 0.25rem !important;
+    background: rgba(15, 23, 42, 0.4) !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+  .crypto-detail-modal .chart-controls-wrapper > .chart-period-selector::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  /* Кнопки периода */
+  .crypto-detail-modal .period-btn {
+    flex: 0 0 auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0.45rem 0.75rem !important;
+    min-height: 34px !important;
+    min-width: 40px !important;
+    font-size: 0.78rem !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+    border-radius: 6px !important;
+  }
+
+  /* Разделители, пин, скачать — скрываем */
+  .crypto-detail-modal .chart-divider,
+  .crypto-detail-modal .chart-pin-btn,
+  .crypto-detail-modal .chart-download-wrapper,
+  .crypto-detail-modal .chart-right-controls {
+    display: none !important;
+  }
+
+  /* ── 6.4 Drawing toolbar: СКРЫТА на мобильных ──
+     Toolbar position:absolute внутри chart-area-wrapper — физически перекрывает
+     канвас LightweightCharts слева (~50px). На мобильном места нет, скрываем. */
+  .crypto-detail-modal .chart-drawing-toolbar,
+  .crypto-detail-modal #cryptoDrawingToolbar {
+    display: none !important;
+  }
+
+  /* ── 6.5 Контейнер графика ──
+     chart-area-wrapper — ЕДИНСТВЕННЫЙ источник высоты.
+     Прямое height:55vh (не через наследование) надёжнее position:absolute;inset:0:
+     autoSize ResizeObserver читает clientHeight явно-заданного wrapper, а не через цепочку.
+     #cryptoDetailPriceChart {height:100%} гарантированно резолвится против явных 55vh. */
+  .crypto-detail-modal .crypto-detail-chart-container,
+  .crypto-detail-modal .crypto-detail-chart-container.enhanced {
+    height: auto !important;       /* оболочка — не задаёт высоту сама */
+    display: block !important;
+    position: relative !important;
+    overflow: hidden !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    width: 100% !important;
+  }
+
+  .crypto-detail-modal .chart-area-wrapper,
+  .crypto-detail-modal #chartAreaWrapper {
+    position: relative !important;      /* прямая высота надёжнее absolute/inset */
+    display: block !important;
+    width: 100% !important;
+    height: 55vh !important;            /* прямое значение — ResizeObserver читает сразу */
+    min-height: 300px !important;
+    max-height: 520px !important;
+    overflow: hidden !important;        /* clip canvas строго по границам */
+    min-width: 0 !important;
+  }
+
+  /* #cryptoDetailPriceChart — height:100% от явно-sized wrapper (55vh гарантировано) */
+  .crypto-detail-modal #cryptoDetailPriceChart {
+    position: relative !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+
+  /* LightweightCharts создаёт внутренний div.tv-lightweight-charts.
+     Секция 1.13 принудительно ставит ему height:60vh — это БОЛЬШЕ чем wrapper (55vh).
+     С overflow:hidden на wrapper нижние 5vh (временна́я ось!) обрезаются.
+     Перебиваем: та же специфичность (0,3,0), но ПОЗЖЕ → побеждает. */
+  .crypto-detail-modal .modal-body .tv-lightweight-charts {
+    height: 100% !important;   /* = 55vh от #cryptoDetailPriceChart */
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+  }
+
+  /* Stock модал */
+  #stockDetailModal .chart-container {
+    height: 55vh !important;
+    min-height: 300px !important;
+    max-height: 520px !important;
+  }
+
+  #stockDetailModal .chart-container + .chart-container {
+    height: 160px !important;
+    min-height: 160px !important;
+    max-height: 160px !important;
+  }
+
+  /* ── 6.6 Price section ── */
+  .crypto-detail-modal .crypto-detail-price-section {
+    padding: 0.625rem 0.75rem !important;
+    margin-bottom: 0.625rem !important;
+  }
+  .crypto-detail-modal .price-value {
+    font-size: 1.6rem !important;
+  }
+
+  /* ── 6.7 Compare dropdown ── */
+  .crypto-detail-modal .chart-compare-dropdown {
+    position: relative !important;
+    flex-shrink: 0 !important;
+  }
+  .crypto-detail-modal .compare-dropdown-menu {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 90vw !important;
+    max-width: 340px !important;
+    max-height: 60vh !important;
+    overflow-y: auto !important;
+    z-index: 9999 !important;
+  }
+
+  /* ── 6.8 OHLC display — скрываем на мобильном ──
+     position:absolute накладывается поверх canvas, загромождает узкий экран.
+     На touch-устройствах subscribeCrosshairMove не работает без hover. */
+  .crypto-detail-modal .chart-ohlc-display,
+  .crypto-detail-modal #chartOhlcDisplay {
+    display: none !important;
+  }
+
+  /* ── 6.9 Chart legend (для сравнения) — компактная версия ──
+     Оставляем только если активно сравнение (legend показана через JS: style!='none').
+     Позиционируем в правом нижнем углу graph-wrapper чтобы не мешать. */
+  .crypto-detail-modal .chart-legend {
+    right: 4px !important;
+    left: auto !important;
+    top: auto !important;
+    bottom: 24px !important;  /* выше временной шкалы */
+    font-size: 0.68rem !important;
+    padding: 0.3rem 0.5rem !important;
+    gap: 0.4rem !important;
+    max-width: calc(100% - 8px) !important;
+    flex-wrap: wrap !important;
+  }
+  .crypto-detail-modal .chart-legend .legend-item {
+    gap: 0.25rem !important;
+    font-size: 0.68rem !important;
+  }
+  .crypto-detail-modal #stockChartLegend {
+    display: none !important;
+  }
+
+  /* Заглушка чтобы старые правила ниже не возник конфликт */
+  .crypto-detail-modal .chart-legend-dummy {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 0.5rem !important;
+    font-size: 0.7rem !important;
+    padding: 0.375rem 0.5rem !important;
+    right: 4px !important;
+    left: auto !important;
+  }
+
+  /* ── 6.10 Описание, статы, действия ── */
+  .crypto-detail-modal .crypto-detail-description,
+  .crypto-detail-modal .detail-description {
+    font-size: 0.8125rem !important;
+    line-height: 1.6 !important;
+    max-height: 200px !important;
+    overflow-y: auto !important;
+  }
+
+  .crypto-detail-modal .crypto-detail-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+
+  .crypto-detail-modal .stats-grid-extended {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+}
+
+/* ── 6.11 Очень узкие экраны ── */
+@media (max-width: 400px) {
+  .crypto-detail-modal .chart-tab {
+    padding: 0.5rem 0.5rem !important;
+    font-size: 0.7rem !important;
+  }
+  .crypto-detail-modal .period-btn {
+    padding: 0.4rem 0.6rem !important;
+    min-width: 40px !important;
+    font-size: 0.75rem !important;
+  }
+
+  /* === TOP-BAR: сверхкомпактный режим на ≤400px (Samsung Galaxy, iPhone SE) ===
+     Минимальный расчёт для 360px экрана:
+       6px*2 (pad) + 32px (menu) + 4px (gap) + h1 + 4px (gap) + 4*(32+2*gap) + 6px*2 ≈ 185px
+     → оставляем 175px для заголовка — комфортно.                             */
+  .top-bar {
+    padding: 0.35rem 0.4rem !important;  /* 5.6px top/bot, 6.4px sides */
+    gap: 0.25rem !important;
+  }
+
+  .top-bar h1 {
+    font-size: 0.875rem !important;
+  }
+
+  .top-bar .icon-btn {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 8px !important;
+    font-size: 0.8rem !important;
+  }
+
+  .top-bar .menu-btn {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 1rem !important;
+  }
+
+  .top-actions {
+    gap: 0.125rem !important;
+  }
+}
+
+
+/* ============================================
+   6.A INDICATORS PANEL — SCROLL FIX
+   Исправляет невозможность прокрутить панель
+   технических индикаторов на мобильных
+   ============================================ */
+@media (max-width: 768px) {
+
+  /* Контейнер индикаторов (вкладка «Indicators») — авто-высота, прокрутка модала.
+     ВАЖНО: .crypto-detail-modal добавлен к селектору — иначе specificity (0,2,0)
+     проигрывает section 6.5 (.crypto-detail-modal .chart-area-wrapper, 0,2,0 same)
+     и 6.5's overflow:hidden побеждает. Три класса = (0,3,0) > (0,2,0). */
+  .crypto-detail-modal .crypto-detail-chart-container.indicators-mode {
+    overflow: visible !important;  /* (0,3,0) — побеждает 6.5 (0,2,0 для wrapper) */
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 0 !important;
+  }
+
+  /* chart-area-wrapper в indicators-mode: сбрасываем height:55vh → auto
+     (0,4,0) → безоговорочно побеждает section 6.5's (0,2,0) */
+  .crypto-detail-modal .crypto-detail-chart-container.indicators-mode .chart-area-wrapper,
+  .crypto-detail-modal .crypto-detail-chart-container.indicators-mode #chartAreaWrapper {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* #cryptoDetailPriceChart в indicators-mode: тоже в поток, auto
+     (1,3,0) — побеждает section 6.5's (1,1,0) */
+  .crypto-detail-modal .crypto-detail-chart-container.indicators-mode #cryptoDetailPriceChart {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+
+  /* Обёртка таблицы тех. индикаторов — вертикальная прокрутка */
+  .tech-indicators-table-wrapper {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+    max-height: 65vh !important;
+    padding: 0.625rem !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Тело таблицы — не ограничиваем высоту, пусть прокручивается обёртка */
+  .tech-table-body {
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
+
+  /* Боди модала должен прокручиваться */
+  .crypto-detail-modal .crypto-detail-body {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+  }
+}
+
+/* ============================================
+   6.B TRADING TOOLS VUE APP — МОБИЛЬНАЯ ВЕРСИЯ
+   Покрывает #tradingToolsApp (Vue-компонент)
+   ============================================ */
+@media (max-width: 768px) {
+
+  /* Контейнер — убираем лишние отступы */
+  #tradingToolsApp {
+    padding: 1rem 0.75rem !important;
+    min-height: auto !important;
+  }
+
+  .tools-container {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  /* ── Заголовок секции ───────────────────────────────
+     Было: 3rem заголовок + 1.2rem субтитр + 3.5rem margin
+     Стало: строчный заголовок + скрытый субтитр + 1rem margin  */
+  .tools-header {
+    margin-bottom: 1rem !important;
+    text-align: left !important;        /* вместо center — экономит высоту */
+    animation: none !important;
+  }
+
+  .tools-title {
+    font-size: 1.25rem !important;      /* было 3rem → 1.6rem → 1.25rem */
+    letter-spacing: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    animation: none !important;
+    filter: none !important;
+    /* сохраняем градиент */
+    background: linear-gradient(135deg, #2563EB 0%, #10B981 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+  }
+
+  .tools-title i {
+    font-size: 1.25rem !important;      /* иконка = высота одной строки */
+    flex-shrink: 0 !important;
+  }
+
+  /* Субтитр — скрываем на мобильном: длинный текст не нужен */
+  .tools-subtitle {
+    display: none !important;
+  }
+
+  /* ── Вкладки ────────────────────────────────────────
+     Горизонтальный скролл, кнопки не переносятся      */
+  .tools-tabs {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    gap: 0.5rem !important;
+    margin-bottom: 1rem !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-x: contain !important;
+    scrollbar-width: none !important;
+    padding-bottom: 2px !important;
+    animation: none !important;
+  }
+  .tools-tabs::-webkit-scrollbar { display: none !important; }
+
+  .tools-tab {
+    flex: 0 0 auto !important;
+    padding: 0.5rem 1rem !important;
+    font-size: 0.8125rem !important;
+    border-radius: 1.25rem !important;
+    white-space: nowrap !important;
+    transform: none !important;
+    transition: background 0.2s, border-color 0.2s !important;
+  }
+
+  .tools-tab i { font-size: 0.875rem !important; }
+
+  .tools-tab.active {
+    transform: none !important;
+    box-shadow: 0 3px 10px rgba(37, 99, 235, 0.4) !important;
+  }
+
+  .tools-tab:hover { transform: none !important; }
+
+  /* ── Основная карточка ──────────────────────────────*/
+  .tools-main-card {
+    animation: none !important;
+    border-radius: 1rem !important;
+  }
+
+  /* Цветной заголовок карточки: убираем ~50% высоты */
+  .tools-card-header {
+    padding: 0.875rem 1rem !important;  /* было 2.5rem → 1.25rem → 0.875rem */
+    border-radius: 1rem 1rem 0 0 !important;
+  }
+
+  .tools-card-header::before { animation: none !important; }
+
+  .tools-card-title {
+    font-size: 1rem !important;         /* было 2rem */
+    gap: 0.5rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  .tools-card-title i { font-size: 1rem !important; }
+
+  .tools-card-desc {
+    font-size: 0.8125rem !important;    /* было 1.1rem */
+    line-height: 1.4 !important;
+  }
+
+  /* Тело карточки — меньше padding */
+  .tools-card-body {
+    padding: 1rem !important;           /* было 3rem */
+  }
+
+  /* ── Форма ──────────────────────────────────────────*/
+  .tools-layout {
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem !important;            /* было 3rem */
+  }
+
+  .tools-form-section {
+    gap: 1rem !important;               /* было 1.75rem */
+  }
+
+  .tools-form-group {
+    gap: 0.375rem !important;
+  }
+
+  .tools-label {
+    font-size: 0.875rem !important;
+  }
+
+  .tools-input,
+  .tools-select {
+    padding: 0.75rem 1rem !important;
+    font-size: 0.9375rem !important;
+  }
+
+  .number-input-wrapper {
+    grid-template-columns: 1fr 1.8rem !important;
+  }
+
+  .number-input-wrapper .number-input {
+    padding: 0.75rem 0.375rem 0.75rem 1rem !important;
+    font-size: 0.9375rem !important;
+  }
+
+  /* Блок результатов — прижимаем к форме */
+  .tools-result-section {
+    position: static !important;
+  }
+
+  .tools-result {
+    padding: 1.25rem !important;        /* было больше */
+    border-radius: 1rem !important;
+  }
+
+  .tools-result-amount {
+    font-size: 2rem !important;
+  }
+
+  /* Кнопка "Рассчитать" */
+  .tools-calculate-btn {
+    padding: 0.875rem !important;
+    font-size: 1rem !important;
+    border-radius: 0.875rem !important;
+  }
+
+  /* Hero-секция (если рендерится отдельным компонентом) */
+  .calculator-hero {
+    padding: 1rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .calculator-main-title { font-size: 1.25rem !important; }
+  .calculator-description { font-size: 0.8125rem !important; }
+
+  .calculator-tabs {
+    padding: 0 0.5rem !important;
+    margin-bottom: 0.75rem !important;
+    gap: 0.375rem !important;
+  }
+
+  .calc-tab {
+    min-width: 120px !important;
+    padding: 0.625rem 0.875rem !important;
+    font-size: 0.8rem !important;
+    transform: none !important;
+  }
+
+  .calculator-container {
+    padding: 0 0.5rem 0.75rem !important;
+  }
+}
+
+/* ============================================
+   6.C MOBILE PERFORMANCE — ОТКЛЮЧЕНИЕ ТЯЖЁЛЫХ
+   АНИМАЦИЙ ДЛЯ ПЛАВНОСТИ НА СЛАБЫХ УСТРОЙСТВАХ
+   ============================================ */
+@media (max-width: 768px) {
+
+  /* Фоновые орбы — самые тяжёлые анимации */
+  .tools-bg-orb-1,
+  .tools-bg-orb-2,
+  .tools-bg-orb-3 {
+    display: none !important;
+  }
+
+  /* Сетка — убираем бесконечную прокрутку */
+  .tools-bg-grid {
+    animation: none !important;
+    background-size: 30px 30px !important;
+    opacity: 0.03 !important;
+  }
+
+  /* float-анимация карточек */
+  @keyframes cardFloat { }
+
+  /* Блики-наплыв на вкладках */
+  .tools-tab::before {
+    display: none !important;
+  }
+
+  /* Pulse-анимация заголовка карточки */
+  .tools-card-header::before {
+    animation: none !important;
+  }
+
+  /* Crypto/Stock modal — отключаем hover-трансформации (lag на touch) */
+  .crypto-detail-modal .chart-tab:hover,
+  .crypto-detail-modal .period-btn:hover {
+    transform: none !important;
+  }
+}
+
+/* ============================================
+   7. PRINT STYLES
+   ============================================ */
+@media print {
+  nav,
+  .nav-tabs,
+  .sidebar,
+  .sidebar-overlay,
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  table {
+    width: 100%;
+    page-break-inside: avoid;
+  }
+
+  .chart-container {
+    page-break-inside: avoid;
+  }
+}

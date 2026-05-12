@@ -140,6 +140,17 @@
 
             if (error) throw error;
 
+            // Логируем вход для админ-панели
+            try {
+              await supabase.from('activity_logs').insert({
+                user_id:    data.user.id,
+                user_email: data.user.email,
+                action:     'login',
+                section:    'auth',
+                details:    {},
+              });
+            } catch { /* логгирование не должно ломать вход */ }
+
             if (form.rememberMe) {
               localStorage.setItem('rememberMe', 'true');
               localStorage.setItem('userEmail', form.email.trim());
@@ -160,9 +171,7 @@
               window.location.href = 'index.html';
             }, 1500);
 
-          } catch (error) {
-            console.error('Login error:', error);
-            
+          } catch (err) {
             let message = 'Произошла ошибка при входе';
             if (error.message === 'Invalid login credentials') {
               message = 'Неверный email или пароль';
@@ -236,8 +245,7 @@
               }, 3000);
             }
 
-          } catch (error) {
-            console.error('Forgot password error:', error);
+          } catch (_) {
             showToast('error', 'Ошибка', 'Не удалось отправить письмо. Попробуйте позже.');
           } finally {
             loading.value = false;
@@ -264,8 +272,7 @@
 
             if (error) throw error;
 
-          } catch (error) {
-            console.error('Social login error:', error);
+          } catch (_) {
             showToast('error', 'Ошибка', `Не удалось войти через ${provider}`);
           } finally {
             loading.value = false;
@@ -276,21 +283,16 @@
           }
         };
 
-        // Переключение темы - ИСПРАВЛЕННАЯ ВЕРСИЯ
+        // Переключение темы
         const toggleTheme = () => {
-          console.log('toggleTheme вызвана!');
           const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-          console.log('Текущая тема:', currentTheme);
-          
           const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-          console.log('Новая тема:', newTheme);
           
           // Обновляем состояние темы
           theme.value = newTheme;
           
           // Меняем атрибут data-theme
           document.documentElement.setAttribute('data-theme', newTheme);
-          console.log('Атрибут установлен:', document.documentElement.getAttribute('data-theme'));
           
           // Сохраняем в localStorage
           localStorage.setItem('theme', newTheme);
@@ -310,8 +312,6 @@
               ? 'Темная тема активирована' 
               : 'Светлая тема активирована'
           );
-          
-          console.log('Тема переключена на:', newTheme);
         };
 
         // Инициализация темы
@@ -323,25 +323,19 @@
           if (savedTheme) {
             document.documentElement.setAttribute('data-theme', savedTheme);
             theme.value = savedTheme;
-            console.log('Тема загружена из localStorage:', savedTheme);
           } else {
             // 3. Если нет сохраненной темы, используем текущую из HTML (или 'dark' по умолчанию)
             const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
             theme.value = currentTheme;
             localStorage.setItem('theme', currentTheme);
-            console.log('Тема установлена по умолчанию:', currentTheme);
           }
         };
 
         // Инициализация
-        onMounted(() => {
+        onMounted(async () => {
           // Инициализируем тему
           initializeTheme();
 
-          console.log('Текущая тема после инициализации:', 
-            document.documentElement.getAttribute('data-theme'),
-            'theme.value:', theme.value
-          );
 
           // Загружаем сохраненный email
           if (localStorage.getItem('rememberMe') === 'true') {
@@ -371,16 +365,36 @@
             }
           }, 800);
 
-          // Проверяем токен восстановления
+          // Проверяем токен восстановления пароля
           const hash = window.location.hash.substring(1);
           const params = new URLSearchParams(hash);
-          if (params.get('type') === 'recovery') {
+          const tokenType = params.get('type');
+
+          const errorCode = params.get('error_code');
+          const errorParam = params.get('error');
+
+          if (errorParam === 'access_denied' || errorCode === 'otp_expired') {
+            window.history.replaceState({}, '', window.location.pathname);
+            showToast(
+              'error',
+              'Ссылка устарела',
+              'Срок действия ссылки истёк. Зарегистрируйтесь снова, чтобы получить новое письмо.'
+            );
+          } else if (tokenType === 'recovery') {
             showToast(
               'success',
               'Восстановление доступа',
               'Перейдите по ссылке из письма для сброса пароля'
             );
             window.history.replaceState({}, '', window.location.pathname);
+          } else if (tokenType === 'signup' || tokenType === 'email_change') {
+            // Supabase v2 автоматически обрабатывает хэш и создаёт сессию
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+              window.history.replaceState({}, '', window.location.pathname);
+              showToast('success', 'Email подтверждён!', 'Ваш аккаунт активирован. Добро пожаловать!', 3000);
+              setTimeout(() => { window.location.href = 'index.html'; }, 2000);
+            }
           }
 
           // Анимации полей ввода
@@ -435,11 +449,6 @@
           if (card) {
             card.style.animation = 'cardAppear 1s cubic-bezier(0.34, 1.56, 0.64, 1)';
           }
-          
-          // Логирование для отладки
-          console.log('Приложение инициализировано');
-          console.log('Тема:', theme.value);
-          console.log('Атрибут data-theme:', document.documentElement.getAttribute('data-theme'));
         });
 
         return {

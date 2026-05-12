@@ -1,24 +1,47 @@
-﻿import { getPortfolios, getTransactions, getPricesForSymbols, getPriceSync } from '../core/data.js';
+import { getPortfolios, getTransactions, getPricesForSymbols, getPriceSync } from '../core/data.js';
 import { convertToSelectedCurrency, getCurrencySymbol } from '../core/currency.js';
 
+let isExporting = false;
+
 export async function exportAnalyticsToPDF(portfolioId = '') {
+  // Защита от множественных вызовов
+  if (isExporting) {
+    showLoadingNotification('Экспорт уже выполняется, пожалуйста подождите...');
+    return;
+  }
+  
+  isExporting = true;
+  
+  // Глобальный таймаут: экспорт не должен висеть дольше 60 секунд
+  const exportTimeout = setTimeout(() => {
+    if (isExporting) {
+      isExporting = false;
+      showErrorNotification('Экспорт превысил лимит времени (60с). Попробуйте снова.');
+    }
+  }, 60000);
+
   try {
     showLoadingNotification('Подготовка отчета...');
     
-    const data = await collectAnalyticsData(portfolioId);
-    const symbols = [...new Set(data.topAssets.map(a => a.symbol))];
-    if (symbols.length > 0) {
-      showLoadingNotification('Загрузка актуальных цен...');
-      await getPricesForSymbols(symbols, { useCoinGecko: true });
-    }
+    await new Promise(resolve => setTimeout(resolve, 50));
     
+    const data = await collectAnalyticsData(portfolioId);
+    // НЕ делаем сетевые запросы во время экспорта — используем кэшированные цены
+    
+    showLoadingNotification('Захват графиков...');
     const charts = await captureCharts();
+    
+    showLoadingNotification('Генерация PDF...');
+    await new Promise(resolve => setTimeout(resolve, 50));
     await generatePDFDocument(data, charts);
     
     showSuccessNotification('Отчет успешно сгенерирован!');
   } catch (error) {
-    console.error('Ошибка экспорта в PDF:', error);
+
     showErrorNotification('Ошибка при создании PDF отчета');
+  } finally {
+    clearTimeout(exportTimeout);
+    isExporting = false;
   }
 }
 
@@ -79,9 +102,9 @@ async function captureCharts() {
     const canvas = document.getElementById(id);
     if (canvas && canvas.tagName === 'CANVAS') {
       try {
-        charts[name] = canvas.toDataURL('image/png', 0.9);
+        charts[name] = canvas.toDataURL('image/jpeg', 0.85);
       } catch (e) {
-        console.warn(`Не удалось захватить график ${id}:`, e);
+
       }
     }
   }
@@ -104,9 +127,8 @@ async function generatePDFDocument(data, charts) {
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 15;
   const contentWidth = pageWidth - 2 * margin;
-  const maxContentHeight = pageHeight - 2 * margin;
-  
   let currentY = margin;
+  
   const { metrics } = data;
   const currencySymbol = getCurrencySymbol();
   
@@ -116,20 +138,21 @@ async function generatePDFDocument(data, charts) {
   };
   
   const checkSpace = (requiredHeight) => {
-    if (currentY + requiredHeight > pageHeight - margin) {
+    if (currentY + requiredHeight > pageHeight - margin - 15) {
       addNewPage();
       return true;
     }
     return false;
   };
   
-  const renderTextBlock = async (htmlContent, width = contentWidth) => {
+  // Функция для рендеринга HTML в изображение (с таймаутом)
+  const renderHTML = async (htmlContent, width = contentWidth) => {
     const tempDiv = document.createElement('div');
     tempDiv.style.cssText = `
-      position: fixed;
+      position: absolute;
       left: -9999px;
       top: 0;
-      width: ${width * 3.78}px;
+      width: ${width * 2.5}px;
       background: #ffffff;
       font-family: Arial, sans-serif;
       box-sizing: border-box;
@@ -138,14 +161,20 @@ async function generatePDFDocument(data, charts) {
     document.body.appendChild(tempDiv);
     
     try {
-      const canvas = await html2canvas(tempDiv, {
-        scale: 2,
+      const canvasPromise = html2canvas(tempDiv, {
+        scale: 1.0,
         backgroundColor: '#ffffff',
         logging: false,
-        useCORS: true
+        useCORS: false,
+        allowTaint: true,
+        imageTimeout: 5000
       });
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('html2canvas timeout')), 10000)
+      );
+      const canvas = await Promise.race([canvasPromise, timeoutPromise]);
       
-      const imgData = canvas.toDataURL('image/png', 1.0);
+      const imgData = canvas.toDataURL('image/jpeg', 0.80);
       const imgHeight = (canvas.height * width) / canvas.width;
       
       return { imgData, imgHeight };
@@ -154,12 +183,14 @@ async function generatePDFDocument(data, charts) {
     }
   };
   
-  const headerHtml = `
+  // === СТРАНИЦА 1: ЗАГОЛОВОК И МЕТРИКИ (один большой блок) ===
+  const page1HTML = `
     <div style="padding: 15px;">
-      <h1 style="font-size: 32px; margin: 0 0 8px 0; color: #1a1a1a; font-weight: 700; letter-spacing: -0.5px;">
+      <div style="height: 3px; background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%); margin-bottom: 10px; border-radius: 2px;"></div>
+      <h1 style="font-size: 32px; margin: 0 0 8px 0; color: #1a1a1a; font-weight: 700;">
         Отчет по аналитике портфеля
       </h1>
-      <div style="display: flex; gap: 20px; margin-top: 12px;">
+      <div style="display: flex; gap: 20px; margin-bottom: 20px;">
         <p style="font-size: 15px; color: #666; margin: 0;">
           <strong style="color: #333;">Портфель:</strong> ${data.portfolioName}
         </p>
@@ -167,21 +198,11 @@ async function generatePDFDocument(data, charts) {
           <strong style="color: #333;">Дата:</strong> ${data.date}
         </p>
       </div>
-      <div style="height: 3px; background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%); margin-top: 15px; border-radius: 2px;"></div>
-    </div>
-  `;
-  
-  const header = await renderTextBlock(headerHtml);
-  doc.addImage(header.imgData, 'PNG', margin, currentY, contentWidth, header.imgHeight);
-  currentY += header.imgHeight + 5;
-  
-  const metricsHtml = `
-    <div style="padding: 10px;">
-      <h2 style="font-size: 24px; margin: 0 0 15px 0; color: #1f2937; font-weight: 700;">
+      
+      <h2 style="font-size: 24px; margin: 20px 0 15px 0; color: #1f2937; font-weight: 700;">
         Ключевые показатели
       </h2>
       
-      <!-- Первая строка метрик -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
         <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); padding: 15px; border-radius: 8px; border-left: 4px solid #3b82f6;">
           <div style="font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 4px;">ОБЩАЯ СТОИМОСТЬ</div>
@@ -193,7 +214,6 @@ async function generatePDFDocument(data, charts) {
         </div>
       </div>
       
-      <!-- Вторая строка метрик -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
         <div style="background: linear-gradient(135deg, ${metrics.pnl >= 0 ? '#d1fae5' : '#fee2e2'} 0%, ${metrics.pnl >= 0 ? '#a7f3d0' : '#fecaca'} 100%); padding: 15px; border-radius: 8px; border-left: 4px solid ${metrics.pnl >= 0 ? '#10b981' : '#ef4444'};">
           <div style="font-size: 12px; color: ${metrics.pnl >= 0 ? '#065f46' : '#7f1d1d'}; font-weight: 600; margin-bottom: 4px;">ПРИБЫЛЬ/УБЫТОК</div>
@@ -205,7 +225,6 @@ async function generatePDFDocument(data, charts) {
         </div>
       </div>
       
-      <!-- Третья строка метрик -->
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
         <div style="background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
           <div style="font-size: 11px; color: #64748b; font-weight: 600; margin-bottom: 3px;">ШАРП</div>
@@ -223,14 +242,15 @@ async function generatePDFDocument(data, charts) {
     </div>
   `;
   
-  const metricsBlock = await renderTextBlock(metricsHtml);
-  checkSpace(metricsBlock.imgHeight + 10);
-  doc.addImage(metricsBlock.imgData, 'PNG', margin, currentY, contentWidth, metricsBlock.imgHeight);
-  currentY += metricsBlock.imgHeight + 10;
+  const page1Block = await renderHTML(page1HTML);
+  doc.addImage(page1Block.imgData, 'JPEG', margin, currentY, contentWidth, page1Block.imgHeight);
+  currentY += page1Block.imgHeight + 5;
   
+  // === СТРАНИЦА 2: ГРАФИКИ ===
   addNewPage();
   
-  const chartsHeaderHtml = `
+  // Заголовок секции графиков
+  const chartsHeaderHTML = `
     <div style="padding: 10px 15px;">
       <h2 style="font-size: 24px; margin: 0; color: #1f2937; font-weight: 700;">
         Графики и визуализация
@@ -241,12 +261,13 @@ async function generatePDFDocument(data, charts) {
     </div>
   `;
   
-  const chartsHeader = await renderTextBlock(chartsHeaderHtml);
-  doc.addImage(chartsHeader.imgData, 'PNG', margin, currentY, contentWidth, chartsHeader.imgHeight);
-  currentY += chartsHeader.imgHeight + 8;
+  const chartsHeader = await renderHTML(chartsHeaderHTML);
+  doc.addImage(chartsHeader.imgData, 'JPEG', margin, currentY, contentWidth, chartsHeader.imgHeight);
+  currentY += chartsHeader.imgHeight + 5;
   
+  // График стоимости портфеля
   if (charts.valueChart) {
-    const titleHtml = `
+    const titleHTML = `
       <div style="padding: 8px 12px; background: #f1f5f9; border-left: 3px solid #3b82f6; border-radius: 4px;">
         <p style="font-size: 14px; color: #1e293b; margin: 0; font-weight: 600;">
           История стоимости портфеля
@@ -254,121 +275,93 @@ async function generatePDFDocument(data, charts) {
       </div>
     `;
     
-    const title = await renderTextBlock(titleHtml);
-    const chartHeight = 75;
+    const title = await renderHTML(titleHTML);
+    const chartHeight = 70;
     
     checkSpace(title.imgHeight + chartHeight + 12);
     
-    doc.addImage(title.imgData, 'PNG', margin, currentY, contentWidth, title.imgHeight);
+    doc.addImage(title.imgData, 'JPEG', margin, currentY, contentWidth, title.imgHeight);
     currentY += title.imgHeight + 3;
     
     doc.setDrawColor(226, 232, 240);
     doc.setLineWidth(0.5);
     doc.roundedRect(margin, currentY, contentWidth, chartHeight, 2, 2, 'S');
-    doc.addImage(charts.valueChart, 'PNG', margin + 1, currentY + 1, contentWidth - 2, chartHeight - 2);
-    currentY += chartHeight + 12;
+    doc.addImage(charts.valueChart, 'JPEG', margin + 1, currentY + 1, contentWidth - 2, chartHeight - 2);
+    currentY += chartHeight + 10;
   }
   
-  const smallChartWidth = (contentWidth - 8) / 2;
-  const smallChartHeight = 65;
+  // Маленькие графики (объединенные заголовки)
+  const smallChartWidth = (contentWidth - 6) / 2;
+  const smallChartHeight = 60;
   
-  if (charts.typeChart || charts.topChart) {
-    checkSpace(smallChartHeight + 25);
+  if (charts.typeChart && charts.topChart) {
+    const titlesHTML = `
+      <div style="display: flex; gap: 6px; padding: 0 10px;">
+        <div style="flex: 1; padding: 6px 10px; background: #f1f5f9; border-left: 3px solid #8b5cf6; border-radius: 4px;">
+          <p style="font-size: 13px; color: #1e293b; margin: 0; font-weight: 600;">Распределение по типам</p>
+        </div>
+        <div style="flex: 1; padding: 6px 10px; background: #f1f5f9; border-left: 3px solid #f59e0b; border-radius: 4px;">
+          <p style="font-size: 13px; color: #1e293b; margin: 0; font-weight: 600;">Топ активов</p>
+        </div>
+      </div>
+    `;
     
+    const titles = await renderHTML(titlesHTML);
+    checkSpace(titles.imgHeight + smallChartHeight + 15);
+    
+    doc.addImage(titles.imgData, 'JPEG', margin, currentY, contentWidth, titles.imgHeight);
+    currentY += titles.imgHeight + 3;
+    
+    // Графики
     let xPos = margin;
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(xPos, currentY, smallChartWidth, smallChartHeight, 2, 2, 'S');
+    doc.addImage(charts.typeChart, 'JPEG', xPos + 1, currentY + 1, smallChartWidth - 2, smallChartHeight - 2);
     
-    if (charts.typeChart) {
-      const titleHtml = `
-        <div style="padding: 6px 10px; background: #f1f5f9; border-left: 3px solid #8b5cf6; border-radius: 4px;">
-          <p style="font-size: 13px; color: #1e293b; margin: 0; font-weight: 600;">
-            Распределение по типам
-          </p>
-        </div>
-      `;
-      
-      const title = await renderTextBlock(titleHtml, smallChartWidth);
-      doc.addImage(title.imgData, 'PNG', xPos, currentY, smallChartWidth, title.imgHeight);
-      
-      const chartY = currentY + title.imgHeight + 2;
-      doc.setDrawColor(226, 232, 240);
-      doc.setLineWidth(0.5);
-      doc.roundedRect(xPos, chartY, smallChartWidth, smallChartHeight, 2, 2, 'S');
-      doc.addImage(charts.typeChart, 'PNG', xPos + 1, chartY + 1, smallChartWidth - 2, smallChartHeight - 2);
-      
-      xPos += smallChartWidth + 8;
-    }
+    xPos += smallChartWidth + 6;
+    doc.roundedRect(xPos, currentY, smallChartWidth, smallChartHeight, 2, 2, 'S');
+    doc.addImage(charts.topChart, 'JPEG', xPos + 1, currentY + 1, smallChartWidth - 2, smallChartHeight - 2);
     
-    if (charts.topChart) {
-      const titleHtml = `
-        <div style="padding: 6px 10px; background: #f1f5f9; border-left: 3px solid #f59e0b; border-radius: 4px;">
-          <p style="font-size: 13px; color: #1e293b; margin: 0; font-weight: 600;">
-            Топ активов
-          </p>
-        </div>
-      `;
-      
-      const title = await renderTextBlock(titleHtml, smallChartWidth);
-      doc.addImage(title.imgData, 'PNG', xPos, currentY, smallChartWidth, title.imgHeight);
-      
-      const chartY = currentY + title.imgHeight + 2;
-      doc.setDrawColor(226, 232, 240);
-      doc.setLineWidth(0.5);
-      doc.roundedRect(xPos, chartY, smallChartWidth, smallChartHeight, 2, 2, 'S');
-      doc.addImage(charts.topChart, 'PNG', xPos + 1, chartY + 1, smallChartWidth - 2, smallChartHeight - 2);
-    }
-    
-    currentY += 8 + smallChartHeight + 12;
+    currentY += smallChartHeight + 10;
   }
   
-  if (charts.returnsChart || charts.riskChart) {
-    checkSpace(smallChartHeight + 25);
+  // Вторая пара графиков
+  if (charts.returnsChart && charts.riskChart) {
+    const titlesHTML = `
+      <div style="display: flex; gap: 6px; padding: 0 10px;">
+        <div style="flex: 1; padding: 6px 10px; background: #f1f5f9; border-left: 3px solid #10b981; border-radius: 4px;">
+          <p style="font-size: 13px; color: #1e293b; margin: 0; font-weight: 600;">Доходность по месяцам</p>
+        </div>
+        <div style="flex: 1; padding: 6px 10px; background: #f1f5f9; border-left: 3px solid #ef4444; border-radius: 4px;">
+          <p style="font-size: 13px; color: #1e293b; margin: 0; font-weight: 600;">Риск-профиль</p>
+        </div>
+      </div>
+    `;
     
+    const titles = await renderHTML(titlesHTML);
+    checkSpace(titles.imgHeight + smallChartHeight + 15);
+    
+    doc.addImage(titles.imgData, 'JPEG', margin, currentY, contentWidth, titles.imgHeight);
+    currentY += titles.imgHeight + 3;
+    
+    // Графики
     let xPos = margin;
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(xPos, currentY, smallChartWidth, smallChartHeight, 2, 2, 'S');
+    doc.addImage(charts.returnsChart, 'JPEG', xPos + 1, currentY + 1, smallChartWidth - 2, smallChartHeight - 2);
     
-    if (charts.returnsChart) {
-      const titleHtml = `
-        <div style="padding: 6px 10px; background: #f1f5f9; border-left: 3px solid #10b981; border-radius: 4px;">
-          <p style="font-size: 13px; color: #1e293b; margin: 0; font-weight: 600;">
-            Доходность по месяцам
-          </p>
-        </div>
-      `;
-      
-      const title = await renderTextBlock(titleHtml, smallChartWidth);
-      doc.addImage(title.imgData, 'PNG', xPos, currentY, smallChartWidth, title.imgHeight);
-      
-      const chartY = currentY + title.imgHeight + 2;
-      doc.setDrawColor(226, 232, 240);
-      doc.setLineWidth(0.5);
-      doc.roundedRect(xPos, chartY, smallChartWidth, smallChartHeight, 2, 2, 'S');
-      doc.addImage(charts.returnsChart, 'PNG', xPos + 1, chartY + 1, smallChartWidth - 2, smallChartHeight - 2);
-      
-      xPos += smallChartWidth + 8;
-    }
+    xPos += smallChartWidth + 6;
+    doc.roundedRect(xPos, currentY, smallChartWidth, smallChartHeight, 2, 2, 'S');
+    doc.addImage(charts.riskChart, 'JPEG', xPos + 1, currentY + 1, smallChartWidth - 2, smallChartHeight - 2);
     
-    if (charts.riskChart) {
-      const titleHtml = `
-        <div style="padding: 6px 10px; background: #f1f5f9; border-left: 3px solid #ef4444; border-radius: 4px;">
-          <p style="font-size: 13px; color: #1e293b; margin: 0; font-weight: 600;">
-            Риск-профиль
-          </p>
-        </div>
-      `;
-      
-      const title = await renderTextBlock(titleHtml, smallChartWidth);
-      doc.addImage(title.imgData, 'PNG', xPos, currentY, smallChartWidth, title.imgHeight);
-      
-      const chartY = currentY + title.imgHeight + 2;
-      doc.setDrawColor(226, 232, 240);
-      doc.setLineWidth(0.5);
-      doc.roundedRect(xPos, chartY, smallChartWidth, smallChartHeight, 2, 2, 'S');
-      doc.addImage(charts.riskChart, 'PNG', xPos + 1, chartY + 1, smallChartWidth - 2, smallChartHeight - 2);
-    }
+    currentY += smallChartHeight;
   }
   
+  // === СТРАНИЦА 3: ТАБЛИЦА АКТИВОВ ===
   addNewPage();
   
-  const tableHeaderHtml = `
+  // Заголовок таблицы
+  const tableHeaderHTML = `
     <div style="padding: 10px 15px;">
       <h2 style="font-size: 24px; margin: 0; color: #1f2937; font-weight: 700;">
         Детальная статистика активов
@@ -379,10 +372,11 @@ async function generatePDFDocument(data, charts) {
     </div>
   `;
   
-  const tableHeader = await renderTextBlock(tableHeaderHtml);
-  doc.addImage(tableHeader.imgData, 'PNG', margin, currentY, contentWidth, tableHeader.imgHeight);
+  const tableHeader = await renderHTML(tableHeaderHTML);
+  doc.addImage(tableHeader.imgData, 'JPEG', margin, currentY, contentWidth, tableHeader.imgHeight);
   currentY += tableHeader.imgHeight + 5;
   
+  // Таблица активов (один большой блок)
   const tableRows = data.topAssets.slice(0, 15).map((asset, index) => {
     const pnl = asset.pnl || 0;
     const pnlColor = pnl >= 0 ? '#059669' : '#dc2626';
@@ -412,7 +406,7 @@ async function generatePDFDocument(data, charts) {
     `;
   }).join('');
   
-  const tableHtml = `
+  const tableHTML = `
     <div style="padding: 0 10px;">
       <table style="width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <thead>
@@ -431,16 +425,29 @@ async function generatePDFDocument(data, charts) {
     </div>
   `;
   
-  const table = await renderTextBlock(tableHtml);
-  const maxTableHeight = pageHeight - currentY - margin - 20;
+  const table = await renderHTML(tableHTML);
   
-  if (table.imgHeight > maxTableHeight) {
-    const rowsPerPage = Math.floor((maxTableHeight / table.imgHeight) * data.topAssets.slice(0, 15).length);
+  // Если таблица слишком большая, разбиваем на страницы
+  const availableHeight = pageHeight - currentY - margin - 15;
+  
+  if (table.imgHeight > availableHeight && data.topAssets.length > 5) {
+    // Разделяем активы на группы
+    const avgRowHeight = table.imgHeight / Math.max(data.topAssets.slice(0, 15).length, 1);
+    const assetsPerPage = Math.max(Math.floor(availableHeight / avgRowHeight) - 1, 2);
     let remainingAssets = [...data.topAssets.slice(0, 15)];
+    let isFirstChunk = true;
+    let safetyCounter = 0; // Защита от бесконечного цикла
+    const maxIterations = 20;
     
-    while (remainingAssets.length > 0) {
-      const assetsChunk = remainingAssets.splice(0, Math.max(rowsPerPage, 5));
-      const chunkRows = assetsChunk.map((asset, index) => {
+    while (remainingAssets.length > 0 && safetyCounter < maxIterations) {
+      safetyCounter++;
+      
+      const chunkSize = Math.min(Math.max(assetsPerPage, 2), remainingAssets.length);
+      const chunk = remainingAssets.splice(0, chunkSize);
+      
+      if (chunk.length === 0) break; // Дополнительная защита
+      
+      const chunkRows = chunk.map((asset, index) => {
         const pnl = asset.pnl || 0;
         const pnlColor = pnl >= 0 ? '#059669' : '#dc2626';
         const pnlBg = pnl >= 0 ? '#d1fae5' : '#fee2e2';
@@ -469,10 +476,10 @@ async function generatePDFDocument(data, charts) {
         `;
       }).join('');
       
-      const chunkHtml = `
+      const chunkHTML = `
         <div style="padding: 0 10px;">
           <table style="width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-            ${remainingAssets.length === data.topAssets.slice(0, 15).length ? `
+            ${isFirstChunk ? `
             <thead>
               <tr style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%);">
                 <th style="padding: 14px 10px; text-align: left; font-weight: 700; font-size: 12px; color: #ffffff;">АКТИВ</th>
@@ -490,36 +497,48 @@ async function generatePDFDocument(data, charts) {
         </div>
       `;
       
-      const chunkBlock = await renderTextBlock(chunkHtml);
-      checkSpace(chunkBlock.imgHeight + 10);
-      doc.addImage(chunkBlock.imgData, 'PNG', margin, currentY, contentWidth, chunkBlock.imgHeight);
+      const chunkBlock = await renderHTML(chunkHTML);
+      checkSpace(chunkBlock.imgHeight + 5);
+      doc.addImage(chunkBlock.imgData, 'JPEG', margin, currentY, contentWidth, chunkBlock.imgHeight);
       currentY += chunkBlock.imgHeight + 5;
       
       if (remainingAssets.length > 0) {
         addNewPage();
       }
+      
+      isFirstChunk = false;
     }
   } else {
-    doc.addImage(table.imgData, 'PNG', margin, currentY, contentWidth, table.imgHeight);
+    doc.addImage(table.imgData, 'JPEG', margin, currentY, contentWidth, table.imgHeight);
   }
   
+  // Футеры на всех страницах (без html2canvas для скорости)
   const pageCount = doc.internal.getNumberOfPages();
+  const footerY = pageHeight - margin - 10;
+  
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     
-    const footerHtml = `
-      <div style="padding: 8px 0; text-align: center; border-top: 2px solid #e5e7eb;">
-        <p style="font-size: 10px; color: #9ca3af; margin: 0; font-weight: 500;">
-          Страница ${i} из ${pageCount}
-        </p>
-        <p style="font-size: 9px; color: #d1d5db; margin: 2px 0 0 0;">
-          CryptoPortfolio © ${new Date().getFullYear()} • Ваш инвестиционный помощник
-        </p>
-      </div>
-    `;
+    // Линия сверху
+    doc.setDrawColor(229, 231, 235);
+    doc.setLineWidth(0.5);
+    doc.line(margin, footerY, pageWidth - margin, footerY);
     
-    const footer = await renderTextBlock(footerHtml);
-    doc.addImage(footer.imgData, 'PNG', margin, pageHeight - margin - footer.imgHeight + 5, contentWidth, footer.imgHeight);
+    // Номер страницы
+    doc.setFontSize(8);
+    doc.setTextColor(156, 163, 175);
+    doc.setFont('helvetica', 'normal');
+    
+    const pageText = `Page ${i} of ${pageCount}`;
+    const pageTextWidth = doc.getTextWidth(pageText);
+    doc.text(pageText, (pageWidth - pageTextWidth) / 2, footerY + 4);
+    
+    // Копирайт
+    doc.setFontSize(7);
+    doc.setTextColor(209, 213, 219);
+    const copyrightText = `CryptoPortfolio © ${new Date().getFullYear()}`;
+    const copyrightWidth = doc.getTextWidth(copyrightText);
+    doc.text(copyrightText, (pageWidth - copyrightWidth) / 2, footerY + 7.5);
   }
   
   const filename = `analytics_${data.portfolioName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;

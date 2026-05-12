@@ -1,7 +1,7 @@
 ﻿
 async function downloadChartWithTooltip(format = 'png') {
   try {
-    console.log(`Downloading chart as ${format.toUpperCase()}...`);
+
     
     if (!window.tvChart) {
       showNotification('График не загружен', 'error');
@@ -56,14 +56,14 @@ async function downloadChartWithTooltip(format = 'png') {
           try {
             outCtx.drawImage(c, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
           } catch (e) {
-            console.warn('Could not draw internal canvas (possible taint):', e);
+
           }
         });
 
         // Convert composed canvas to blob
         exportedBlob = await new Promise((resolve) => outCanvas.toBlob(resolve, format === 'jpg' ? 'image/jpeg' : 'image/png', format === 'jpg' ? 0.95 : undefined));
       } catch (e) {
-        console.warn('Canvas export failed, falling back to html2canvas:', e);
+
         exportedBlob = null;
       }
     }
@@ -110,10 +110,10 @@ async function downloadChartWithTooltip(format = 'png') {
     URL.revokeObjectURL(url);
 
     showNotification(`График сохранён как ${format.toUpperCase()}`, 'success');
-    console.log(`Chart downloaded as ${format.toUpperCase()}`);
+
     
   } catch (error) {
-    console.error(`Error downloading chart as ${format.toUpperCase()}:`, error);
+
     showNotification('Ошибка при сохранении графика', 'error');
   }
 }
@@ -155,4 +155,3 @@ window.toggleDownloadMenu = function() {
   }
 };
 
-console.log('Chart download module loaded');

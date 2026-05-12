@@ -22,7 +22,7 @@ function _getCached(url, ttl) {
         }
         return parsed.data;
     } catch (e) {
-        console.warn('fetch cache read error', e);
+
         return null;
     }
 }
@@ -33,7 +33,7 @@ function _setCached(url, data) {
         localStorage.setItem(k, JSON.stringify({ ts: Date.now(), data }));
     } catch (e) {
         // localStorage may be full or blocked
-        console.warn('fetch cache write error', e);
+
     }
 }
 
@@ -45,7 +45,7 @@ async function _performFetchWithRetries(url, options, maxRetries = 3) {
             if (resp.status === 429) {
                 // Too many requests — backoff and retry
                 const backoff = 500 * Math.pow(2, attempt) + Math.floor(Math.random() * 300);
-                console.warn('Received 429 from', url, 'backoff', backoff, 'ms, attempt', attempt);
+
                 await new Promise(r => setTimeout(r, backoff));
                 attempt++;
                 continue;
@@ -54,7 +54,7 @@ async function _performFetchWithRetries(url, options, maxRetries = 3) {
         } catch (e) {
             // Network or CORS error — fail fast for non-429, but try a few times
             const backoff = 400 * Math.pow(2, attempt) + Math.floor(Math.random() * 200);
-            console.warn('Fetch error', e.message || e, 'backoff', backoff, 'ms, attempt', attempt);
+
             await new Promise(r => setTimeout(r, backoff));
             attempt++;
             continue;
@@ -77,10 +77,10 @@ function _processFetchQueue() {
                 } else {
                     const contentType = resp.headers.get ? (resp.headers.get('content-type') || '') : '';
                     if (!resp.ok) {
-                        console.warn('safeFetchJsonGlobal: response not ok', item.url, resp.status);
+
                         item.resolve(null);
                     } else if (!contentType.includes('application/json')) {
-                        console.warn('safeFetchJsonGlobal: CORB or non-JSON response', item.url, 'Content-Type:', contentType);
+
                         item.resolve(null);
                     } else {
                         const json = await resp.json();
@@ -88,7 +88,7 @@ function _processFetchQueue() {
                     }
                 }
             } catch (e) {
-                console.warn('safeFetchJsonGlobal queue worker error', e);
+
                 try { item.reject(e); } catch (_) {}
             }
             // wait between requests to avoid hitting rate limits
@@ -106,7 +106,7 @@ async function safeFetchJsonGlobal(url, options = {}, ttl = 60 * 1000) {
             if (cached !== null) return cached;
         }
     } catch (e) {
-        console.warn('safeFetchJsonGlobal cache read failed', e);
+
     }
 
     return new Promise((resolve, reject) => {
@@ -116,11 +116,11 @@ async function safeFetchJsonGlobal(url, options = {}, ttl = 60 * 1000) {
         try {
             if (result !== null && result !== undefined && ttl > 0) _setCached(url, result);
         } catch (e) {
-            console.warn('safeFetchJsonGlobal cache write failed', e);
+
         }
         return result;
     }).catch(e => {
-        console.warn('safeFetchJsonGlobal: fetch or parse error', url, e && (e.message || e));
+
         return null;
     });
 }
@@ -171,7 +171,7 @@ const dashboardState = {
 };
 
 export async function initDashboard() {
-    console.log('Initializing Dashboard...');
+
     
     try {
         // Инициализируем drag & resize для виджетов
@@ -186,9 +186,9 @@ export async function initDashboard() {
         // Запускаем автообновление
         startAutoRefresh();
         
-        console.log('Dashboard initialized successfully');
+
     } catch (error) {
-        console.error('Error initializing dashboard:', error);
+
         showNotification('Ошибка загрузки дашборда', 'error');
     }
 }
@@ -199,12 +199,12 @@ export async function initDashboard() {
 
 export async function loadDashboardData() {
     if (dashboardState.isLoading) {
-        console.log('⏳ Dashboard data is already loading...');
+
         return;
     }
     
     dashboardState.isLoading = true;
-    console.log('Loading dashboard data...');
+
     
     try {
         // Загружаем данные параллельно
@@ -219,6 +219,54 @@ export async function loadDashboardData() {
         // Загружаем избранное и обновляем UI
         try {
             const favs = await getFavorites();
+            
+            // Предзагрузка данных акций для избранного
+            const stockSymbols = favs.filter(f => window.STOCK_INFO && window.STOCK_INFO[f.symbol]).map(f => f.symbol);
+            if (stockSymbols.length > 0) {
+
+                
+                // Импортируем функцию загрузки данных акций
+                try {
+                    const { loadStockData } = await import('../favorites/favorites-controls.js');
+                    
+                    if (loadStockData && typeof loadStockData === 'function') {
+                        const loadedStocks = await loadStockData(stockSymbols);
+                        
+                        // Сохраняем в window.stocksRealData
+                        if (!window.stocksRealData) {
+                            window.stocksRealData = {};
+                        }
+                        Object.assign(window.stocksRealData, loadedStocks);
+
+                    }
+                } catch (e) {
+
+                    
+                    // Fallback: загружаем напрямую через Finnhub
+                    const FINNHUB_TOKEN = 'd49lflpr01qlaebhu1egd49lflpr01qlaebhu1f0';
+                    if (!window.stocksRealData) window.stocksRealData = {};
+                    
+                    await Promise.all(stockSymbols.map(async symbol => {
+                        try {
+                            const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_TOKEN}`);
+                            if (response.ok) {
+                                const data = await response.json();
+                                if (data && data.c) {
+                                    window.stocksRealData[symbol] = {
+                                        price: data.c.toFixed(2),
+                                        change: (data.c - data.pc).toFixed(2),
+                                        changePercent: (((data.c - data.pc) / data.pc) * 100).toFixed(2)
+                                    };
+
+                                }
+                            }
+                        } catch (e) {
+
+                        }
+                    }));
+                }
+            }
+            
             renderFavorites(favs);
             // Re-render when cryptoList becomes available to populate prices immediately
             const onList = async (e) => {
@@ -226,7 +274,7 @@ export async function loadDashboardData() {
                     const fresh = await getFavorites();
                     renderFavorites(fresh);
                 } catch (err) {
-                    console.warn('cryptoListLoaded handler error:', err);
+
                 }
             };
             document.addEventListener('cryptoListLoaded', onList, { once: true });
@@ -234,21 +282,21 @@ export async function loadDashboardData() {
             // Re-render when stocks data becomes available
             const onStocks = async (e) => {
                 try {
-                    console.log('Stocks data loaded, updating favorites...', e.detail);
+
                     const fresh = await getFavorites();
                     renderFavorites(fresh);
                 } catch (err) {
-                    console.warn('stocksDataLoaded handler error:', err);
+
                 }
             };
             document.addEventListener('stocksDataLoaded', onStocks, { once: true });
         } catch (e) {
-            console.warn('Не удалось загрузить избранное:', e.message || e);
+
         }
         
-        console.log('Dashboard data loaded successfully');
+
     } catch (error) {
-        console.error('Error loading dashboard data:', error);
+
     } finally {
         dashboardState.isLoading = false;
     }
@@ -275,7 +323,7 @@ export function renderFavorites(items) {
             if (isStock) {
                 const stockData = window.stocksRealData?.[f.symbol];
                 price = stockData?.price ? parseFloat(stockData.price) : undefined;
-                console.log(`Цена акции ${f.symbol} из stocksRealData:`, price, stockData);
+
             } else {
                 // Для крипты используем Binance prices с fallback
                 price = (prices && (prices[f.symbol] || prices[`${f.symbol}USDT`])) ?? undefined;
@@ -285,13 +333,15 @@ export function renderFavorites(items) {
                 }
             }
             
-            // Format price with adaptive precision for very cheap assets
+            // Format price with adaptive precision + currency conversion
+            const _sym = currency.getCurrencySymbol();
             const formatPriceForDisplay = (p) => {
                 if (!Number.isFinite(p) || p <= 0) return '—';
-                if (p >= 1) return `$${p.toFixed(2)}`;
-                if (p >= 0.01) return `$${p.toFixed(4)}`;
-                if (p >= 0.0001) return `$${p.toFixed(6)}`;
-                return '<$0.0001';
+                const cp = currency.convertToSelectedCurrency(p);
+                if (p >= 1) return `${_sym}${cp.toFixed(2)}`;
+                if (p >= 0.01) return `${_sym}${cp.toFixed(4)}`;
+                if (p >= 0.0001) return `${_sym}${cp.toFixed(6)}`;
+                return `<${_sym}0.0001`;
             };
             const priceDisplay = formatPriceForDisplay(price);
             
@@ -299,7 +349,7 @@ export function renderFavorites(items) {
                 ? (window.STOCK_INFO[f.symbol] || { name: f.symbol, color: '#3B82F6' })
                 : ((window.CRYPTO_INFO && window.CRYPTO_INFO[f.symbol]) || { color: '#64748b' });
             
-            console.log(`🎴 Рендер карточки избранного ${f.symbol}:`, { isStock, info, price, priceDisplay });
+
             
             const name = escapeHtml(isStock ? info.name : (info.name || ''));
             const symbolEsc = escapeHtml(f.symbol);
@@ -311,12 +361,10 @@ export function renderFavorites(items) {
                 const fallback1 = `https://assets.parqet.com/logos/symbol/${f.symbol}`;
                 const fallback2 = `https://financialmodelingprep.com/image-stock/${f.symbol}.png`;
                 iconHTML = `<img data-src="${iconUrl}" alt="${symbolEsc}" data-fallback1="${fallback1}" data-fallback2="${fallback2}" data-emoji="${f.symbol.charAt(0)}" style="width:100%;height:100%;object-fit:contain;border-radius:50%;"/>`;
-                console.log(`  📸 Акция ${f.symbol} - иконка:`, iconUrl);
+
             } else {
                 const iconUrl = getCoinCapIcon(f.symbol);
-                const bgColor = info.color.replace('#','');
-                const avatarUrl = `https://ui-avatars.com/api/?name=${symbolEsc}&background=${bgColor}&color=fff&size=48&bold=true`;
-                iconHTML = `<img data-src="${iconUrl}" alt="${symbolEsc}" data-fallback1="${avatarUrl}" data-emoji="${f.symbol.charAt(0)}" style="width:100%;height:100%;object-fit:contain;"/>`;
+                iconHTML = `<img data-src="${iconUrl}" alt="${symbolEsc}" data-fallback1="https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/icon/${f.symbol.toLowerCase()}.png" data-fallback2="https://ui-avatars.com/api/?name=${symbolEsc}&background=${info.color.replace('#','')}&color=fff&size=48&bold=true" data-emoji="${f.symbol.charAt(0)}" style="width:100%;height:100%;object-fit:contain;"/>`;
             }
             
             return `
@@ -342,13 +390,13 @@ export function renderFavorites(items) {
         }).join('')}</div>`;
 
         // Процессируем иконки через icon loader
-        console.log('Вызов icon loader для избранного, window._iconLoader:', !!window._iconLoader);
+
         if (window._iconLoader && typeof window._iconLoader.processContainer === 'function') {
             const imgElements = container.querySelectorAll('img[data-src]');
-            console.log(`  📸 Найдено img[data-src] элементов: ${imgElements.length}`, Array.from(imgElements).map(img => ({ src: img.dataset.src, alt: img.alt })));
+
             window._iconLoader.processContainer(container);
         } else {
-            console.warn('Icon loader недоступен!');
+
         }
 
         // handlers
@@ -360,7 +408,7 @@ export function renderFavorites(items) {
                     const updated = await getFavorites();
                     renderFavorites(updated);
                 } catch (err) {
-                    console.error('Ошибка удаления избранного:', err);
+
                     showNotification('Ошибка удаления избранного', 'error');
                 }
             });
@@ -390,7 +438,7 @@ export function renderFavorites(items) {
                     renderFavorites(updated);
                 } catch (err) {
                     // Revert visual state on error
-                    console.error('Ошибка toggle избранного:', err);
+
                     btn.classList.toggle('active');
                     showNotification('Ошибка обновления избранного', 'error');
                     const updated = await getFavorites();
@@ -421,7 +469,7 @@ export function renderFavorites(items) {
             });
         });
     }).catch(err => {
-        console.warn('Не удалось получить цены для избранного', err);
+
         // fallback simple list (styled)
         container.innerHTML = `<div class="favorites-grid">${items.map(f => {
             const symbolEsc = escapeHtml(f.symbol);
@@ -430,7 +478,7 @@ export function renderFavorites(items) {
             return `
             <div class="favorite-card" data-id="${f.id}" style="border-left:4px solid ${info.color}; background: linear-gradient(135deg, ${info.color}08 0%, #ffffff 100%);">
                 <div class="fav-top">
-                    <div class="fav-icon" aria-hidden style="background: linear-gradient(135deg, ${info.color}, ${info.color}dd);"><img src="${iconUrl}" alt="${symbolEsc}" style="width:100%;height:100%;object-fit:contain;" onerror="this.onerror=null;this.src='https://ui-avatars.com/api/?name=${symbolEsc}&background=${info.color.replace('#','')}&color=fff&size=48&bold=true'"/></div>
+                    <div class="fav-icon" aria-hidden style="background: linear-gradient(135deg, ${info.color}, ${info.color}dd);"><img src="${iconUrl}" alt="${symbolEsc}" style="width:100%;height:100%;object-fit:contain;" onerror="if(!this.dataset.cf){this.dataset.cf='1';this.src='https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/icon/${symbolEsc.toLowerCase()}.png';}else{this.onerror=null;this.src='https://ui-avatars.com/api/?name=${symbolEsc}&background=${info.color.replace('#','')}&color=fff&size=48&bold=true';}"/></div>
                     <div class="fav-symbol">${symbolEsc}</div>
                     <div class="fav-actions"><button class="btn-fav" data-action="remove" data-id="${f.id}">Удалить</button></div>
                 </div>
@@ -452,7 +500,9 @@ export function renderFavorites(items) {
                     if (!symbol) return;
                     const p = getPriceSync(symbol);
                     if (Number.isFinite(p) && p > 0) {
-                        const formatted = (p >= 1) ? `$${p.toFixed(2)}` : (p >= 0.01 ? `$${p.toFixed(4)}` : (p >= 0.0001 ? `$${p.toFixed(6)}` : '<$0.0001'));
+                        const _s = currency.getCurrencySymbol();
+                        const cp = currency.convertToSelectedCurrency(p);
+                        const formatted = (p >= 1) ? `${_s}${cp.toFixed(2)}` : (p >= 0.01 ? `${_s}${cp.toFixed(4)}` : (p >= 0.0001 ? `${_s}${cp.toFixed(6)}` : `<${_s}0.0001`));
                         priceEl.textContent = formatted;
                         anyUpdated = true;
                     }
@@ -478,7 +528,9 @@ export function renderFavorites(items) {
                         if (Number.isFinite(num) && num > 0) {
                             const priceEl = card.querySelector('.fav-price');
                             if (priceEl) {
-                                const formatted = (num >= 1) ? `$${num.toFixed(2)}` : (num >= 0.01 ? `$${num.toFixed(4)}` : (num >= 0.0001 ? `$${num.toFixed(6)}` : '<$0.0001'));
+                                const _s = currency.getCurrencySymbol();
+                                const cp = currency.convertToSelectedCurrency(num);
+                                const formatted = (num >= 1) ? `${_s}${cp.toFixed(2)}` : (num >= 0.01 ? `${_s}${cp.toFixed(4)}` : (num >= 0.0001 ? `${_s}${cp.toFixed(6)}` : `<${_s}0.0001`));
                                 priceEl.textContent = formatted;
                             }
                         }
@@ -500,7 +552,7 @@ window.refreshFavorites = async function() {
         const favs = await getFavorites();
         renderFavorites(favs);
     } catch (e) {
-        console.warn('refreshFavorites error:', e);
+
     }
 };
 
@@ -520,14 +572,14 @@ async function fetchCurrentPrices(symbols) {
     const prices = {};
     
     if (!symbols || symbols.length === 0) {
-        console.log('No symbols to fetch prices for');
+
         return prices;
     }
     
     // Проверяем кэш
     const now = Date.now();
     if (now - priceCache.timestamp < priceCache.CACHE_DURATION && Object.keys(priceCache.data).length > 0) {
-        console.log('Using cached prices (age:', Math.round((now - priceCache.timestamp) / 1000), 'seconds)');
+
         
         // Возвращаем закэшированные цены для запрошенных символов
         symbols.forEach(symbol => {
@@ -542,7 +594,7 @@ async function fetchCurrentPrices(symbols) {
         }
     }
     
-    console.log('Fetching prices for symbols from Binance:', symbols);
+
     
     try {
         // Маппинг символов к Binance торговым парам
@@ -591,17 +643,17 @@ async function fetchCurrentPrices(symbols) {
             }
         });
         
-        console.log('Binance symbols to fetch:', Array.from(binanceSymbols));
+
         
         // Получаем цены криптовалют через Binance
         if (binanceSymbols.size > 0) {
             try {
                 // Binance API возвращает все цены одним запросом
                 const url = 'https://api.binance.com/api/v3/ticker/price';
-                console.log('Fetching from Binance:', url);
+
                 const data = await safeFetchJsonGlobal(url);
                 if (data) {
-                    console.log('Binance response received:', data.length, 'pairs');
+
                     // Создаем быстрый lookup объект
                     const binancePrices = {};
                     data.forEach(item => {
@@ -612,39 +664,39 @@ async function fetchCurrentPrices(symbols) {
                         const binanceSymbol = symbolToBindanceMap[symbol];
                         if (binanceSymbol && binancePrices[binanceSymbol]) {
                             prices[symbol] = binancePrices[binanceSymbol];
-                            console.log(`Price for ${symbol}: $${prices[symbol]}`);
+
                         }
                     });
                     // Обновляем кэш
                     priceCache.data = { ...priceCache.data, ...prices };
                     priceCache.timestamp = Date.now();
                 } else {
-                    console.error('Binance API error: no data');
+
                     // Fallback на кэш при любой ошибке
                     symbols.forEach(symbol => {
                         if (priceCache.data[symbol]) {
                             prices[symbol] = priceCache.data[symbol];
-                            console.log(`Using cached price for ${symbol}: $${prices[symbol]}`);
+
                         }
                     });
                 }
             } catch (err) {
-                console.error('Error fetching crypto prices from Binance:', err);
+
                 // Fallback на закэшированные цены
-                console.log('Using cached prices due to fetch error');
+
                 symbols.forEach(symbol => {
                     if (priceCache.data[symbol]) {
                         prices[symbol] = priceCache.data[symbol];
-                        console.log(`Using cached price for ${symbol}: $${prices[symbol]}`);
+
                     }
                 });
             }
         }
         
-        console.log('Final prices object:', prices);
+
         
     } catch (error) {
-        console.error('Error in fetchCurrentPrices:', error);
+
         
         // Последний fallback на кэш
         symbols.forEach(symbol => {
@@ -659,25 +711,24 @@ async function fetchCurrentPrices(symbols) {
 
 async function loadPortfolioStats() {
     try {
-        console.log('Loading portfolio stats...');
+
         
         const user = await checkAuth();
         if (!user) {
-            console.warn('No user authenticated');
+
             return;
         }
         
-        console.log('User authenticated:', user.id);
+
         
         // Загружаем портфели и транзакции через data.js
         const portfolios = await getPortfolios();
         const transactions = await getTransactions();
         
-        console.log('Portfolios loaded:', portfolios?.length || 0, portfolios);
-        console.log('Transactions loaded:', transactions?.length || 0, transactions);
+
         
         if (!transactions || transactions.length === 0) {
-            console.warn('NO TRANSACTIONS FOUND! User needs to add transactions first.');
+
             // Показываем stats с нулями
             const emptyStats = {
                 totalValue: 0,
@@ -695,7 +746,7 @@ async function loadPortfolioStats() {
         // Вычисляем статистику
         const stats = await calculatePortfolioStats(portfolios, transactions);
         
-        console.log('Calculated stats:', stats);
+
         
         // Обновляем UI
         updatePortfolioStatsUI(stats);
@@ -708,7 +759,7 @@ async function loadPortfolioStats() {
         });
         
         if (window.notificationIntegrations && stats.totalValue > 0) {
-            console.log('📢 Вызываем уведомление об изменении портфеля...');
+
             try {
                 await window.notificationIntegrations.notifyAboutPortfolioChange(stats.totalValue, stats);
                 
@@ -733,14 +784,14 @@ async function loadPortfolioStats() {
                 
                 await window.notificationIntegrations.checkPortfolioDiversification(holdings);
             } catch (error) {
-                console.error('Ошибка при отправке уведомления о портфеле:', error);
+
             }
         }
         
-        console.log('Portfolio stats updated');
+
         
     } catch (error) {
-        console.error('Error loading portfolio stats:', error);
+
     }
 }
 
@@ -756,12 +807,11 @@ async function calculatePortfolioStats(portfolios, transactions) {
     };
     
     if (!transactions || transactions.length === 0) {
-        console.log('No transactions found');
+
         return stats;
     }
     
-    console.log('Processing transactions:', transactions);
-    console.log('Number of transactions:', transactions.length);
+
     
     // Группируем активы по символу
     const assets = {};
@@ -792,7 +842,7 @@ async function calculatePortfolioStats(portfolios, transactions) {
                 else {
                     assetType = 'CRYPTO';
                 }
-                console.log(`Auto-detected asset type for ${tx.symbol}: ${assetType}`);
+
             }
             
             assets[tx.symbol] = { 
@@ -812,11 +862,11 @@ async function calculatePortfolioStats(portfolios, transactions) {
             const cost = tx.quantity * tx.price;
             assets[tx.symbol].totalCost += cost;
             assets[tx.symbol].totalQuantity += tx.quantity;
-            console.log(`  Added cost: $${cost.toFixed(2)} (${tx.quantity} × $${tx.price})`);
+
         }
     });
     
-    console.log('Assets grouped:', assets);
+
     
     // Подсчитываем активы и получаем актуальные цены
     let cryptoAssets = 0;
@@ -824,13 +874,11 @@ async function calculatePortfolioStats(portfolios, transactions) {
     
     // Получаем актуальные цены для всех активов
     const symbols = Object.keys(assets).filter(symbol => assets[symbol].quantity > 0);
-    console.log('Symbols to fetch prices for:', symbols);
-    console.log('Assets details:', JSON.stringify(assets, null, 2));
+
     
     const prices = await fetchCurrentPrices(symbols);
     
-    console.log('Current prices fetched:', prices);
-    console.log('Number of prices received:', Object.keys(prices).length);
+
     
     let totalCurrentValue = 0;
     let assetsWithPrices = 0;
@@ -855,13 +903,13 @@ async function calculatePortfolioStats(portfolios, transactions) {
                 const assetValue = asset.quantity * currentPrice;
                 totalCurrentValue += assetValue;
                 assetsWithPrices++;
-                console.log(`${symbol}: quantity=${asset.quantity}, currentPrice=${currentPrice}, value=${assetValue}`);
+
             } else if (avgBuyPrice > 0) {
                 // Если нет актуальной цены, используем среднюю цену покупки
                 const assetValue = asset.quantity * avgBuyPrice;
                 totalCurrentValue += assetValue;
                 assetsWithoutPrices++;
-                console.log(`${symbol}: using avg buy price=${avgBuyPrice}, value=${assetValue}`);
+
             }
         }
     }
@@ -870,28 +918,27 @@ async function calculatePortfolioStats(portfolios, transactions) {
     stats.cryptoCount = cryptoAssets;
     stats.stocksCount = stockAssets;
     
-    console.log(`Assets with current prices: ${assetsWithPrices}, without prices: ${assetsWithoutPrices}`);
-    console.log(`Total invested: $${stats.totalInvested.toFixed(2)}, Current value: $${stats.totalValue.toFixed(2)}`);
+
     
     // Рассчитываем реальную доходность
     if (stats.totalInvested > 0) {
         const returnAmount = stats.totalValue - stats.totalInvested;
         stats.totalReturn = parseFloat(((returnAmount / stats.totalInvested) * 100).toFixed(2));
         stats.totalChange = stats.totalReturn;
-        console.log(`Return amount: $${returnAmount.toFixed(2)}, Return %: ${stats.totalReturn}%`);
+
     } else {
         stats.totalReturn = 0;
         stats.totalChange = 0;
-        console.log('No investments found, return is 0');
+
     }
     
-    console.log('Final stats with real prices:', stats);
+
     
     return stats;
 }
 
 function updatePortfolioStatsUI(stats) {
-    console.log('Updating UI with stats:', stats);
+
     
     // Используем setTimeout чтобы дать DOM время на рендеринг
     setTimeout(() => {
@@ -930,32 +977,28 @@ function updatePortfolioStatsUI(stats) {
             elements.stocksCount.textContent = stats.stocksCount;
         }
         setTimeout(() => {
-            initDashboardCharts();
+            initDashboardCharts(stats);
         }, 200);
     }, 100);
-// Слушаем смену валюты и обновляем дашборд
-if (window.currency) {
-    window.addEventListener('currencyChanged', async () => {
-        console.log('Currency changed, reloading dashboard data...');
-        await loadDashboardData();
-        // Обновляем также все открытые модальные окна
-        if (window.app && window.app.refreshCurrentModal) {
-            window.app.refreshCurrentModal();
-        }
-    });
-    
-    window.addEventListener('currencyRateUpdated', async () => {
-        console.log('Currency rate updated, reloading dashboard data...');
-        await loadDashboardData();
-    });
-}
+// Слушаем смену валюты и обновляем дашборд (всегда, currency уже импортирован)
+window.addEventListener('currencyChanged', async () => {
+
+    await loadDashboardData();
+    if (window.app && window.app.refreshCurrentModal) {
+        window.app.refreshCurrentModal();
+    }
+});
+window.addEventListener('currencyRateUpdated', async () => {
+
+    await loadDashboardData();
+});
 }
 
 // Функция для рисования sparkline графика доходности
 async function drawReturnSparkline(returnValue) {
     const canvas = document.getElementById('returnSparkline');
     if (!canvas) {
-        console.warn('returnSparkline canvas not found');
+
         return;
     }
     
@@ -1076,10 +1119,10 @@ async function drawReturnSparkline(returnValue) {
         ctx.fillStyle = mainColor;
         ctx.fill();
         
-        console.log('Sparkline drawn with real Binance data');
+
         
     } catch (error) {
-        console.warn('Failed to fetch Binance data, using synthetic data:', error);
+
         
         // Fallback: синтетические данные если API недоступен
         const points = 15;
@@ -1183,7 +1226,7 @@ async function loadMarketIndicators() {
             const age = Date.now() - timestamp;
             
             if (age < CACHE_DURATION) {
-                console.log(`Используем кешированные индексы (обновление через ${Math.round((CACHE_DURATION - age) / 1000)}с)`);
+
                 updateMarketIndicatorsUI(data);
                 return;
             }
@@ -1200,7 +1243,7 @@ async function loadMarketIndicators() {
         
         updateMarketIndicatorsUI(indicators);
     } catch (error) {
-        console.error('Error loading market indicators:', error);
+
         const container = document.getElementById('marketIndicators');
         if (container) {
             container.innerHTML = `
@@ -1232,14 +1275,14 @@ async function fetchMarketIndicators() {
             );
             
             if (!response.ok) {
-                console.warn(`Failed to fetch ${index.symbol}:`, response.status);
+
                 continue;
             }
             
             const data = await response.json();
             
             if (data.code === 401 || data.code === 429) {
-                console.warn(`TwelveData API error for ${index.symbol}:`, data.message);
+
                 continue;
             }
             
@@ -1260,7 +1303,7 @@ async function fetchMarketIndicators() {
             await new Promise(resolve => setTimeout(resolve, 100));
             
         } catch (error) {
-            console.error(`Error fetching ${index.symbol}:`, error);
+
         }
     }
     
@@ -1293,7 +1336,7 @@ function updateMarketIndicatorsUI(indicators) {
             <div class="indicator-item">
                 <div class="indicator-header">
                     <i class="bi bi-graph-up-arrow"></i>
-                    <span class="indicator-label">${indicator.name}</span>
+                    <span class="indicator-label notranslate" translate="no">${indicator.name}</span>
                 </div>
                 <div class="indicator-values">
                     <span class="indicator-value">${value.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${symbol}</span>
@@ -1327,7 +1370,7 @@ async function loadFearGreedIndex() {
             updateFearGreedUI();
         }
     } catch (error) {
-        console.error('Error loading Fear & Greed Index:', error);
+
         // Используем fallback данные
         dashboardState.fearGreedIndex = {
             value: 50,
@@ -1499,7 +1542,7 @@ function updateFearGreedUI() {
                     <div class="fear-greed-label" style="color: ${color};">
                         ${textRu}
                     </div>
-                    <div class="fear-greed-classification">
+                    <div class="fear-greed-classification notranslate" translate="no">
                         ${classification}
                     </div>
                 </div>
@@ -1551,7 +1594,7 @@ function generateGaugeTicks() {
 
 async function loadBTCDominance() {
     try {
-        console.log('Loading BTC dominance from CoinGecko...');
+
         // Используем CoinGecko API через централизованный helper с кэшем/лимитом
         const cgData = await fetchCoinGeckoGlobal(5 * 60 * 1000); // TTL 5 минут
         if (!cgData) throw new Error('Failed to fetch');
@@ -1575,10 +1618,10 @@ async function loadBTCDominance() {
             markets: globalData.markets || 0,
             updatedAt: globalData.updated_at || Date.now()
         };
-        console.log('BTC Dominance loaded from CoinGecko:', dashboardState.btcDominance);
+
         updateBTCDominanceUI();
     } catch (error) {
-        console.error('Failed to load Bitcoin Dominance from CoinGecko:', error);
+
         dashboardState.btcDominance = null;
         updateBTCDominanceUI();
     }
@@ -1619,7 +1662,7 @@ function updateBTCDominanceUI() {
         <div class="dominance-content">
             <!-- Header -->
             <div class="dominance-header">
-                <h3>Market Overview</h3>
+                <h3>Обзор рынка</h3>
             </div>
             <!-- Main Stats -->
             <div class="dominance-main-stats">
@@ -1628,7 +1671,7 @@ function updateBTCDominanceUI() {
                         <i class="bi bi-currency-bitcoin"></i>
                     </div>
                     <div class="stat-info">
-                        <span class="stat-label">Bitcoin</span>
+                        <span class="stat-label">Биткоин</span>
                         <span class="stat-value">${btc.toFixed(1)}%</span>
                     </div>
                 </div>
@@ -1637,7 +1680,7 @@ function updateBTCDominanceUI() {
                         <i class="bi bi-gem"></i>
                     </div>
                     <div class="stat-info">
-                        <span class="stat-label">Ethereum</span>
+                        <span class="stat-label">Эфириум</span>
                         <span class="stat-value">${eth.toFixed(1)}%</span>
                     </div>
                 </div>
@@ -1646,7 +1689,7 @@ function updateBTCDominanceUI() {
                         <i class="bi bi-grid-3x3"></i>
                     </div>
                     <div class="stat-info">
-                        <span class="stat-label">Others</span>
+                        <span class="stat-label">Другие</span>
                         <span class="stat-value">${others.toFixed(1)}%</span>
                     </div>
                 </div>
@@ -1659,12 +1702,12 @@ function updateBTCDominanceUI() {
             </div>
             <!-- Market Stats -->
             <div class="dominance-section">
-                <h4>Global Market Stats</h4>
+                <h4>Статистика мирового рынка</h4>
                 <div class="market-stats-grid">
                     <div class="market-stat-item">
                         <span class="market-stat-label">
                             <i class="bi bi-cash-stack"></i>
-                            Total Market Cap
+                            Общая рын. капитализация
                         </span>
                         <span class="market-stat-value">${formatBillion(totalMarketCap)} ${symbol}</span>
                         <span class="market-stat-change ${marketCapChange24h >= 0 ? 'positive' : 'negative'}">
@@ -1675,21 +1718,21 @@ function updateBTCDominanceUI() {
                     <div class="market-stat-item">
                         <span class="market-stat-label">
                             <i class="bi bi-graph-up"></i>
-                            24h Volume
+                            24-часовой объём
                         </span>
                         <span class="market-stat-value">${formatBillion(totalVolume24h)} ${symbol}</span>
                     </div>
                     <div class="market-stat-item">
                         <span class="market-stat-label">
                             <i class="bi bi-coin"></i>
-                            Active Cryptocurrencies
+                            Криптовалют
                         </span>
                         <span class="market-stat-value">${formatNumber(activeCryptocurrencies)}</span>
                     </div>
                     <div class="market-stat-item">
                         <span class="market-stat-label">
                             <i class="bi bi-shop"></i>
-                            Markets
+                            Рынков
                         </span>
                         <span class="market-stat-value">${formatNumber(markets)}</span>
                     </div>
@@ -1724,11 +1767,11 @@ async function loadUpcomingEvents() {
         // Загружаем новости напрямую из Finnhub API
         const API_KEY = 'd49lflpr01qlaebhu1egd49lflpr01qlaebhu1f0';
         
-        console.log('Загружаем последние новости из Finnhub API...');
+
         
         try {
             const response = await fetch(
-                `https://finnhub.io/api/v1/news?category=general&token=${API_KEY}`,
+                `https://finnhub.io/api/v1/news?category=crypto&token=${API_KEY}`,
                 { signal: AbortSignal.timeout(8000) }
             );
             
@@ -1750,17 +1793,17 @@ async function loadUpcomingEvents() {
                     
                     dashboardState.events = latestNews;
                     updateEventsCalendarUI();
-                    console.log('Загружено новостей из Finnhub API:', latestNews.length);
+
                     return;
                 }
             }
         } catch (apiError) {
-            console.warn('Ошибка загрузки из Finnhub API:', apiError.message);
+
         }
         
         // Если не удалось загрузить из API, пробуем использовать window.currentNewsData
         if (window.currentNewsData && Array.isArray(window.currentNewsData) && window.currentNewsData.length > 0) {
-            console.log('Используем новости из глобального кэша:', window.currentNewsData.length);
+
             
             const sortedNews = [...window.currentNewsData].sort((a, b) => {
                 const dateA = new Date(a.datetime || a.date);
@@ -1780,19 +1823,19 @@ async function loadUpcomingEvents() {
             
             dashboardState.events = latestNews;
             updateEventsCalendarUI();
-            console.log('Отображены новости из кэша:', latestNews.length);
+
             return;
         }
         
         // Если новостей нет, пробуем загрузить еще раз через 3 секунды
-        console.log('Новости еще не загружены, повторная попытка через 3 сек...');
+
         dashboardState.events = [];
         updateEventsCalendarUI(); // Показываем заглушку
         
         setTimeout(async () => {
             // Повторная попытка загрузки
             if (window.currentNewsData && Array.isArray(window.currentNewsData) && window.currentNewsData.length > 0) {
-                console.log('Повторная попытка: используем кэш');
+
                 const sortedNews = [...window.currentNewsData].sort((a, b) => {
                     const dateA = new Date(a.datetime || a.date);
                     const dateB = new Date(b.datetime || b.date);
@@ -1811,12 +1854,12 @@ async function loadUpcomingEvents() {
                 
                 dashboardState.events = latestNews;
                 updateEventsCalendarUI();
-                console.log('Новости загружены при повторной попытке:', latestNews.length);
+
             } else {
                 // Финальная попытка через Finnhub
                 try {
                     const response = await fetch(
-                        `https://finnhub.io/api/v1/news?category=general&token=${API_KEY}`,
+                        `https://finnhub.io/api/v1/news?category=crypto&token=${API_KEY}`,
                         { signal: AbortSignal.timeout(8000) }
                     );
                     
@@ -1836,17 +1879,17 @@ async function loadUpcomingEvents() {
                             
                             dashboardState.events = latestNews;
                             updateEventsCalendarUI();
-                            console.log('Новости загружены при повторной попытке из API:', latestNews.length);
+
                         }
                     }
                 } catch (retryError) {
-                    console.error('Не удалось загрузить новости при повторной попытке:', retryError);
+
                 }
             }
         }, 3000);
         
     } catch (error) {
-        console.error('Error loading latest news:', error);
+
         dashboardState.events = [];
         updateEventsCalendarUI();
     }
@@ -1942,35 +1985,35 @@ const WIDGET_ORDER_KEY = 'dashboard_widget_order';
 // Сохранение порядка виджетов в Supabase
 async function saveWidgetLayout() {
     try {
-        console.log('Saving widget layout...');
+
         
         const supabase = await getSupabase();
         if (!supabase) {
-            console.warn('Supabase client not initialized');
+
             return;
         }
         
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-            console.warn('No user authenticated');
+
             return;
         }
         
         const container = document.querySelector('.dashboard-widgets-container');
         if (!container) {
-            console.warn('Widget container not found');
+
             return;
         }
         
         const widgets = Array.from(container.children);
-        console.log('Found', widgets.length, 'widgets');
+
         
         const order = widgets.map((w, index) => ({
             id: w.id,
             order: index
         }));
         
-        console.log('Saving order:', order);
+
         
         const { error } = await supabase
             .from('user_preferences')
@@ -1989,35 +2032,35 @@ async function saveWidgetLayout() {
                     '2. Go to SQL Editor\n' +
                     '3. Run the SQL from user_preferences_table.sql file');
             } else {
-                console.error('Error saving widget layout:', error);
+
             }
         } else {
-            console.log('Widget layout saved successfully!');
+
             widgetLayoutCache = order;
         }
     } catch (err) {
-        console.error('Failed to save widget layout:', err);
+
     }
 }
 
 // Загрузка порядка виджетов из Supabase
 async function loadWidgetLayout() {
     try {
-        console.log('Loading widget layout...');
+
         
         const supabase = await getSupabase();
         if (!supabase) {
-            console.warn('Supabase client not initialized');
+
             return;
         }
         
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-            console.warn('No user authenticated');
+
             return;
         }
         
-        console.log('👤 User ID:', user.id);
+
         
         const { data, error } = await supabase
             .from('user_preferences')
@@ -2028,46 +2071,46 @@ async function loadWidgetLayout() {
             
         if (error) {
             if (error.code === 'PGRST116') {
-                console.log('No saved widget layout found (first time)');
+
             } else if (error.code === 'PGRST301' || error.message?.includes('406')) {
-                console.warn('Table user_preferences might not exist. Please run user_preferences_table.sql in Supabase');
+
             } else {
-                console.error('Error loading widget layout:', error);
+
             }
             return;
         }
         
         if (data?.preference_value) {
-            console.log('Widget layout loaded:', data.preference_value);
+
             widgetLayoutCache = data.preference_value;
             applyWidgetOrder(data.preference_value);
         } else {
-            console.log('No preference_value in data');
+
         }
     } catch (err) {
-        console.error('Failed to load widget layout:', err);
+
     }
 }
 
 // Применение сохранённого порядка
 function applyWidgetOrder(order) {
-    console.log('📋 Applying widget order:', order);
+
     
     const container = document.querySelector('.dashboard-widgets-container');
     if (!container) {
-        console.warn('Container not found for applying order');
+
         return;
     }
     
     const widgets = Array.from(container.children);
-    console.log('Current widgets in DOM:', widgets.map(w => w.id));
+
     
     // Сортируем виджеты по сохранённому порядку
     const sortedWidgets = order
         .map(item => {
             const widget = widgets.find(w => w.id === item.id);
             if (!widget) {
-                console.warn(`Widget ${item.id} from saved order not found in DOM`);
+
             }
             return widget;
         })
@@ -2076,28 +2119,28 @@ function applyWidgetOrder(order) {
     // Добавляем виджеты, которых нет в сохранённом порядке
     widgets.forEach(w => {
         if (!sortedWidgets.includes(w)) {
-            console.log(`➕ Adding widget ${w.id} not in saved order`);
+
             sortedWidgets.push(w);
         }
     });
     
-    console.log('Final order:', sortedWidgets.map(w => w.id));
+
     
     // Переставляем в DOM
     sortedWidgets.forEach(widget => container.appendChild(widget));
     
-    console.log('Widgets reordered successfully');
+
 }
 
 // Инициализация drag & drop для виджетов
 async function initWidgetsDragResize() {
     const container = document.querySelector('.dashboard-widgets-container');
     if (!container) {
-        console.warn('Dashboard widgets container not found');
+
         return;
     }
     
-    console.log('Initializing widget drag & drop...');
+
     
     // Загружаем сохранённый порядок
     await loadWidgetLayout();
@@ -2212,7 +2255,7 @@ function showNotification(message, type = 'info') {
     if (window.showNotification) {
         window.showNotification(message, type);
     } else {
-        console.log(`[${type}] ${message}`);
+
     }
 }
 
@@ -2252,13 +2295,13 @@ let dashboardResizeObservers = {
     historyChart: null
 };
 
-async function initDashboardCharts() {
-    console.log('Initializing mini dashboard charts...');
+async function initDashboardCharts(stats = null) {
+
     
     // Отключаем ResizeObservers перед уничтожением графиков
     Object.keys(dashboardResizeObservers).forEach(key => {
         if (dashboardResizeObservers[key]) {
-            console.log(`🔌 Disconnecting ResizeObserver: ${key}`);
+
             dashboardResizeObservers[key].disconnect();
             dashboardResizeObservers[key] = null;
         }
@@ -2267,7 +2310,7 @@ async function initDashboardCharts() {
     // Уничтожаем существующие графики перед созданием новых
     Object.keys(dashboardCharts).forEach(key => {
         if (dashboardCharts[key]) {
-            console.log(`Destroying existing chart: ${key}`);
+
             try {
                 if (typeof dashboardCharts[key].remove === 'function') {
                     dashboardCharts[key].remove();
@@ -2275,27 +2318,27 @@ async function initDashboardCharts() {
                     dashboardCharts[key].destroy();
                 }
             } catch (error) {
-                console.warn(`Error destroying chart ${key}:`, error);
+
             }
             dashboardCharts[key] = null;
         }
     });
     
     const transactions = getTransactionsSync();
-    console.log('Transactions for charts:', transactions?.length);
+
     
-    // Получаем текущую доходность портфеля из DOM
-    const totalReturnElement = document.getElementById('totalReturn');
-    const returnText = totalReturnElement?.textContent || '+0%';
-    const portfolioReturn = parseFloat(returnText.replace(/[+%]/g, '')) || 0;
+// Получаем точную доходность портфеля из stats (или запасной вариант — из DOM)
+    const portfolioReturn = (stats?.totalReturn !== undefined && stats?.totalReturn !== null)
+        ? stats.totalReturn
+        : (parseFloat(document.getElementById('totalReturn')?.textContent?.replace(/[+%]/g, '') || '0') || 0);
     const isPositive = portfolioReturn >= 0;
     
-    console.log('Portfolio return for chart color:', portfolioReturn);
+
     
     // График тренда (miniChart) - история портфеля пользователя - Lightweight Charts
     const miniChartContainer = document.getElementById('miniChart');
     if (miniChartContainer) {
-        console.log('Initializing miniChart with Lightweight Charts...');
+
         
         if (transactions && transactions.length > 0) {
             // Очищаем старый график (если это canvas)
@@ -2312,22 +2355,31 @@ async function initDashboardCharts() {
                 );
                 
                 const holdings = {};
+                const lastPriceMap = {};
                 const historyData = [];
                 
                 sortedTx.forEach(tx => {
                     const symbol = tx.symbol;
+                    const txPrice = parseFloat(tx.price) || 0;
+                    
                     holdings[symbol] = holdings[symbol] || 0;
                     
-                    if (tx.type === 'BUY') {
-                        holdings[symbol] += tx.quantity;
-                    } else if (tx.type === 'SELL') {
-                        holdings[symbol] -= tx.quantity;
+                    // Обновляем последнюю известную цену на момент этой сделки
+                    if (txPrice > 0) {
+                        lastPriceMap[symbol] = txPrice;
                     }
                     
+                    if (tx.type === 'BUY') {
+                        holdings[symbol] += parseFloat(tx.quantity) || 0;
+                    } else if (tx.type === 'SELL') {
+                        holdings[symbol] -= parseFloat(tx.quantity) || 0;
+                    }
+                    
+                    // Стоимость портфеля по историческим ценам сделок
                     let portfolioValue = 0;
                     for (const [sym, qty] of Object.entries(holdings)) {
-                        if (qty > 0 && currentPrices[sym]) {
-                            portfolioValue += qty * currentPrices[sym];
+                        if (qty > 0 && lastPriceMap[sym]) {
+                            portfolioValue += qty * lastPriceMap[sym];
                         }
                     }
                     
@@ -2337,74 +2389,233 @@ async function initDashboardCharts() {
                     });
                 });
                 
-                // Берем последние 20 точек
-                const recentHistory = historyData.slice(-20);
+                // Добавляем текущую точку с актуальными рыночными ценами
+                if (historyData.length > 0) {
+                    const currentValue = Object.entries(holdings).reduce((sum, [sym, qty]) => {
+                        return sum + (qty > 0 ? qty * (currentPrices[sym] || lastPriceMap[sym] || 0) : 0);
+                    }, 0);
+                    historyData.push({
+                        time: Math.floor(Date.now() / 1000),
+                        value: currentValue
+                    });
+                }
+                
+                // Берем последние 50 точек, удаляя дублирующиеся временные метки
+                const dedupedMini = historyData.reduce((acc, point) => {
+                    const last = acc[acc.length - 1];
+                    if (last && last.time === point.time) {
+                        acc[acc.length - 1] = point;
+                    } else {
+                        acc.push(point);
+                    }
+                    return acc;
+                }, []);
+                const recentHistory = dedupedMini.slice(-50);
                 
                 // Цвет в зависимости от доходности портфеля
-                const lineColor = isPositive ? '#06b6d4' : '#ef4444';
-                const topColor = isPositive ? 'rgba(6, 182, 212, 0.4)' : 'rgba(239, 68, 68, 0.4)';
-                const bottomColor = isPositive ? 'rgba(6, 182, 212, 0.05)' : 'rgba(239, 68, 68, 0.05)';
+                const lineColor = isPositive ? '#22d3ee' : '#f87171';
+                const topColor = isPositive ? 'rgba(34, 211, 238, 0.52)' : 'rgba(248, 113, 113, 0.48)';
+                const bottomColor = isPositive ? 'rgba(34, 211, 238, 0.02)' : 'rgba(248, 113, 113, 0.02)';
                 
-                // Создаем Lightweight Chart
-                const chart = LightweightCharts.createChart(miniChartContainer, {
-                    width: miniChartContainer.clientWidth,
-                    height: 80,
-                    layout: {
-                        background: { color: 'transparent' },
-                        textColor: '#e2e8f0',
-                    },
-                    grid: {
-                        vertLines: { visible: false },
-                        horzLines: { visible: false },
-                    },
-                    crosshair: {
-                        vertLine: { visible: false },
-                        horzLine: { visible: false },
-                    },
-                    rightPriceScale: {
-                        visible: false,
-                    },
-                    timeScale: {
-                        visible: false,
-                    },
-                    handleScroll: false,
-                    handleScale: false,
-                });
+                // SVG-спарклайн: нет зависимостей, нет конфликтов, полный контроль над стилем
+                miniChartContainer.style.height = '';
+
+                const _fSym = currency.getCurrencySymbol();
+                const fmtVal = v => {
+                    const cv = currency.convertToSelectedCurrency(v);
+                    if (cv >= 1e6) return `${_fSym}${(cv/1e6).toFixed(2)}M`;
+                    if (cv >= 1e3) return `${_fSym}${(cv/1e3).toFixed(1)}K`;
+                    return `${_fSym}${cv.toFixed(0)}`;
+                };
+                const fmtDate = t => {
+                    const d = new Date(t * 1000);
+                    return `${d.getDate().toString().padStart(2,'0')}.${(d.getMonth()+1).toString().padStart(2,'0')}`;
+                };
                 
-                const areaSeries = chart.addAreaSeries({
-                    topColor: topColor,
-                    bottomColor: bottomColor,
-                    lineColor: lineColor,
-                    lineWidth: 2,
-                    priceLineVisible: false,
-                });
+                function drawMiniSVG(containerWidth) {
+                    const W = containerWidth || 270;
+                    const H = 108;
+                    const PT = 6, PB = 20, PL = 4, PR = 4;
+                    const cH = H - PT - PB;
+                    const cW = W - PL - PR;
+
+                    const vals = recentHistory.map(d => d.value);
+                    const minV = Math.min(...vals);
+                    const maxV = Math.max(...vals);
+                    const rng  = maxV - minV || maxV * 0.05 || 1;
+
+                    const xOf = i => PL + (i / (recentHistory.length - 1)) * cW;
+                    const yOf = v => PT + (1 - (v - minV) / rng) * cH;
+
+                    const linePts = recentHistory.map((d, i) => {
+                        const px = xOf(i).toFixed(1);
+                        const py = yOf(d.value).toFixed(1);
+                        return i === 0 ? `M${px},${py}` : `L${px},${py}`;
+                    }).join(' ');
+
+                    const lastX = xOf(recentHistory.length - 1).toFixed(1);
+                    const lastY = yOf(recentHistory[recentHistory.length - 1].value).toFixed(1);
+                    const firstX = xOf(0).toFixed(1);
+                    const areaPath = `${linePts} L${lastX},${H - PB} L${firstX},${H - PB} Z`;
+
+                    const labelStart = fmtDate(recentHistory[0].time);
+                    const labelEnd   = fmtDate(recentHistory[recentHistory.length - 1].time);
+
+                    const gid = 'msvg_' + Date.now().toString(36);
+
+                    let midLabel = '';
+                    if (recentHistory.length >= 6 && W > 180) {
+                        const mi = Math.floor(recentHistory.length / 2);
+                        const mx = xOf(mi).toFixed(1);
+                        midLabel = `<text x="${mx}" y="${H - 4}" font-size="9" fill="rgba(200,214,229,0.38)" font-family="system-ui,sans-serif" text-anchor="middle">${fmtDate(recentHistory[mi].time)}</text>`;
+                    }
+
+                    miniChartContainer.innerHTML = `
+<svg id="miniSVG" width="${W}" height="${H}" style="display:block;overflow:visible;cursor:crosshair" data-w="${W}" data-h="${H}" data-pt="${PT}" data-pb="${PB}" data-pl="${PL}" data-pr="${PR}">
+  <defs>
+    <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="${lineColor}" stop-opacity="0.48"/>
+      <stop offset="100%" stop-color="${lineColor}" stop-opacity="0.02"/>
+    </linearGradient>
+  </defs>
+  <line x1="${PL}" y1="${(PT + cH * 0.33).toFixed(1)}" x2="${W - PR}" y2="${(PT + cH * 0.33).toFixed(1)}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <line x1="${PL}" y1="${(PT + cH * 0.66).toFixed(1)}" x2="${W - PR}" y2="${(PT + cH * 0.66).toFixed(1)}" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <path d="${areaPath}" fill="url(#${gid})"/>
+  <path d="${linePts}" fill="none" stroke="${lineColor}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- crosshair (скрыт по умолчанию) -->
+  <line id="miniCrosshair" x1="0" y1="${PT}" x2="0" y2="${H - PB}" stroke="rgba(255,255,255,0.35)" stroke-width="1" stroke-dasharray="3,3" visibility="hidden"/>
+  <!-- точка на линии (по умолчанию — последняя) -->
+  <circle id="miniDot" cx="${lastX}" cy="${lastY}" r="3.5" fill="${lineColor}" stroke="rgba(255,255,255,0.85)" stroke-width="1.5"/>
+  <!-- тултип-бэк -->
+  <rect id="miniTipBg" rx="4" ry="4" fill="rgba(15,23,42,0.82)" stroke="rgba(255,255,255,0.12)" stroke-width="0.8" visibility="hidden"/>
+  <!-- тултип-текст значения -->
+  <text id="miniTipVal" font-size="10" font-weight="700" fill="#f1f5f9" font-family="system-ui,sans-serif" visibility="hidden"></text>
+  <!-- тултип-текст даты -->
+  <text id="miniTipDate" font-size="8.5" fill="rgba(148,163,184,0.85)" font-family="system-ui,sans-serif" visibility="hidden"></text>
+  <text x="${PL}" y="${H - 4}" font-size="9" fill="rgba(200,214,229,0.52)" font-family="system-ui,sans-serif" text-anchor="start">${labelStart}</text>
+  ${midLabel}
+  <text x="${W - PR}" y="${H - 4}" font-size="9" fill="rgba(200,214,229,0.52)" font-family="system-ui,sans-serif" text-anchor="end">${labelEnd}</text>
+  <!-- прозрачный overlay для событий мыши/тач -->
+  <rect id="miniOverlay" x="${PL}" y="${PT}" width="${cW}" height="${cH + PB}" fill="transparent"/>
+</svg>`;
+
+                    // --- интерактивность ---
+                    const svg        = miniChartContainer.querySelector('#miniSVG');
+                    const overlay    = miniChartContainer.querySelector('#miniOverlay');
+                    const crosshair  = miniChartContainer.querySelector('#miniCrosshair');
+                    const dot        = miniChartContainer.querySelector('#miniDot');
+                    const tipBg      = miniChartContainer.querySelector('#miniTipBg');
+                    const tipVal     = miniChartContainer.querySelector('#miniTipVal');
+                    const tipDate    = miniChartContainer.querySelector('#miniTipDate');
+
+                    function nearestIndex(svgX) {
+                        let best = 0, bestDist = Infinity;
+                        recentHistory.forEach((_, i) => {
+                            const d = Math.abs(xOf(i) - svgX);
+                            if (d < bestDist) { bestDist = d; best = i; }
+                        });
+                        return best;
+                    }
+
+                    function showCrosshair(clientX) {
+                        const rect = svg.getBoundingClientRect();
+                        const scaleX = W / rect.width;
+                        const svgX = (clientX - rect.left) * scaleX;
+                        if (svgX < PL || svgX > W - PR) { hideCrosshair(); return; }
+
+                        const idx = nearestIndex(svgX);
+                        const pt  = recentHistory[idx];
+                        const px  = xOf(idx);
+                        const py  = yOf(pt.value);
+
+                        crosshair.setAttribute('x1', px.toFixed(1));
+                        crosshair.setAttribute('x2', px.toFixed(1));
+                        crosshair.setAttribute('visibility', 'visible');
+
+                        dot.setAttribute('cx', px.toFixed(1));
+                        dot.setAttribute('cy', py.toFixed(1));
+
+                        // тултип
+                        const valTxt  = fmtVal(pt.value);
+                        const dateTxt = fmtDate(pt.time);
+                        tipVal.textContent  = valTxt;
+                        tipDate.textContent = dateTxt;
+
+                        const tipW = Math.max(valTxt.length, dateTxt.length) * 6.2 + 12;
+                        const tipH = 28;
+                        let tipX = px - tipW / 2;
+                        const tipY = Math.max(PT, py - tipH - 6);
+                        tipX = Math.min(Math.max(tipX, 2), W - tipW - 2);
+
+                        tipBg.setAttribute('x', tipX);
+                        tipBg.setAttribute('y', tipY);
+                        tipBg.setAttribute('width', tipW);
+                        tipBg.setAttribute('height', tipH);
+
+                        tipVal.setAttribute('x', tipX + tipW / 2);
+                        tipVal.setAttribute('y', tipY + 11);
+                        tipVal.setAttribute('text-anchor', 'middle');
+
+                        tipDate.setAttribute('x', tipX + tipW / 2);
+                        tipDate.setAttribute('y', tipY + 22);
+                        tipDate.setAttribute('text-anchor', 'middle');
+
+                        [tipBg, tipVal, tipDate].forEach(el => el.setAttribute('visibility', 'visible'));
+                    }
+
+                    function hideCrosshair() {
+                        crosshair.setAttribute('visibility', 'hidden');
+                        [tipBg, tipVal, tipDate].forEach(el => el.setAttribute('visibility', 'hidden'));
+                        // вернуть точку на последнюю позицию
+                        dot.setAttribute('cx', lastX);
+                        dot.setAttribute('cy', lastY);
+                    }
+
+                    overlay.addEventListener('mousemove',  e => showCrosshair(e.clientX));
+                    overlay.addEventListener('mouseleave', () => hideCrosshair());
+                    overlay.addEventListener('touchmove',  e => { e.preventDefault(); showCrosshair(e.touches[0].clientX); }, { passive: false });
+                    overlay.addEventListener('touchend',   () => hideCrosshair());
+                }
+
+                drawMiniSVG(miniChartContainer.clientWidth);
+
+                // Badge: используем уже рассчитанный portfolioReturn (реальная доходность портфеля)
+                const badgeEl = document.getElementById('miniChartBadge');
+                if (badgeEl) {
+                    const sign = portfolioReturn >= 0 ? '+' : '';
+                    badgeEl.textContent = `${sign}${portfolioReturn.toFixed(2)}%`;
+                    badgeEl.classList.toggle('negative', portfolioReturn < 0);
+                }
                 
-                areaSeries.setData(recentHistory);
-                chart.timeScale().fitContent();
-                
-                dashboardCharts.miniChart = chart;
-                
+                // Показываем вложено → сейчас в футере графика
+                const fmtV = v => v >= 1e6 ? `$${(v / 1e6).toFixed(2)}M`
+                                         : v >= 1e3 ? `$${(v / 1e3).toFixed(1)}K`
+                                         : `$${v.toFixed(0)}`;
+                const miniLowEl = document.getElementById('miniLow');
+                const miniHighEl = document.getElementById('miniHigh');
+                if (stats?.totalInvested > 0 && stats?.totalValue > 0) {
+                    if (miniLowEl) miniLowEl.textContent = fmtV(stats.totalInvested);
+                    if (miniHighEl) miniHighEl.textContent = fmtV(stats.totalValue);
+                } else {
+                    const nonZeroPoints = recentHistory.filter(p => p.value > 0);
+                    if (nonZeroPoints.length >= 2) {
+                        if (miniLowEl) miniLowEl.textContent = fmtV(nonZeroPoints[0].value);
+                        if (miniHighEl) miniHighEl.textContent = fmtV(nonZeroPoints[nonZeroPoints.length - 1].value);
+                    }
+                }
+
+                dashboardCharts.miniChart = { remove: () => { miniChartContainer.innerHTML = ''; } };
+
                 const resizeObserver = new ResizeObserver(entries => {
-                    if (entries.length === 0 || entries[0].target !== miniChartContainer) {
-                        return;
-                    }
-                    // Проверяем, что график еще существует и не уничтожен
-                    if (!dashboardCharts.miniChart) {
-                        return;
-                    }
-                    try {
-                        const newRect = entries[0].contentRect;
-                        dashboardCharts.miniChart.applyOptions({ width: newRect.width });
-                    } catch (error) {
-                        console.warn('ResizeObserver error for miniChart:', error);
-                    }
+                    if (!entries.length || !dashboardCharts.miniChart) return;
+                    const w = Math.round(entries[0].contentRect.width);
+                    if (w > 50) drawMiniSVG(w);
                 });
-                
                 resizeObserver.observe(miniChartContainer);
                 dashboardResizeObservers.miniChart = resizeObserver;
                 
             }).catch(error => {
-                console.error('Error loading prices for mini chart:', error);
+
             });
         } else {
             miniChartContainer.innerHTML = '<p style="text-align: center; color: #94a3b8; font-size: 0.75rem;">Нет данных</p>';
@@ -2510,14 +2721,14 @@ async function initDashboardCharts() {
                                 label: function(context) {
                                     const label = context.label || '';
                                     const value = context.parsed || 0;
-                                    return `${label}: $${value.toFixed(2)}`;
+                                    return `${label}: ${currency.getCurrencySymbol()}${currency.convertToSelectedCurrency(value).toFixed(2)}`;
                                 }
                             }
                         }
                     } 
                 }
             });
-            console.log('Allocation chart initialized with', labels.length, 'assets');
+
         }
     }
     
@@ -2531,60 +2742,110 @@ async function initDashboardCharts() {
         const allSymbols = [...new Set(transactions.map(tx => tx.symbol || tx.asset_symbol))];
         
         // Получаем текущие цены
-        fetchCurrentPrices(allSymbols).then(currentPrices => {
+        fetchCurrentPrices(allSymbols).then(async marketPrices => {
             // Сортируем транзакции по дате
             const sortedTx = [...transactions].sort((a, b) => 
                 new Date(a.created_at) - new Date(b.created_at)
             );
             
-            // Рассчитываем стоимость портфеля в каждый момент времени
-            const holdings = {};
-            const historyData = [];
-            
+            // Строим снимок состояния портфеля на каждый Calendar-день
+            // от первой транзакции до сегодня
+            const dailySnapshots = []; // [{dateStr, holdings, prices}]
+            let currentHoldings = {};
+            let txPrices = {};
+
+            // Группируем транзакции по дате (YYYY-MM-DD)
+            const txByDate = {};
             sortedTx.forEach(tx => {
-                const symbol = tx.symbol || tx.asset_symbol || 'UNKNOWN';
-                
-                if (!holdings[symbol]) holdings[symbol] = 0;
-                
-                if (tx.type === 'BUY') {
-                    holdings[symbol] += tx.quantity;
-                } else if (tx.type === 'SELL') {
-                    holdings[symbol] -= tx.quantity;
-                }
-                
-                // Считаем общую стоимость с текущими ценами
-                const portfolioValue = Object.entries(holdings).reduce((sum, [sym, qty]) => {
-                    return sum + (qty > 0 && currentPrices[sym] ? qty * currentPrices[sym] : 0);
-                }, 0);
-                
-                historyData.push({
-                    time: Math.floor(new Date(tx.created_at).getTime() / 1000),
-                    value: portfolioValue
+                const d = (tx.created_at || '').slice(0, 10);
+                if (!txByDate[d]) txByDate[d] = [];
+                txByDate[d].push(tx);
+            });
+
+            const txDates = Object.keys(txByDate).sort();
+            if (txDates.length === 0) return;
+
+            // Обрабатываем транзакции по дням
+            txDates.forEach(dateStr => {
+                txByDate[dateStr].forEach(tx => {
+                    const symbol = tx.symbol || tx.asset_symbol || 'UNKNOWN';
+                    const txPrice = parseFloat(tx.price) || 0;
+                    if (!currentHoldings[symbol]) currentHoldings[symbol] = 0;
+                    if (txPrice > 0) txPrices[symbol] = txPrice;
+                    if (tx.type === 'BUY') {
+                        currentHoldings[symbol] += parseFloat(tx.quantity) || 0;
+                    } else if (tx.type === 'SELL') {
+                        currentHoldings[symbol] = Math.max(0, currentHoldings[symbol] - (parseFloat(tx.quantity) || 0));
+                    }
+                });
+                dailySnapshots.push({
+                    dateStr,
+                    holdings: { ...currentHoldings },
+                    prices: { ...txPrices }
                 });
             });
-            
-            // Добавляем текущую точку если последняя транзакция была давно
-            if (historyData.length > 0) {
-                const lastTime = historyData[historyData.length - 1].time;
-                const nowTime = Math.floor(Date.now() / 1000);
-                
-                if (nowTime - lastTime > 3600) { // Больше часа
-                    historyData.push({
-                        time: nowTime,
-                        value: historyData[historyData.length - 1].value
+
+            // Получаем первую и последнюю даты
+            const firstDate = new Date(txDates[0] + 'T00:00:00Z');
+            const today = new Date();
+            today.setUTCHours(0, 0, 0, 0);
+
+            // Загружаем реальные исторические дневные цены с Binance
+            // для устранения плоских участков между транзакциями
+            let historicalPrices = {};
+            try {
+                if (typeof window.fetchHistoricalDailyPrices === 'function') {
+                    historicalPrices = await window.fetchHistoricalDailyPrices(allSymbols, txDates[0]);
+
+                }
+            } catch (e) {
+
+            }
+
+            // Заполняем каждый день от первой транзакции до сегодня
+            const deduped = [];
+            let snapshotIdx = 0;
+            let activeHoldings = {};
+            let activePrices = {};
+
+            for (let d = new Date(firstDate); d <= today; d.setUTCDate(d.getUTCDate() + 1)) {
+                const dateStr = d.toISOString().slice(0, 10);
+
+                // Применяем все снимки, которые наступили к этому дню
+                while (snapshotIdx < dailySnapshots.length && dailySnapshots[snapshotIdx].dateStr <= dateStr) {
+                    activeHoldings = { ...dailySnapshots[snapshotIdx].holdings };
+                    activePrices = { ...dailySnapshots[snapshotIdx].prices };
+                    snapshotIdx++;
+                }
+
+                // Для текущего дня используем актуальные рыночные цены
+                const isToday = dateStr === today.toISOString().slice(0, 10);
+
+                const value = Object.entries(activeHoldings).reduce((sum, [sym, qty]) => {
+                    // Приоритет: сегодняшняя цена → реальная историческая (Binance) → цена транзакции
+                    const price = (isToday ? marketPrices[sym] : null)
+                        || historicalPrices[sym]?.[dateStr]
+                        || activePrices[sym] || 0;
+                    return sum + (qty > 0 ? qty * price : 0);
+                }, 0);
+
+                if (value > 0 || deduped.length > 0) {
+                    deduped.push({
+                        time: dateStr,  // LightweightCharts принимает 'YYYY-MM-DD'
+                        value
                     });
                 }
             }
             
-            if (historyData.length === 0) {
-                console.warn('No history data');
+            if (deduped.length === 0) {
+
                 return;
             }
             
             // Создаем график без границ - единый блок
             const chart = LightweightCharts.createChart(historyChartContainer, {
                 width: historyChartContainer.clientWidth,
-                height: historyChartContainer.clientHeight || 400,
+                height: 400,
                 layout: {
                     background: { color: 'transparent' },
                     textColor: '#ffffff',
@@ -2642,38 +2903,40 @@ async function initDashboardCharts() {
                 lastValueVisible: true,
             });
             
-            areaSeries.setData(historyData);
+            areaSeries.setData(deduped);
             chart.timeScale().fitContent();
             
             // Сохраняем для уничтожения позже
             dashboardCharts.historyChart = chart;
             
             // Адаптивность
+            const HISTORY_CHART_HEIGHT = 400;
             const resizeObserver = new ResizeObserver(() => {
                 // Проверяем, что график еще существует и не уничтожен
                 if (!dashboardCharts.historyChart || !historyChartContainer.clientWidth) {
                     return;
                 }
                 try {
+                    // Используем фиксированную высоту чтобы избежать CSS-цикла бесконечного роста
                     dashboardCharts.historyChart.applyOptions({ 
                         width: historyChartContainer.clientWidth,
-                        height: historyChartContainer.clientHeight || 400
+                        height: HISTORY_CHART_HEIGHT
                     });
                 } catch (error) {
-                    console.warn('ResizeObserver error for historyChart:', error);
+
                 }
             });
             
             resizeObserver.observe(historyChartContainer);
             dashboardResizeObservers.historyChart = resizeObserver;
             
-            console.log('History chart initialized with', historyData.length, 'data points');
+
         }).catch(err => {
-            console.error('Error fetching prices for history chart:', err);
+
         });
     }
     
-    console.log('All dashboard charts initialized');
+
 }
 
 // ============================================================================
@@ -2687,7 +2950,7 @@ window.goToNewsSection = function(event) {
         event.stopPropagation();
     }
     
-    console.log('Переход к разделу новостей...');
+
     
     // Используем функцию showSection из ui.js
     if (window.app && window.app.showSection) {

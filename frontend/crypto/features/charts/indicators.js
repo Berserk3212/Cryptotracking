@@ -192,7 +192,7 @@ function calculateBollingerBands(prices, period = 20, stdDev = 2) {
  * @param {String} symbol - Crypto symbol
  */
 window.renderIndicatorsChart = async function(klines, symbol) {
-  console.log('Rendering indicators chart with', klines.length, 'candles');
+
   
   try {
     const outerContainer = document.getElementById('tradingViewChartContainer');
@@ -203,6 +203,10 @@ window.renderIndicatorsChart = async function(klines, symbol) {
     const ohlc = document.getElementById('chartOhlcDisplay');
     if (legend) legend.style.display = 'none';
     if (ohlc) ohlc.style.display = 'none';
+
+    // Скрываем только toolbar, но не chartAreaWrapper — потому что cryptoDetailPriceChart находится внутри него
+    const drawingToolbarInd = document.getElementById('cryptoDrawingToolbar');
+    if (drawingToolbarInd) drawingToolbarInd.style.display = 'none';
     
     // Get or create indicators container
     let container = document.getElementById('cryptoDetailPriceChart');
@@ -211,6 +215,14 @@ window.renderIndicatorsChart = async function(klines, symbol) {
     // Clear previous chart
     container.innerHTML = '';
     
+    // Detect mobile for adaptive sizing — измеряем ДО применения indicators-mode
+    const isMobile = window.innerWidth <= 768;
+    // clientWidth может быть 0 если контейнер ещё не отрендерен — берём offsetWidth как fallback
+    const rawWidth = container.clientWidth || container.offsetWidth || container.parentElement?.clientWidth || 800;
+    const chartWidth = Math.max(100, rawWidth - (isMobile ? 16 : 56));
+    const mainChartHeight = isMobile ? 220 : 300;
+    const subChartHeight = isMobile ? 120 : 150;
+
     // Add indicators mode class for styling
     outerContainer.classList.add('indicators-mode');
     
@@ -225,24 +237,27 @@ window.renderIndicatorsChart = async function(klines, symbol) {
     const ma200 = calculateSMA(closePrices, 200);
     const bollingerBands = calculateBollingerBands(closePrices, 20, 2);
     
-    console.log('Indicators calculated');
+
     
     // Create wrapper for better layout
     const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'display: flex; flex-direction: column; gap: 1.5rem; padding: 1rem;';
+    wrapper.style.cssText = `display: flex; flex-direction: column; gap: ${isMobile ? '0.75rem' : '1.5rem'}; padding: ${isMobile ? '0.5rem' : '1rem'};`;
     container.appendChild(wrapper);
     
     // === MAIN CHART WITH PRICE AND MAs ===
     const mainSection = document.createElement('div');
-    mainSection.innerHTML = '<h3 style="color: #F8FAFC; margin: 0 0 0.5rem 0; font-size: 0.875rem; font-weight: 600;">Цена + Moving Averages + Bollinger Bands</h3>';
+    mainSection.innerHTML = `<h3 style="color: #F8FAFC; margin: 0 0 0.5rem 0; font-size: ${isMobile ? '0.75rem' : '0.875rem'}; font-weight: 600;">Цена + MA + Bollinger Bands</h3>`;
     wrapper.appendChild(mainSection);
     
     const mainContainer = document.createElement('div');
+    // Явная высота обязательна: mobile-charts-fix.js убирает height из опций createChart,
+    // а autoSize читает clientHeight — без style.height контейнер = 0px → пустой чарт
+    mainContainer.style.cssText = `width: 100%; height: ${mainChartHeight}px; position: relative; flex-shrink: 0;`;
     mainSection.appendChild(mainContainer);
     
     const mainChart = LightweightCharts.createChart(mainContainer, {
-      width: container.clientWidth - 32,
-      height: 300,
+      autoSize: true,
+      height: mainChartHeight,
       layout: {
         background: { color: '#1a1d28' },
         textColor: '#d1d4dc',
@@ -334,7 +349,7 @@ window.renderIndicatorsChart = async function(klines, symbol) {
     
     // Add legend manually
     const mainLegend = document.createElement('div');
-    mainLegend.style.cssText = 'display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem; font-size: 0.75rem;';
+    mainLegend.style.cssText = `display: flex; gap: ${isMobile ? '0.5rem' : '1rem'}; flex-wrap: wrap; margin-top: 0.375rem; font-size: ${isMobile ? '0.65rem' : '0.75rem'};`;
     mainLegend.innerHTML = `
       <span style="color: #2962FF;">■ Price</span>
       <span style="color: #f59e0b;">■ MA50</span>
@@ -345,15 +360,16 @@ window.renderIndicatorsChart = async function(klines, symbol) {
     
     // === RSI CHART ===
     const rsiSection = document.createElement('div');
-    rsiSection.innerHTML = '<h3 style="color: #F8FAFC; margin: 0 0 0.5rem 0; font-size: 0.875rem; font-weight: 600;">RSI (Relative Strength Index)</h3>';
+    rsiSection.innerHTML = `<h3 style="color: #F8FAFC; margin: 0 0 0.5rem 0; font-size: ${isMobile ? '0.75rem' : '0.875rem'}; font-weight: 600;">RSI (14)</h3>`;
     wrapper.appendChild(rsiSection);
     
     const rsiContainer = document.createElement('div');
+    rsiContainer.style.cssText = `width: 100%; height: ${subChartHeight}px; position: relative; flex-shrink: 0;`;
     rsiSection.appendChild(rsiContainer);
     
     const rsiChart = LightweightCharts.createChart(rsiContainer, {
-      width: container.clientWidth - 32,
-      height: 150,
+      autoSize: true,
+      height: subChartHeight,
       layout: {
         background: { color: '#1a1d28' },
         textColor: '#d1d4dc',
@@ -410,7 +426,7 @@ window.renderIndicatorsChart = async function(klines, symbol) {
     rsiChart.timeScale().fitContent();
     
     const rsiLegend = document.createElement('div');
-    rsiLegend.style.cssText = 'display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem; font-size: 0.75rem; color: #94A3B8;';
+    rsiLegend.style.cssText = `display: flex; gap: ${isMobile ? '0.5rem' : '1rem'}; flex-wrap: wrap; margin-top: 0.375rem; font-size: ${isMobile ? '0.6rem' : '0.75rem'}; color: #94A3B8;`;
     rsiLegend.innerHTML = `
       <span>Период: 14</span>
       <span style="color: #ef4444;">Перекупленность: &gt;70</span>
@@ -420,15 +436,16 @@ window.renderIndicatorsChart = async function(klines, symbol) {
     
     // === MACD CHART ===
     const macdSection = document.createElement('div');
-    macdSection.innerHTML = '<h3 style="color: #F8FAFC; margin: 0 0 0.5rem 0; font-size: 0.875rem; font-weight: 600;">MACD (Moving Average Convergence Divergence)</h3>';
+    macdSection.innerHTML = `<h3 style="color: #F8FAFC; margin: 0 0 0.5rem 0; font-size: ${isMobile ? '0.75rem' : '0.875rem'}; font-weight: 600;">MACD (12, 26, 9)</h3>`;
     wrapper.appendChild(macdSection);
     
     const macdContainer = document.createElement('div');
+    macdContainer.style.cssText = `width: 100%; height: ${subChartHeight}px; position: relative; flex-shrink: 0;`;
     macdSection.appendChild(macdContainer);
     
     const macdChart = LightweightCharts.createChart(macdContainer, {
-      width: container.clientWidth - 32,
-      height: 150,
+      autoSize: true,
+      height: subChartHeight,
       layout: {
         background: { color: '#1a1d28' },
         textColor: '#d1d4dc',
@@ -489,7 +506,7 @@ window.renderIndicatorsChart = async function(klines, symbol) {
     macdChart.timeScale().fitContent();
     
     const macdLegend = document.createElement('div');
-    macdLegend.style.cssText = 'display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem; font-size: 0.75rem;';
+    macdLegend.style.cssText = `display: flex; gap: ${isMobile ? '0.5rem' : '1rem'}; flex-wrap: wrap; margin-top: 0.375rem; font-size: ${isMobile ? '0.65rem' : '0.75rem'};`;
     macdLegend.innerHTML = `
       <span style="color: #2196F3;">■ MACD Line (12,26)</span>
       <span style="color: #FF6D00;">■ Signal Line (9)</span>
@@ -503,11 +520,19 @@ window.renderIndicatorsChart = async function(klines, symbol) {
       macdChart.timeScale().setVisibleRange(timeRange);
     });
     
-    console.log('Indicators chart rendered successfully');
+    // autoSize: true уже обеспечивает ресайз — отдельный ResizeObserver не нужен
+    if (window._indicatorsResizeObserver) {
+      window._indicatorsResizeObserver.disconnect();
+      window._indicatorsResizeObserver = null;
+    }
+    
+
     
   } catch (error) {
-    console.error('Error rendering indicators:', error);
-    showNotification('Ошибка отображения индикаторов', 'error');
+
+    if (typeof window.showNotification === 'function') {
+      window.showNotification('Ошибка отображения индикаторов', 'error');
+    }
   }
 };
 
@@ -762,12 +787,12 @@ function calculateMomentum(closes, period = 10) {
 
 // Calculate all technical indicators and return table data
 window.calculateTechnicalIndicators = function(klines, interval = '1d') {
-  console.log('Technical indicators for interval:', interval, 'candles:', klines.length);
+
   
   try {
     // Validate input
     if (!klines || klines.length < 30) {
-      console.error('Not enough data for indicators calculation:', klines?.length);
+
       return {
         oscillators: [],
         movingAverages: [],
@@ -786,7 +811,7 @@ window.calculateTechnicalIndicators = function(klines, interval = '1d') {
     
     // Check for invalid data
     if (closes.some(isNaN) || highs.some(isNaN) || lows.some(isNaN)) {
-      console.error('Invalid price data detected');
+
       return {
         oscillators: [],
         movingAverages: [],
@@ -800,7 +825,7 @@ window.calculateTechnicalIndicators = function(klines, interval = '1d') {
     
     const currentPrice = closes[closes.length - 1];
     
-    console.log('Data ranges - Close:', currentPrice, 'High:', highs[highs.length-1], 'Low:', lows[lows.length-1]);
+
     
     // Helper to safely get last value - returns null if no valid data
     const getLastValue = (arr) => {
@@ -814,7 +839,7 @@ window.calculateTechnicalIndicators = function(klines, interval = '1d') {
       try {
         return calcFn(...args);
       } catch (e) {
-        console.error('Error in calculation:', e);
+
         return null;
       }
     };
@@ -1051,7 +1076,7 @@ window.calculateTechnicalIndicators = function(klines, interval = '1d') {
     };
   
   } catch (error) {
-    console.error('Error calculating indicators:', error);
+
     return {
       oscillators: [],
       movingAverages: [],
@@ -1286,23 +1311,18 @@ window.calculateSentimentFromIndicators = async function(symbol, interval) {
       bearish: Math.round(bearishPercent)
     };
   } catch (error) {
-    console.error('Error calculating sentiment:', error);
+
     return { bullish: 50, bearish: 50 };
   }
 };
 
 // Render Technical Indicators Table
 window.renderTechIndicatorsTable = function(klines, symbol, interval = '1d') {
-  console.log('========== TECHNICAL INDICATORS ==========');
-  console.log('Symbol:', symbol);
-  console.log('Interval:', interval);
-  console.log('Total candles received:', klines?.length);
+
   if (klines && klines.length > 0) {
-    console.log('First candle time:', new Date(klines[0][0]).toISOString());
-    console.log('Last candle time:', new Date(klines[klines.length - 1][0]).toISOString());
-    console.log('Last close price:', parseFloat(klines[klines.length - 1][4]));
+
   }
-  console.log('==========================================');
+
   
   try {
     const outerContainer = document.getElementById('tradingViewChartContainer');
@@ -1318,6 +1338,10 @@ window.renderTechIndicatorsTable = function(klines, symbol, interval = '1d') {
     let container = document.getElementById('cryptoDetailPriceChart');
     if (!container) return;
     
+    // Скрываем только toolbar, не весь chartAreaWrapper (cryptoDetailPriceChart внутри него)
+    const toolbarTT = document.getElementById('cryptoDrawingToolbar');
+    if (toolbarTT) toolbarTT.style.display = 'none';
+
     // Clear container
     container.innerHTML = '';
     outerContainer.classList.add('indicators-mode');
@@ -1662,7 +1686,7 @@ window.renderTechIndicatorsTable = function(klines, symbol, interval = '1d') {
     container.innerHTML = tableHTML;
     
   } catch (error) {
-    console.error('Error rendering tech indicators table:', error);
+
     const container = document.getElementById('cryptoDetailPriceChart');
     if (container) {
       container.innerHTML = `
@@ -1680,4 +1704,3 @@ window.renderTechIndicatorsTable = function(klines, symbol, interval = '1d') {
   }
 };
 
-console.log('Indicators module loaded');

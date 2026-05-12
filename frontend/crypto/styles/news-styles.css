@@ -4,7 +4,7 @@
 /* Контейнер новостей */
 .news-container {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr));
     gap: 1.75rem;
     padding: 1rem 0;
     animation: fadeIn 0.3s ease-out;
@@ -21,12 +21,12 @@
 
 /* Карточка новости */
 .news-article-card {
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    background: var(--bg-secondary);
     border-radius: 20px;
     overflow: hidden;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    border: 1px solid var(--border);
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -69,7 +69,6 @@
     position: absolute;
     top: 15px;
     left: 15px;
-    background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(12px);
     padding: 0.5rem 1.2rem;
     border-radius: 25px;
@@ -139,13 +138,13 @@
     flex-grow: 1;
     display: flex;
     flex-direction: column;
-    background: white;
+    background: var(--bg-secondary);
 }
 
 .news-title {
     font-size: 1.2rem;
     font-weight: 800;
-    color: #111827 !important;
+    color: #000000 !important;
     margin: 0 0 1rem 0;
     line-height: 1.4;
     display: -webkit-box;
@@ -156,9 +155,14 @@
     text-overflow: ellipsis;
 }
 
+[data-theme="dark"] .news-title,
+[data-theme="system"] .news-title {
+    color: #ffffff !important;
+}
+
 .news-summary {
     font-size: 0.95rem;
-    color: #374151 !important;
+    color: #000000 !important;
     line-height: 1.7;
     margin-bottom: 1.5rem;
     flex-grow: 1;
@@ -170,13 +174,18 @@
     text-overflow: ellipsis;
 }
 
+[data-theme="dark"] .news-summary,
+[data-theme="system"] .news-summary {
+    color: #e5e7eb !important;
+}
+
 /* Мета-информация */
 .news-meta-info {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding-top: 1.25rem;
-    border-top: 1px solid rgba(229, 231, 235, 0.8);
+    border-top: 1px solid var(--border);
     margin-top: auto;
 }
 
@@ -185,24 +194,46 @@
     align-items: center;
     gap: 0.6rem;
     font-size: 0.85rem;
-    color: #6b7280;
+    color: #000000 !important;
     font-weight: 600;
+}
+
+[data-theme="dark"] .news-source,
+[data-theme="system"] .news-source {
+    color: #e5e7eb !important;
 }
 
 .news-source i {
     font-size: 1rem;
+    color: #000000 !important;
+}
+
+[data-theme="dark"] .news-source i,
+[data-theme="system"] .news-source i {
+    color: #e5e7eb !important;
 }
 
 .news-date {
     font-size: 0.8rem;
-    color: #9ca3af;
+    color: #000000 !important;
     display: flex;
     align-items: center;
     gap: 0.4rem;
 }
 
+[data-theme="dark"] .news-date,
+[data-theme="system"] .news-date {
+    color: #e5e7eb !important;
+}
+
 .news-date i {
     font-size: 0.85rem;
+    color: #000000 !important;
+}
+
+[data-theme="dark"] .news-date i,
+[data-theme="system"] .news-date i {
+    color: #e5e7eb !important;
 }
 
 /* Кнопка "Читать далее" */
@@ -537,14 +568,14 @@
 /* Адаптивность */
 @media (max-width: 1200px) {
     .news-container {
-        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
         gap: 1.5rem;
     }
 }
 
 @media (max-width: 992px) {
     .news-container {
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
         gap: 1.25rem;
     }
     
@@ -1864,7 +1895,7 @@
     gap: 0.75rem;
     margin-top: 1.5rem;
     padding-top: 1.25rem;
-    border-top: 1px solid rgba(229, 231, 235, 0.8);
+    border-top: 1px solid var(--border);
 }
 
 .news-read-btn {
@@ -2116,6 +2147,8 @@
 .modal-close-news {
     width: 40px;
     height: 40px;
+    min-width: 40px;
+    min-height: 40px;
     border-radius: 50%;
     border: 1px solid rgba(255, 255, 255, 0.15);
     background: rgba(51, 65, 85, 0.8);
@@ -2126,13 +2159,21 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.modal-close-news i {
+    font-size: 18px;
+    line-height: 1;
+    margin: 0;
 }
 
 .modal-close-news:hover {
     background: #EF4444;
     color: white;
     border-color: #EF4444;
-    transform: rotate(90deg);
+    transform: rotate(90deg) scale(1.1);
 }
 
 /* Modal Body */
@@ -2771,50 +2812,107 @@
 /* Responsive */
 @media (max-width: 768px) {
     .modal-overlay-news {
-        padding: 10px;
+        padding: 0;
+        align-items: flex-end;
     }
     
     .modal-container-news {
-        max-height: 95vh;
-        border-radius: 20px;
+        max-height: 90vh;
+        border-radius: 24px 24px 0 0;
+        max-width: 100%;
+        width: 100%;
+        margin: 0;
     }
     
     .modal-header-news {
-        padding: 20px;
+        padding: 18px 20px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.25), rgba(5, 150, 105, 0.25));
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
     }
     
     .modal-header-news h3 {
-        font-size: 18px;
+        font-size: 17px;
     }
     
     .modal-body-news {
-        padding: 20px;
-        max-height: calc(95vh - 180px);
+        padding: 16px;
+        max-height: calc(90vh - 160px);
     }
     
     .news-title-modal {
-        font-size: 22px;
+        font-size: 20px;
     }
     
     .news-content-modal {
-        font-size: 15px;
+        font-size: 14px;
     }
     
     .modal-actions-news {
-        padding: 15px 20px;
+        padding: 16px;
         flex-direction: column;
+        gap: 10px;
+        position: sticky;
+        bottom: 0;
+        background: rgba(30, 41, 59, 0.98);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
     
     .btn-modal {
         width: 100%;
         justify-content: center;
+        font-size: 15px;
+        padding: 14px 20px;
+    }
     }
     
     .modal-close-news {
-        width: 36px;
-        height: 36px;
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        min-height: 40px;
+        flex-shrink: 0;
     }
-}
+    
+    /* Улучшаем форму для мобильных */
+    .form-row {
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    .form-group {
+        width: 100% !important;
+    }
+    
+    .crypto-select-wrapper {
+        position: relative;
+    }
+    
+    .crypto-dropdown {
+        max-height: 50vh !important;
+    }
+    
+    /* Dropdown внутри модального окна */
+    #cryptoDropdown.tools-crypto-dropdown {
+        display: none !important;
+    }
+    #cryptoDropdown.tools-crypto-dropdown.active {
+        display: block !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        max-height: 40vh !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    #cryptoDropdown.tools-crypto-dropdown.active .dropdown-results {
+        overflow: visible !important;
+        max-height: none !important;
+    }
+
 
 /* Profile modal size modifier */
 .modal-container-news.modal-profile-size {
@@ -2824,9 +2922,56 @@
 
 /* Modal-specific tweaks for crypto dropdown inside transaction modal */
 #cryptoDropdown.tools-crypto-dropdown {
-    max-height: 240px;
-    padding-top: 6px;
-    padding-bottom: 6px;
+    display: none !important;
+    /* position:fixed задаётся JS, top/left/width тоже */
+    position: fixed !important;
+    top: auto;
+    left: auto;
+    right: auto;
+    border-radius: 12px !important;
+}
+
+#cryptoDropdown.tools-crypto-dropdown.active {
+    /* Проще всего: контейнер сам скроллится, flex не нужен */
+    display: block !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    max-height: 300px;
+    padding: 0 !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #2563EB rgba(15, 23, 42, 0.5);
+}
+
+#cryptoDropdown.tools-crypto-dropdown.active::-webkit-scrollbar {
+    width: 6px;
+}
+#cryptoDropdown.tools-crypto-dropdown.active::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 3px;
+}
+#cryptoDropdown.tools-crypto-dropdown.active::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #2563EB, #10B981);
+    border-radius: 3px;
+}
+
+/* Заголовок «Показано X активов» — прилипает к верху при скролле */
+#cryptoDropdown.tools-crypto-dropdown.active .dropdown-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: rgba(15, 23, 42, 0.98);
+    padding: 7px 12px 5px;
+    color: #94a3b8;
+    font-size: 0.82rem;
+    border-bottom: 1px solid rgba(37, 99, 235, 0.15);
+}
+
+/* Список — просто флоу без собственного overflow */
+#cryptoDropdown.tools-crypto-dropdown.active .dropdown-results {
+    overflow: visible !important;
+    max-height: none !important;
+    padding: 4px 0 4px;
 }
 
 #cryptoDropdown.tools-crypto-dropdown .tools-crypto-item {

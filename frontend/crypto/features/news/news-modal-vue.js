@@ -3,7 +3,7 @@
     'use strict';
     
     if (typeof Vue === 'undefined') {
-        console.error('Vue.js не загружен!');
+
         return;
     }
 
@@ -29,7 +29,7 @@
         },
         methods: {
             open(newsItem) {
-                console.log('Opening premium news modal:', newsItem.title);
+
                 
                 // Prepare data
                 this.title = newsItem.title || 'Без названия';
@@ -70,6 +70,12 @@
             },
             
             handleImageError(event) {
+                // Prevent infinite loop if placeholder itself fails
+                if (event.target.dataset.placeholderSet) {
+                    event.target.style.display = 'none';
+                    return;
+                }
+                event.target.dataset.placeholderSet = 'true';
                 event.target.src = this.getPlaceholderImage();
             },
             
@@ -99,7 +105,7 @@
                             window.showNotification('Текст переведён', 'success');
                         }
                     } catch (error) {
-                        console.error('Translation error:', error);
+
                         if (window.showNotification) {
                             window.showNotification('Ошибка перевода', 'error');
                         }
@@ -117,7 +123,7 @@
                     const contentType = response.headers.get('content-type') || '';
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     if (!contentType.includes('application/json')) {
-                        console.warn('translateText: CORB or non-JSON response', url, 'Content-Type:', contentType);
+
                         throw new Error('Translation API returned non-JSON');
                     }
                     const data = await response.json();
@@ -126,7 +132,7 @@
                     }
                     throw new Error('Translation failed');
                 } catch (e) {
-                    console.warn('translateText error:', url, e.message);
+
                     return text; // Возвращаем оригинал при ошибке
                 }
             },
@@ -172,12 +178,12 @@
             },
             
             getPlaceholderImage() {
-                return `https://via.placeholder.com/1200x600/${this.categoryColor.replace('#', '')}/ffffff?text=News`;
+                return `https://placehold.co/1200x600/${this.categoryColor.replace('#', '')}/ffffff?text=News`;
             }
         },
         
         mounted() {
-            console.log('✨ Premium news modal initialized');
+
             
             // Global access
             window.openNewsModalVue = (newsItem) => {
@@ -198,15 +204,19 @@
     const initModal = () => {
         const el = document.getElementById('newsModalApp');
         if (!el) {
-            console.error('newsModalApp element not found');
+
             return;
         }
         
         try {
+            if (window._newsModalVueApp) {
+                try { window._newsModalVueApp.unmount(); } catch (e) {}
+            }
             newsModalApp.mount('#newsModalApp');
-            console.log('Premium news modal mounted successfully');
+            window._newsModalVueApp = newsModalApp;
+
         } catch (error) {
-            console.error('Modal mount error:', error);
+
         }
     }
 

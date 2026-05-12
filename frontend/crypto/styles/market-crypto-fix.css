@@ -1,0 +1,51 @@
+/* ==============================================
+   ДОПОЛНИТЕЛЬНЫЕ СТИЛИ ДЛЯ КАРТОЧЕК КРИПТОВАЛЮТ
+   В РАЗДЕЛЕ MARKET НА МОБИЛЬНЫХ
+   ============================================== */
+
+/* Убеждаемся что карточки в marketCryptoGrid корректно отображаются */
+@media (max-width: 768px) {
+  
+  /* Контейнер карточек в разделе Рынок */
+  #marketCryptoGrid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 15px !important;
+    padding: 10px !important;
+    width: 100% !important;
+  }
+  
+  /* Карточки криптовалют в рынке */
+  #marketCryptoGrid .crypto-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+  
+  /* Убираем loading состояние если оно мешает */
+  #marketCryptoGrid .loading-row {
+    width: 100%;
+    text-align: center;
+    padding: 20px;
+  }
+  
+}
+
+/* Планшеты - две колонки */
+@media (min-width: 769px) and (max-width: 1024px) {
+  
+  #marketCryptoGrid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+}
+
+/* Десктоп - три колонки */
+@media (min-width: 1025px) {
+  
+  #marketCryptoGrid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  }
+  
+}

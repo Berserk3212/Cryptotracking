@@ -3,9 +3,10 @@ import { initApp, showSection, loadPortfolios, loadTransactions, initAnalytics }
 import { initData, deletePortfolio, getTransactions, getPricesForSymbols, getTransactionsSync } from './data.js';
 import { updateUserUI } from './profile.js';
 import { initDashboard as initDashboardWidgets, loadDashboardData } from '../features/dashboard/dashboard.js';
+import { loadAppSettings, getSetting } from './settings-service.js';
 
 // === ИМПОРТИРУЕМ API ===
-import { loadStocks, loadCrypto, loadIndices, loadCryptoList, loadStocksList } from '../api/api.js';
+import { loadStocks, loadCrypto, loadIndices, loadCryptoList, loadStocksList, loadCryptoForDropdown } from '../api/api.js';
 
 window.app = window.app || {};
 
@@ -13,12 +14,12 @@ Object.assign(window.app, {
   showSection,
   loadPortfolios,
   loadTransactions,
-  loadStocks,
-  loadCrypto,
-  loadIndices,
-  loadCryptoList,
+  loadStocks,              // Рынок → Акции
+  loadCrypto,              // Рынок → Криптовалюты (marketCryptoGrid)
+  loadCryptoList,          // Криптовалюты (mainCryptoGrid)
+  loadCryptoForDropdown,   // Для дропдауна в модалах (без DOM)
+  loadIndices,             // Рынок → Индексы
   loadStocksList,
-
 
   addTransaction: async (symbol) => {
     const modal = document.getElementById('transactionModal');
@@ -29,7 +30,7 @@ Object.assign(window.app, {
       setTimeout(() => {
         modal.classList.add('active');
       }, 10);
-      console.log('Transaction modal opened');
+
       
       if (symbol) document.getElementById('transactionSymbol').value = symbol;
       
@@ -52,7 +53,7 @@ Object.assign(window.app, {
       modal.style.display = 'flex';
       setTimeout(() => {
         modal.classList.add('active');
-        console.log('Create portfolio modal opened');
+
       }, 10);
     }
   },
@@ -64,7 +65,7 @@ Object.assign(window.app, {
     modal.style.display = 'flex';
     setTimeout(() => {
       modal.classList.add('active');
-      console.log('Transaction modal opened');
+
     }, 10);
     
     document.getElementById('transactionType').value = type;
@@ -85,38 +86,22 @@ Object.assign(window.app, {
     // Проверяем наличие данных акций и криптовалют
     const hasStocks = window.stocksRealData && Object.keys(window.stocksRealData).length > 0;
     const hasCrypto = window.cryptoList && window.cryptoList.length > 0;
-    
-    // Загружаем данные, если их еще нет
-    if (!hasStocks && window.app?.loadStocks) {
-      console.log('Загрузка данных акций для транзакции...');
-      window.app.loadStocks().then(() => {
-        if (window.renderCryptoDropdown) {
-          window.renderCryptoDropdown();
-          console.log('Dropdown обновлен с данными акций');
-        }
-      }).catch(e => console.warn('Ошибка загрузки акций:', e));
+
+    // Запускаем загрузку в фоне если данных ещё нет; после загрузки перерисовываем дропдаун если он открыт
+    const refreshDropdownIfOpen = () => {
+      const dd = document.getElementById('cryptoDropdown');
+      if (dd && dd.classList.contains('active') && window.renderCryptoDropdown) {
+        const inp = document.getElementById('cryptoSearchInput');
+        window.renderCryptoDropdown(inp?.value?.toLowerCase().trim() || '');
+      }
+    };
+
+    if (!hasStocks) {
+      loadStocks().then(refreshDropdownIfOpen).catch(() => {});
     }
-    
-    if (!hasCrypto && window.app?.loadCrypto) {
-      console.log('Загрузка данных криптовалют для транзакции...');
-      window.app.loadCrypto().then(() => {
-        if (window.renderCryptoDropdown) {
-          window.renderCryptoDropdown();
-          console.log('Dropdown обновлен с данными криптовалют');
-        }
-      }).catch(e => console.warn('Ошибка загрузки криптовалют:', e));
-    }
-    
-    // Обновляем dropdown с актуальными данными акций и криптовалют
-    if (window.renderCryptoDropdown) {
-      setTimeout(() => {
-        try {
-          window.renderCryptoDropdown();
-          console.log('Dropdown updated with current data');
-        } catch (e) {
-          console.warn('Could not update dropdown:', e);
-        }
-      }, 150);
+    if (!hasCrypto) {
+      // loadCryptoForDropdown не требует DOM-элементов, в отличие от loadCrypto/loadCryptoList
+      loadCryptoForDropdown().then(refreshDropdownIfOpen).catch(() => {});
     }
   },
   deletePortfolio: async (id) => {
@@ -136,16 +121,16 @@ Object.assign(window.app, {
       // Очищаем текущий символ при закрытии крипто-модалки
       if (id === 'cryptoDetailModal') {
         if (window.currentCryptoSymbol) {
-          console.log('Clearing currentCryptoSymbol:', window.currentCryptoSymbol);
+
           window.currentCryptoSymbol = null;
         }
         // Destroy chart on close
         if (window.tvChart) {
           try {
             window.tvChart.remove();
-            console.log('Chart destroyed on modal close');
+
           } catch (e) {
-            console.warn('Chart cleanup warning:', e);
+
           }
           window.tvChart = null;
         }
@@ -154,7 +139,7 @@ Object.assign(window.app, {
       setTimeout(() => {
         modal.style.display = 'none';
       }, 300);
-      console.log(`Modal ${id} closed`);
+
     }
   },
   backToCryptoList: () => {
@@ -219,7 +204,7 @@ Object.assign(window.app, {
       }, 1000);
       
     } catch (error) {
-      console.error('Error refreshing market data:', error);
+
       const errorNotification = document.createElement('div');
       errorNotification.className = 'notification error';
       errorNotification.innerHTML = `
@@ -261,7 +246,7 @@ Object.assign(window.app, {
 
 async function router() {
   const hash = window.location.hash.slice(1) || 'dashboard';
-  console.log('Router navigating to:', hash);
+
   
   showSection(hash);
 
@@ -280,8 +265,12 @@ async function router() {
         }, 100);
         break;
       case 'crypto': 
+        // Секция "Криптовалюты" использует loadCryptoList (рендерит в mainCryptoGrid)
         setTimeout(() => {
-          if (window.app.loadCryptoList) window.app.loadCryptoList();
+          if (window.app.loadCryptoList) {
+
+            window.app.loadCryptoList();
+          }
         }, 100);
         break;
                 case 'stocks': 
@@ -290,13 +279,13 @@ async function router() {
                     }, 100);
                     break;
       case 'dashboard':
-        await updateUserUI().catch(err => console.warn('updateUserUI error:', err));
+        await updateUserUI().catch(() => {});
         // Инициализируем дашборд с реальными данными
         await initDashboardWidgets();
         break;
       case 'analytics':
         try {
-          console.log('Preparing analytics: prefetching transactions...');
+
           const t0 = performance.now();
           await getTransactions();
           
@@ -304,40 +293,41 @@ async function router() {
           const txs = getTransactionsSync();
           const symbols = [...new Set(txs.map(t => t.symbol))];
           if (symbols.length > 0) {
-            console.log('Prefetching prices for:', symbols);
+
             try {
               await getPricesForSymbols(symbols);
             } catch (priceErr) {
-              console.warn('Price prefetch failed:', priceErr);
+
             }
           }
           
           const t1 = performance.now();
-          console.log(`Prefetch done in ${Math.round(t1 - t0)}ms`);
+
         } catch (err) {
-          console.warn('Prefetch transactions failed:', err);
+
         }
         await initAnalytics();
         break;
     }
   } catch (error) {
-    console.error('Router error:', error);
+
   }
 }
 
-// Автоматическое обновление данных каждые 2 минуты
+// Автоматическое обновление данных (интервал из системных настроек, дефолт 2 мин)
 function startAutoRefresh() {
+  const intervalMs = (getSetting('data_refresh_interval', 120)) * 1000;
   setInterval(() => {
     const currentSection = window.location.hash.slice(1);
     if (currentSection === 'market' || currentSection === 'crypto') {
-      console.log('Auto-refreshing market data...');
+
       window.app.refreshSection('all');
     }
-  }, 120000); // 2 минуты
+  }, intervalMs); // из system_settings.data_refresh_interval
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-  console.log('App starting...');
+
   
   try {
     // СРАЗУ показываем приложение (убираем экран загрузки)
@@ -346,12 +336,43 @@ window.addEventListener('DOMContentLoaded', async () => {
     
     if (loadingScreen) loadingScreen.style.display = 'none';
     if (appContainer) appContainer.style.display = 'flex';
-    console.log('App displayed');
-    
+
+    // Загружаем системные настройки из Supabase
+    await loadAppSettings();
+
+    // Режим обслуживания — показываем заглушку (администраторы проходят дальше)
+    if (getSetting('maintenance_mode', false)) {
+      const { supabase } = await import('./profile.js');
+      const { data: { session } } = await supabase.auth.getSession();
+      const isAdmin = session?.user?.user_metadata?.role === 'admin'
+        || session?.user?.email?.endsWith('@admin.cryptotrack.app');
+      if (!isAdmin) {
+        if (appContainer) appContainer.style.display = 'none';
+        const overlay = document.createElement('div');
+        overlay.id = 'maintenanceOverlay';
+        overlay.style.cssText = [
+          'position:fixed', 'inset:0', 'z-index:99999',
+          'display:flex', 'flex-direction:column',
+          'align-items:center', 'justify-content:center',
+          'background:#0f1117', 'color:#e2e8f0',
+          'font-family:inherit', 'text-align:center', 'padding:2rem'
+        ].join(';');
+        overlay.innerHTML = `
+          <div style="font-size:3rem;margin-bottom:1rem">🛠️</div>
+          <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:.75rem">Техническое обслуживание</h2>
+          <p style="max-width:480px;opacity:.7;line-height:1.6">
+            ${getSetting('maintenance_message', 'Сервис временно недоступен. Пожалуйста, попробуйте позже.')}
+          </p>`;
+        document.body.appendChild(overlay);
+
+        return; // Останавливаем инициализацию
+      }
+
+    }
+
     // Инициализируем UI
-    console.log('Initializing app...');
+
     initApp();
-    console.log('App initialized');
 
     // --- Критический фикс: ждём scheduleLoadNews если стартуем сразу с новостей ---
     const hash = window.location.hash.slice(1) || 'dashboard';
@@ -363,47 +384,56 @@ window.addEventListener('DOMContentLoaded', async () => {
       return false;
     }
     if (hash === 'news') {
-      console.log('[INIT] Стартуем с раздела новости, ждём scheduleLoadNews...');
+
       const ok = await waitForScheduleLoadNews();
       if (!ok) {
-        console.warn('[INIT] scheduleLoadNews так и не определена после ожидания! Новости могут не загрузиться.');
+
       }
         showSection('news');
         // Явно вызываем загрузку новостей, если функция уже определена
         if (typeof window.scheduleLoadNews === 'function') {
           window.scheduleLoadNews('all', 10, 200, false);
-          console.log('scheduleLoadNews вызвана при старте');
+
         }
-        console.log('News section shown (after wait)');
+
     } else {
-      // Показываем дашборд
-      console.log('📍 Showing dashboard...');
-      showSection('dashboard');
-      console.log('Dashboard section shown');
+      // Показываем секцию по текущему hash (или дашборд по умолчанию)
+
+      await router();
+
     }
 
     // Загружаем данные дашборда сразу после отображения
-    console.log('Loading dashboard data...');
-    await initDashboardWidgets().catch(err => console.warn('Dashboard widgets error:', err));
-    console.log('Dashboard data loaded');
-    
-    // Загружаем данные пользователя в фоне
-    console.log('👤 Loading user data...');
-    updateUserUI().catch(err => console.warn('User UI error:', err));
+
+    await initDashboardWidgets().catch(() => {});
+
+    // Загружаем данные пользователя в фоне (только для авторизованных)
+    if (!window.isGuestMode) {
+      updateUserUI().catch(() => {});
+    }
     
     // Предзагружаем кэш акций в фоне
     if (window.preloadStockCache) {
-      console.log('Preloading stock cache...');
-      window.preloadStockCache().catch(err => console.warn('Stock cache error:', err));
+      window.preloadStockCache().catch(() => {});
     }
     
     // Запускаем авто-обновление
-    console.log('Starting auto-refresh...');
+
     startAutoRefresh();
-    
-    console.log('App ready!');
+
+    // Фоновая предзагрузка данных для дропдауна транзакций.
+    // Запускаем через 4с, чтобы не конкурировать с основной загрузкой дашборда.
+    setTimeout(() => {
+      if (!window.cryptoList || window.cryptoList.length === 0) {
+        loadCryptoForDropdown().catch(() => {});
+      }
+      if (!window.stocksRealData || Object.keys(window.stocksRealData).length === 0) {
+        loadStocks().catch(() => {});
+      }
+    }, 4000);
+
   } catch (error) {
-    console.error('CRITICAL Error:', error);
+
     alert('Ошибка запуска приложения. Откройте консоль (F12) для деталей.');
   }
 });
@@ -414,23 +444,35 @@ window.addEventListener('hashchange', router);
 window.clearApiCache = () => {
   if (window.cache) {
     window.cache.clear();
-    console.log('API cache cleared');
+
   }
 };
 
 // === ОБРАБОТЧИК ВЫХОДА ===
 document.addEventListener('DOMContentLoaded', function() {
+  // Обработчик для кнопки «Добавить транзакцию» в разделе Транзакций
+  const addTransactionBtn = document.getElementById('addTransactionBtn');
+  if (addTransactionBtn) {
+    addTransactionBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (window.app && window.app.showTransactionModal) {
+        window.app.showTransactionModal('BUY');
+      }
+    });
+
+  }
+
   // Обработчик для кнопки выхода
   const logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', function(e) {
       e.preventDefault();
-      console.log('Logout button clicked');
+
       window.app.logout();
     });
-    console.log('Logout handler attached');
+
   } else {
-    console.error('Logout button #logoutBtn not found');
+
   }
 
   // Обработчик для кнопки профиля
@@ -438,14 +480,14 @@ document.addEventListener('DOMContentLoaded', function() {
   if (profileBtn) {
     profileBtn.addEventListener('click', function(e) {
       e.preventDefault();
-      console.log('Profile button clicked');
+
       if (window.app.showProfileModal) {
         window.app.showProfileModal();
       } else {
-        console.error('showProfileModal not found in window.app');
+
       }
     });
-    console.log('Profile handler attached');
+
   }
 
   // Обработчики для закрытия модалок
@@ -458,21 +500,21 @@ document.addEventListener('DOMContentLoaded', function() {
         // Очищаем текущий символ при закрытии крипто-модалки
         if (modal.id === 'cryptoDetailModal') {
           if (window.currentCryptoSymbol) {
-            console.log('Clearing currentCryptoSymbol (close button):', window.currentCryptoSymbol);
+
             window.currentCryptoSymbol = null;
           }
           // Destroy chart on close
           if (window.tvChart) {
             try {
               window.tvChart.remove();
-              console.log('Chart destroyed on modal close (close button)');
+
             } catch (e) {
-              console.warn('Chart cleanup warning:', e);
+
             }
             window.tvChart = null;
           }
         }
-        console.log('Modal closed:', modal.id);
+
       }
     });
   });
@@ -486,21 +528,21 @@ document.addEventListener('DOMContentLoaded', function() {
         // Очищаем текущий символ при закрытии крипто-модалки
         if (modal.id === 'cryptoDetailModal') {
           if (window.currentCryptoSymbol) {
-            console.log('Clearing currentCryptoSymbol (backdrop click):', window.currentCryptoSymbol);
+
             window.currentCryptoSymbol = null;
           }
           // Destroy chart on backdrop close
           if (window.tvChart) {
             try {
               window.tvChart.remove();
-              console.log('Chart destroyed on backdrop close');
+
             } catch (e) {
-              console.warn('Chart cleanup warning:', e);
+
             }
             window.tvChart = null;
           }
         }
-        console.log('Modal closed (backdrop):', modal.id);
+
       }
     });
   });
@@ -513,27 +555,160 @@ async function checkAuth() {
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
-      console.log('No session found, redirecting to login...');
+      // Проверяем гостевой режим
+      const isGuest = localStorage.getItem('guestMode') === 'true';
+      if (isGuest) {
+        // Проверяем, разрешён ли гостевой доступ системными настройками
+        if (!getSetting('guest_mode_enabled', true)) {
+
+          localStorage.removeItem('guestMode');
+          window.location.href = '../login.html';
+          return false;
+        }
+
+        window.isGuestMode = true;
+        applyGuestRestrictions();
+        return true; // Разрешаем доступ
+      }
+      
+
       window.location.href = '../login.html';
       return false;
     }
     
-    console.log('User authenticated:', session.user.email);
+    // Авторизованный пользователь — убираем гостевой флаг
+    localStorage.removeItem('guestMode');
+    window.isGuestMode = false;
+
     return true;
   } catch (error) {
-    console.error('Auth check error:', error);
+
+    // При ошибке — проверяем гостевой режим
+    if (localStorage.getItem('guestMode') === 'true') {
+      window.isGuestMode = true;
+      applyGuestRestrictions();
+      return true;
+    }
     return false;
   }
+}
+
+// Применение ограничений гостевого режима
+function applyGuestRestrictions() {
+  // Ждём загрузки DOM
+  const apply = () => {
+    // Показываем баннер гостя
+    const guestBanner = document.createElement('div');
+    guestBanner.id = 'guestBanner';
+    guestBanner.className = 'guest-top-banner';
+    guestBanner.innerHTML = `
+      <div class="guest-banner-content">
+        <i class="fas fa-eye"></i>
+        <span>Вы в гостевом режиме — доступен только просмотр</span>
+        <a href="../login.html" class="guest-login-link">
+          <i class="fas fa-sign-in-alt"></i> Войти
+        </a>
+        <a href="../register.html" class="guest-register-link">
+          <i class="fas fa-user-plus"></i> Регистрация
+        </a>
+      </div>
+    `;
+    
+    const topBar = document.querySelector('.top-bar');
+    if (topBar) {
+      topBar.parentNode.insertBefore(guestBanner, topBar.nextSibling);
+    }
+
+    // Скрываем элементы, требующие авторизации
+    const restrictedSelectors = [
+      '#createPortfolioBtn',      // Создание портфеля
+      '#addTransactionBtn',       // Добавление транзакции
+      '.sidebar-footer',          // Кнопка выхода в сайдбаре
+      '#logoutBtn',               // Кнопка выхода
+    ];
+    
+    restrictedSelectors.forEach(sel => {
+      const el = document.querySelector(sel);
+      if (el) el.style.display = 'none';
+    });
+
+    // Блокируем кнопки транзакций/покупок в модалках
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action="buy"], [data-action="sell"], .btn-buy, .btn-sell, .btn-trade');
+      if (btn && window.isGuestMode) {
+        e.preventDefault();
+        e.stopPropagation();
+        showGuestAlert();
+      }
+    }, true);
+
+    // Обновляем ник пользователя в сайдбаре
+    const userNameEl = document.querySelector('.sidebar-header .user-name, #userName');
+    if (userNameEl) userNameEl.textContent = 'Гость';
+    
+    const userEmailEl = document.querySelector('.sidebar-header .user-email, #userEmail');
+    if (userEmailEl) userEmailEl.textContent = 'Гостевой режим';
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', apply);
+  } else {
+    // DOM уже загружен — применяем с небольшой задержкой чтобы UI отрисовался
+    setTimeout(apply, 300);
+  }
+}
+
+// Всплывающее уведомление для гостя
+function showGuestAlert() {
+  // Используем существующую систему уведомлений или создаём свой toast
+  if (typeof window.showNotification === 'function') {
+    window.showNotification('Для этого действия необходима авторизация', 'warning');
+    return;
+  }
+  
+  // Fallback toast
+  const existing = document.getElementById('guestToast');
+  if (existing) existing.remove();
+  
+  const toast = document.createElement('div');
+  toast.id = 'guestToast';
+  toast.className = 'guest-toast';
+  toast.innerHTML = `
+    <i class="fas fa-lock"></i>
+    <span>Войдите в аккаунт для этого действия</span>
+    <a href="../login.html" class="guest-toast-link">Войти</a>
+  `;
+  document.body.appendChild(toast);
+  
+  requestAnimationFrame(() => toast.classList.add('show'));
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
 }
 
 // Добавляем функцию logout в window.app если её нет
 if (!window.app.logout) {
   window.app.logout = async function() {
     try {
-      console.log('Starting logout process...');
+
       
       const { supabase } = await import('./profile.js');
       
+      // Логируем выход перед signOut (после — сессия уже не активна)
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          await supabase.from('activity_logs').insert({
+            user_id:    session.user.id,
+            user_email: session.user.email,
+            action:     'logout',
+            section:    'auth',
+            details:    {},
+          });
+        }
+      } catch { /* не прерываем выход */ }
+
       // Показываем уведомление о выходе
       const notification = document.createElement('div');
       notification.className = 'notification info';
@@ -550,7 +725,7 @@ if (!window.app.logout) {
       
       if (error) throw error;
       
-      console.log('Logout successful, redirecting...');
+
       
       // Обновляем уведомление
       notification.className = 'notification success';
@@ -567,7 +742,7 @@ if (!window.app.logout) {
       }, 1000);
       
     } catch (err) {
-      console.error('Logout error:', err);
+
       
       const errorNotification = document.createElement('div');
       errorNotification.className = 'notification error';

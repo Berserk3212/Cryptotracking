@@ -1,7 +1,7 @@
 ﻿// market-search.js
 
 export function initMarketSearch() {
-  console.log('Initializing market search...');
+
     
     const searchInput = document.getElementById('marketSearch');
     const cryptoSearchInput = document.getElementById('cryptoSearch');
@@ -20,7 +20,7 @@ export function initMarketSearch() {
     });
   }
   
-  console.log('Market search initialized');
+
 }
 
 function filterMarketContent(query) {

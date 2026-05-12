@@ -5,25 +5,25 @@ let currentType = '';
 let currentPeriod = 'all';
 
 export function initTransactionFilters() {
-  console.log('Initializing transaction filters...');
+
   
   populatePortfolioFilter();
   
   initCustomSelect('filterPortfolioDisplay', 'filterPortfolioDropdown', (value) => {
         currentPortfolio = value;
-        console.log('Portfolio filter changed:', value);
+
         applyTransactionFilters();
     });
     
     initCustomSelect('filterTypeDisplay', 'filterTypeDropdown', (value) => {
         currentType = value;
-        console.log('Type filter changed:', value);
+
         applyTransactionFilters();
     });
     
     initCustomSelect('filterPeriodDisplay', 'filterPeriodDropdown', (value) => {
         currentPeriod = value;
-        console.log('Period filter changed:', value);
+
         applyTransactionFilters();
     });
     
@@ -52,12 +52,12 @@ export function initTransactionFilters() {
         // Реинициализируем обработчики для новых элементов
         initCustomSelect('filterPortfolioDisplay', 'filterPortfolioDropdown', (value) => {
             currentPortfolio = value;
-            console.log('Portfolio filter changed:', value);
+
             applyTransactionFilters();
         });
     };
     
-    console.log('Transaction filters initialized');
+
 }
 
 // Функция для заполнения dropdown портфелей
@@ -98,7 +98,7 @@ function populatePortfolioFilter() {
         dropdown.appendChild(option);
     });
     
-    console.log(`Добавлено ${portfolios.length} портфелей в фильтр`);
+
 }
 
 // Функция инициализации кастомного select (с делегированием событий)
@@ -107,7 +107,7 @@ function initCustomSelect(displayId, dropdownId, onChange) {
   const dropdown = document.getElementById(dropdownId);
   
   if (!display || !dropdown) {
-    console.warn(`[initCustomSelect] Элементы не найдены: ${displayId}, ${dropdownId}`);
+
     return;
   }
   
@@ -236,8 +236,11 @@ export function applyTransactionFilters() {
         if (shouldShow) visibleCount++;
     });
     
-    // Показываем статистику
-    updateTransactionStats(visibleCount);
+    // Обновляем статистику через глобальную функцию
+    if (typeof window.updateTransactionStats === 'function') {
+        window.updateTransactionStats();
+    }
+
 }
 
 function parseRussianDate(dateStr) {
@@ -281,9 +284,4 @@ function isInPeriod(date, period) {
         default:
             return true;
     }
-}
-
-function updateTransactionStats(count) {
-    // Можно добавить отображение статистики
-    console.log(`Filtered transactions: ${count}`);
 }

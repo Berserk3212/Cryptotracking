@@ -1,6 +1,8 @@
-﻿// crypto/profile.js — ФИНАЛЬНЫЙ, РАБОЧИЙ, БЕЗ ОШИБОК
+﻿// crypto/profile.js — Supabase Auth + профиль пользователя
 const supabaseUrl = 'https://yvliktxpfglofdgvxrcl.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2bGlrdHhwZmdsb2ZkZ3Z4cmNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDcyOTcsImV4cCI6MjA3NjcyMzI5N30.gJWKm8rZYDu-x4vdKIA4HJ8PZo_JcqBTpttseJCpDJU';
+
+import { validateProfileName, SecurityValidationError } from './security.js';
 
 export const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
 
@@ -10,10 +12,7 @@ window.app = window.app || {};
 // === ОТКРЫТИЕ МОДАЛКИ + ЗАПОЛНЕНИЕ ===
 window.app.showProfileModal = async () => {
   const modal = document.getElementById('profileModal');
-  if (!modal) {
-    console.error('Модалка #profileModal не найдена');
-    return;
-  }
+  if (!modal) return;
 
   modal.style.display = 'flex';
   setTimeout(() => {
@@ -64,24 +63,15 @@ window.app.showProfileModal = async () => {
     loadAppSettings();
     
     // Показываем текущую аватарку
-    console.log('Загрузка аватарки:', avatarUrl);
     if (avatarUrl && avatarPreview) {
-      console.log('Avatar preview element найден, загружаем изображение...');
       const img = avatarPreview.querySelector('img') || document.createElement('img');
       img.src = avatarUrl;
       img.onload = () => {
-        console.log('Аватарка загружена успешно');
-        if (!avatarPreview.querySelector('img')) {
-          avatarPreview.appendChild(img);
-        }
+        if (!avatarPreview.querySelector('img')) avatarPreview.appendChild(img);
         avatarPreview.classList.add('has-image');
       };
-      img.onerror = (err) => {
-        console.error('Ошибка загрузки аватарки:', err);
-        avatarPreview.classList.remove('has-image');
-      };
+      img.onerror = () => avatarPreview.classList.remove('has-image');
     } else if (avatarPreview) {
-      console.log('Аватарка не установлена или preview элемент не найден');
       avatarPreview.classList.remove('has-image');
     }
 
@@ -95,10 +85,7 @@ window.app.showProfileModal = async () => {
     }
 
     nameInput?.focus();
-
-    console.log('Модалка заполнена:', { fullName, email, avatarUrl });
   } catch (err) {
-    console.error('Ошибка в showProfileModal:', err);
     if (nameInput) nameInput.value = 'Ошибка';
   }
 };
@@ -108,7 +95,7 @@ window.app.closeModal = (id) => {
   const modal = document.getElementById(id);
   if (!modal) return;
 
-  // If modal is docked into the content panel, undock first and restore section
+  // Если modal is docked into the content panel — сначала открепляем
   if (modal.classList.contains('panel-docked')) {
     const section = modal.closest('.section');
     try {
@@ -139,34 +126,23 @@ window.app.closeModal = (id) => {
       // Пересоздаем график крипты после undocking
       setTimeout(() => {
         if (id === 'cryptoDetailModal' && window.currentCryptoSymbol) {
-          // Удаляем старый график
+      // Удаляем старый график и пересоздаём
           if (window.tvChart) {
-            try {
-              window.tvChart.remove();
-              console.log('Chart removed during undock');
-            } catch (e) {
-              console.warn('Chart removal warning:', e);
-            }
+            try { window.tvChart.remove(); } catch (_) {}
             window.tvChart = null;
             window.lineSeries = null;
             window.candlestickSeries = null;
             window.volumeSeries = null;
           }
           
-          // Пересоздаем график
           if (typeof window.loadCryptoDetailCharts === 'function') {
             const currentInterval = modal.querySelector('.period-btn.active')?.getAttribute('data-period') || '1w';
-            console.log('Recreating chart after undock');
-            window.loadCryptoDetailCharts(window.currentCryptoSymbol, currentInterval).catch(err => {
-              console.error('Error recreating chart:', err);
-            });
+            window.loadCryptoDetailCharts(window.currentCryptoSymbol, currentInterval).catch(() => {});
           }
         }
       }, 350);
-      
-      console.log('[dock] closeModal: undocked and restored', id);
-    } catch (err) {
-      console.error('Error during undock in closeModal:', err);
+    } catch (_) {
+      // ошибка при откреплении — график уже пересоздаётся, игнорируем
     }
   }
 
@@ -183,7 +159,8 @@ window.app.logout = async () => {
     await supabase.auth.signOut();
     window.location.href = '../login.html';
   } catch (err) {
-    console.error('Ошибка выхода:', err);
+    // ошибка выхода — пользователь уже переходит на login.html
+    window.location.href = '../login.html';
   }
 };
 
@@ -208,6 +185,7 @@ export const updateUserUI = async () => {
       return;
     }
 
+    // Базовый запрос без role — не зависит от миграции
     const { data: profile } = await supabase
       .from('profiles')
       .select('full_name, email, avatar_url')
@@ -229,6 +207,21 @@ export const updateUserUI = async () => {
 
     if (nameEl) nameEl.textContent = fullName;
     if (emailEl) emailEl.textContent = email;
+
+    // Показываем ссылку на admin-панель только если колонка role уже существует
+    const navAdmin = document.getElementById('navAdmin');
+    if (navAdmin) {
+      try {
+        const { data: roleRow } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        navAdmin.style.display = (roleRow?.role === 'admin') ? '' : 'none';
+      } catch {
+        navAdmin.style.display = 'none';
+      }
+    }
 
     if (avatarEl) {
       if (avatarUrl) {
@@ -253,7 +246,6 @@ export const updateUserUI = async () => {
     }
 
   } catch (err) {
-    console.error('updateUserUI error:', err);
     if (nameEl) nameEl.textContent = 'Ошибка загрузки';
   }
   finally {
@@ -277,10 +269,16 @@ document.addEventListener('DOMContentLoaded', () => {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const name = document.getElementById('profileName')?.value.trim();
-    const avatar = document.getElementById('profileAvatar')?.value.trim() || null;
+    const rawName = document.getElementById('profileName')?.value.trim();
+    const avatar   = document.getElementById('profileAvatar')?.value.trim() || null;
 
-    if (!name) return alert('Введите имя');
+    let name;
+    try {
+      name = validateProfileName(rawName ?? '');
+    } catch (err) {
+      if (err instanceof SecurityValidationError) return alert(err.message);
+      throw err;
+    }
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -321,7 +319,6 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('Профиль сохранён!');
       window.app.closeModal('profileModal');
     } catch (err) {
-      console.error('Ошибка сохранения:', err);
       alert('Ошибка: ' + err.message);
     }
   });
@@ -395,13 +392,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Обновляем поле URL в форме
         if (avatarUrlInput) {
           avatarUrlInput.value = publicUrl;
-          // Триггерим событие input для обновления превью
           avatarUrlInput.dispatchEvent(new Event('input', { bubbles: true }));
         }
-
-        console.log('Аватарка загружена:', publicUrl);
       } catch (err) {
-        console.error('Ошибка загрузки аватарки:', err);
         alert('Ошибка загрузки: ' + err.message);
         avatarFileInput.value = '';
       }
@@ -436,10 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Открытие модалки настроек
 window.app.showSettingsModal = () => {
   const modal = document.getElementById('settingsModal');
-  if (!modal) {
-    console.error('Модалка #settingsModal не найдена');
-    return;
-  }
+  if (!modal) return;
 
   modal.style.display = 'flex';
   setTimeout(() => {
@@ -510,18 +500,11 @@ const initSettingsHandlers = () => {
       try {
         if (typeof window.changeLanguageGoogle === 'function') {
           window.changeLanguageGoogle(language);
-          console.log('Язык изменен:', language);
         } else {
-          console.warn('Google Translate не загружен');
           localStorage.setItem('app_language', language);
           setTimeout(() => location.reload(), 500);
         }
-      } catch (e) {
-        console.error('Ошибка изменения языка:', e);
-        if (window.showNotification) {
-          window.showNotification('Error changing language', 'error');
-        }
-      }
+      } catch (_) {}
     });
   });
   
@@ -536,16 +519,10 @@ const initSettingsHandlers = () => {
       try {
         // Динамически импортируем модуль, чтобы избежать циклических зависимостей при загрузке
         const currencyModule = await import('./currency.js');
-        // Устанавливаем валюту и ждём загрузки курса
-        await currencyModule.setSelectedCurrencyAsync(currency);
-        const rate = await currencyModule.fetchCurrencyRate();
-        // Теперь можно безопасно оповестить остальную часть приложения
-        window.dispatchEvent(new Event('currencyChanged'));
-        console.log('Валюта изменена:', currency, 'курс:', rate);
-        if (window.showNotification) window.showNotification(`Курс загружен: 1 USD = ${rate} ${currency}`, 'success');
-      } catch (e) {
-        console.error('Ошибка установки валюты:', e);
-        // Даём возможность UI обновиться символом на случай ошибки
+        // Мгновенный UI-апдейт: диспатч с кешированным курсом происходит синхронно внутри,
+        // фетч свежего курса — в фоне без блокировки
+        currencyModule.setSelectedCurrencyAsync(currency);
+      } catch (_) {
         window.dispatchEvent(new Event('currencyChanged'));
       }
     });
@@ -560,7 +537,6 @@ const initSettingsHandlers = () => {
       const theme = card.dataset.theme;
       localStorage.setItem('app_theme', theme);
       applyTheme(theme);
-      console.log('Тема изменена:', theme);
     });
   });
   
@@ -634,14 +610,11 @@ const saveAppSettings = () => {
       const rate = await currencyModule.fetchCurrencyRate();
       window.dispatchEvent(new Event('currencyChanged'));
       if (window.showNotification) window.showNotification(`Курс загружен: 1 USD = ${rate} ${settings.currency}`, 'success');
-    } catch (e) {
-      console.error('Ошибка установки валюты при сохранении настроек:', e);
+    } catch (_) {
       window.dispatchEvent(new Event('currencyChanged'));
     }
   })();
-  
-  console.log('Настройки сохранены:', settings);
-  
+
   return settings;
 }
 

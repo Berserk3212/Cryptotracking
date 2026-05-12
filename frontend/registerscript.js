@@ -3,7 +3,7 @@ const supabaseUrl = 'https://yvliktxpfglofdgvxrcl.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2bGlrdHhwZmdsb2ZkZ3Z4cmNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDcyOTcsImV4cCI6MjA3NjcyMzI5N30.gJWKm8rZYDu-x4vdKIA4HJ8PZo_JcqBTpttseJCpDJU';
 
 if (!window.supabase) {
-  console.error('Supabase не загружен!');
+  throw new Error('Supabase не загружен!');
 }
 
 const { createClient } = window.supabase;
@@ -38,6 +38,11 @@ createApp({
 
     // ===== СОСТОЯНИЕ ЗАГРУЗКИ =====
     const loading = ref(false);
+
+    // ===== СОСТОЯНИЕ ПОДТВЕРЖДЕНИЯ EMAIL =====
+    const emailSent = ref(false);
+    const registeredEmail = ref('');
+    const resendCooldown = ref(0);
     
     // ===== ТЕМА =====
     const currentTheme = ref(document.documentElement.getAttribute('data-theme') || 'dark');
@@ -64,51 +69,118 @@ createApp({
       );
     });
 
+    // ===== САНИТИЗАЦИЯ =====
+    // Удаляем символы, опасные для XSS и SQL-инъекций
+    const sanitize = (value) => {
+      return value
+        .replace(/[<>"'`]/g, '')       // XSS-теги и кавычки
+        .replace(/[;\\]/g, '')          // SQL: терминаторы и экранирование
+        .replace(/--/g, '')             // SQL: комментарии
+        .replace(/\/\*/g, '');          // SQL: блочные комментарии
+    };
+
     // ===== ВАЛИДАЦИЯ ПОЛЕЙ =====
+    // RFC 5321/5322: local@domain.tld, без consecutive dots, допустимые символы
     const validateEmail = (email) => {
-      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      return re.test(email);
+      const re = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z]{2,}$/;
+      return re.test(email) && !email.includes('..');
     };
 
     const validateField = (fieldName, value) => {
+      // Если value не передан (вызов из @blur без аргумента), читаем из формы
+      const raw = value !== undefined ? value : form[fieldName];
       errors[fieldName] = '';
 
       switch (fieldName) {
-        case 'name':
-          if (!value.trim()) {
-            errors[fieldName] = 'Пожалуйста, введите ваше имя';
-          } else if (value.trim().length < 2) {
-            errors[fieldName] = 'Имя должно содержать минимум 2 символа';
+        case 'name': {
+          const trimmed = typeof raw === 'string' ? raw.trim() : '';
+          if (!trimmed) {
+            errors.name = 'Введите имя пользователя';
+            break;
+          }
+          if (trimmed.length < 2) {
+            errors.name = 'Имя должно содержать минимум 2 символа';
+            break;
+          }
+          if (trimmed.length > 50) {
+            errors.name = 'Имя не должно превышать 50 символов';
+            break;
+          }
+          if (sanitize(trimmed) !== trimmed) {
+            errors.name = 'Имя содержит недопустимые символы';
+            break;
+          }
+          // Только буквы любых алфавитов, цифры, пробел, дефис, точка, апостроф
+          if (!/^[\p{L}\p{N} .'-]+$/u.test(trimmed)) {
+            errors.name = 'Имя содержит недопустимые символы';
           }
           break;
+        }
 
-        case 'email':
-          if (!value.trim()) {
-            errors[fieldName] = 'Пожалуйста, введите email';
-          } else if (!validateEmail(value)) {
-            errors[fieldName] = 'Неверный формат email';
+        case 'email': {
+          const trimmed = typeof raw === 'string' ? raw.trim() : '';
+          if (!trimmed) {
+            errors.email = 'Введите email адрес';
+            break;
+          }
+          if (trimmed.length > 254) {
+            errors.email = 'Email адрес слишком длинный';
+            break;
+          }
+          if (!validateEmail(trimmed)) {
+            errors.email = 'Введите корректный email адрес';
           }
           break;
+        }
 
-        case 'password':
-          if (!value) {
-            errors[fieldName] = 'Пожалуйста, введите пароль';
-          } else if (value.length < 6) {
-            errors[fieldName] = 'Пароль должен содержать минимум 6 символов';
-          } else if (form.confirmPassword && form.confirmPassword !== value) {
-            errors['confirmPassword'] = 'Пароли не совпадают';
-          } else {
-            errors['confirmPassword'] = '';
+        case 'password': {
+          const val = typeof raw === 'string' ? raw : '';
+          if (!val) {
+            errors.password = 'Введите пароль';
+            break;
+          }
+          if (val.length < 8) {
+            errors.password = 'Пароль должен содержать минимум 8 символов';
+            break;
+          }
+          if (val.length > 128) {
+            errors.password = 'Пароль слишком длинный (максимум 128 символов)';
+            break;
+          }
+          if (!/[A-Z]/.test(val)) {
+            errors.password = 'Пароль должен содержать хотя бы одну заглавную букву';
+            break;
+          }
+          if (!/[a-z]/.test(val)) {
+            errors.password = 'Пароль должен содержать хотя бы одну строчную букву';
+            break;
+          }
+          if (!/[0-9]/.test(val)) {
+            errors.password = 'Пароль должен содержать хотя бы одну цифру';
+            break;
+          }
+          if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(val)) {
+            errors.password = 'Пароль должен содержать хотя бы один спецсимвол (!@#$%^&* и др.)';
+            break;
+          }
+          // Пересчитываем confirmPassword при изменении пароля
+          if (form.confirmPassword) {
+            errors.confirmPassword = form.confirmPassword !== val ? 'Пароли не совпадают' : '';
           }
           break;
+        }
 
-        case 'confirmPassword':
-          if (!value) {
-            errors[fieldName] = 'Пожалуйста, подтвердите пароль';
-          } else if (value !== form.password) {
-            errors[fieldName] = 'Пароли не совпадают';
+        case 'confirmPassword': {
+          const val = typeof raw === 'string' ? raw : '';
+          if (!val) {
+            errors.confirmPassword = 'Подтвердите пароль';
+            break;
+          }
+          if (val !== form.password) {
+            errors.confirmPassword = 'Пароли не совпадают';
           }
           break;
+        }
       }
     };
 
@@ -168,21 +240,32 @@ createApp({
       loading.value = true;
 
       try {
+        // Нормализуем данные перед отправкой
+        const safeName  = sanitize(form.name.trim()).slice(0, 50);
+        const safeEmail = form.email.trim().slice(0, 254);
+        // Пароль не трimmируем и не санитизируем — спецсимволы в нём допустимы
+        const safePassword = form.password.slice(0, 128);
+
         // Регистрируем пользователя в Supabase
         const { data, error } = await supabase.auth.signUp({
-          email: form.email,
-          password: form.password,
+          email: safeEmail,
+          password: safePassword,
           options: {
             data: {
-              full_name: form.name
-            }
+              full_name: safeName
+            },
+            emailRedirectTo: window.location.origin + '/login.html'
           }
         });
 
         if (error) {
-          console.error('Ошибка регистрации:', error);
-          
-          if (error.message.includes('already registered')) {
+          if (error.status === 500 || error.message?.includes('unexpected_failure')) {
+            showToast(
+              'Сервис временно недоступен. Попробуйте через несколько минут.',
+              'Ошибка сервера',
+              'warning'
+            );
+          } else if (error.message.includes('already registered') || error.message.includes('User already registered')) {
             showToast('Этот email уже зарегистрирован', 'Ошибка', 'error');
           } else if (error.message.includes('Password')) {
             showToast('Пароль не соответствует требованиям безопасности', 'Ошибка', 'error');
@@ -192,29 +275,62 @@ createApp({
           return;
         }
 
-        showToast(
-          'Проверьте ваш email для подтверждения аккаунта',
-          'Регистрация успешна!',
-          'success'
-        );
+        // Если identities пустой — email уже зарегистрирован (Supabase не раскрывает это через ошибку)
+        if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+          showToast(
+            'Этот email уже зарегистрирован. Войдите или восстановите пароль.',
+            'Аккаунт существует',
+            'error'
+          );
+          return;
+        }
 
-        // Очищаем форму
-        form.name = '';
-        form.email = '';
-        form.password = '';
-        form.confirmPassword = '';
-        form.agreeTerms = false;
+        // Если session === null — Supabase ждёт подтверждения email
+        if (!data.session) {
+          registeredEmail.value = safeEmail;
+          emailSent.value = true;
+          return;
+        }
 
-        // Перенаправляем на login через 2 секунды
-        setTimeout(() => {
-          window.location.href = '/frontend/login.html';
-        }, 2000);
+        // Сессия сразу (подтверждение отключено) — редирект
+        showToast('Аккаунт создан!', 'Успешно', 'success');
+        setTimeout(() => { window.location.href = 'index.html'; }, 1500);
 
-      } catch (error) {
-        console.error('Неожиданная ошибка:', error);
-        showToast('Произошла неожиданная ошибка. Попробуйте позже', 'Ошибка', 'error');
+      } catch (err) {
+        // HTTP 500 от Supabase — обычно превышен лимит писем (2/час на free-плане)
+        const is500 = err?.status === 500 || err?.message?.includes('500') || String(err).includes('500');
+        if (is500) {
+          showToast(
+            'Сервис временно недоступен. Попробуйте через несколько минут.',
+            'Ошибка отправки',
+            'warning'
+          );
+        } else {
+          showToast('Произошла неожиданная ошибка. Попробуйте позже', 'Ошибка', 'error');
+        }
       } finally {
         loading.value = false;
+      }
+    };
+
+    // ===== ПОВТОРНАЯ ОТПРАВКА ПИСЬМА =====
+    const resendConfirmation = async () => {
+      if (resendCooldown.value > 0 || !registeredEmail.value) return;
+      try {
+        const { error } = await supabase.auth.resend({
+          type: 'signup',
+          email: registeredEmail.value
+        });
+        if (error) throw error;
+        showToast('Письмо отправлено повторно', 'Готово', 'success');
+        // Блокируем кнопку на 60 секунд
+        resendCooldown.value = 60;
+        const timer = setInterval(() => {
+          resendCooldown.value--;
+          if (resendCooldown.value <= 0) clearInterval(timer);
+        }, 1000);
+      } catch (_) {
+        showToast('Не удалось отправить письмо. Попробуйте позже.', 'Ошибка', 'error');
       }
     };
 
@@ -237,13 +353,31 @@ createApp({
 
     // ===== ЖИЗНЕННЫЙ ЦИКЛ =====
     const onMounted = () => {
-      console.log('Vue приложение инициализировано');
       initializeTheme();
 
       // Добавляем анимационные классы после небольшой задержки
       setTimeout(() => {
         document.body.classList.add('loaded');
       }, 100);
+
+      // Проверяем, разрешена ли регистрация (системные настройки)
+      supabase.from('system_settings')
+        .select('key, value')
+        .eq('key', 'registration_enabled')
+        .maybeSingle()
+        .then(({ data }) => {
+          const enabled = data ? (data.value === 'true' || data.value === true) : true;
+          if (!enabled) {
+            const formEl = document.querySelector('.register-form, form, .auth-form');
+            if (formEl) formEl.style.display = 'none';
+            const msg = document.createElement('div');
+            msg.style.cssText = 'text-align:center;padding:2rem;color:#e2e8f0;font-size:1rem';
+            msg.innerHTML = '<p>⚠️ Регистрация новых пользователей временно отключена.</p>'
+              + '<p style="margin-top:.5rem"><a href="login.html" style="color:#6366f1">Войти в существующий аккаунт</a></p>';
+            (formEl?.parentNode || document.body).appendChild(msg);
+          }
+        })
+        .catch(() => {});
     };
 
     // Вызываем onMounted сразу
@@ -268,6 +402,9 @@ createApp({
       loading,
       toast,
       currentTheme,
+      emailSent,
+      registeredEmail,
+      resendCooldown,
 
       // Вычисляемые свойства
       isFormValid,
@@ -279,6 +416,7 @@ createApp({
       togglePasswordVisibility,
       toggleConfirmPasswordVisibility,
       handleRegister,
+      resendConfirmation,
       toggleTheme,
       showToast,
       getFieldStatus,

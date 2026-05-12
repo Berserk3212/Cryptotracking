@@ -167,6 +167,12 @@
   font-size: 0.95rem;
 }
 
+/* Когда dropdown открыт — поднимаем всю группу выше соседних */
+.filter-group:has(.custom-select-dropdown.show) {
+    position: relative;
+    z-index: 200;
+}
+
 /* Custom Select Dropdown */
 .custom-select-wrapper {
     position: relative;
@@ -339,6 +345,40 @@
   .filter-select, .sort-select {
     flex: 1;
     min-width: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .custom-select {
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* filter-group относительно позиционирован — dropdown будет от него */
+  .filter-group {
+    position: relative;
+  }
+
+  /* wrapper должен оставаться relative, чтобы dropdown позиционировался относительно него */
+  .custom-select-wrapper {
+    position: relative;
+    z-index: 200;
+  }
+
+  /* Dropdown с максимальным z-index */
+  .custom-select-dropdown {
+    position: absolute;
+    z-index: 9999 !important;
+    left: 0;
+    right: 0;
+    min-width: 200px;
+  }
+
+  /* Родительские контейнеры не должны клипировать dropdown */
+  .section-header,
+  .header-filters {
+    overflow: visible !important;
   }
 }
 

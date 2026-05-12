@@ -174,7 +174,59 @@
 
       <!-- Правая панель - форма регистрации -->
       <div class="card-right">
-        <form @submit.prevent="handleRegister" class="register-form">
+        <!-- Экран подтверждения email -->
+        <div v-if="emailSent" class="email-confirm-screen">
+          <div class="confirm-icon">
+            <i class="fas fa-envelope-open-text"></i>
+          </div>
+          <h2>Проверьте вашу почту</h2>
+          <p class="confirm-subtitle">
+            Мы отправили письмо с ссылкой для подтверждения на<br>
+            <strong>{{ registeredEmail }}</strong>
+          </p>
+          <div class="confirm-steps">
+            <div class="step">
+              <span class="step-num">1</span>
+              <span>Откройте письмо от <b>noreply@mail.app.supabase.io</b></span>
+            </div>
+            <div class="step">
+              <span class="step-num">2</span>
+              <span>Нажмите кнопку <b>«Confirm your email»</b></span>
+            </div>
+            <div class="step">
+              <span class="step-num">3</span>
+              <span>Войдите в аккаунт</span>
+            </div>
+          </div>
+          <div class="confirm-actions">
+            <button
+              class="submit-btn"
+              @click="resendConfirmation"
+              :disabled="resendCooldown > 0"
+              type="button"
+            >
+              <div class="btn-content">
+                <i class="fas fa-paper-plane"></i>
+                <span v-if="resendCooldown > 0">Отправить повторно ({{ resendCooldown }}с)</span>
+                <span v-else>Отправить письмо повторно</span>
+              </div>
+            </button>
+            <a href="login.html" class="back-to-login">
+              <i class="fas fa-arrow-left"></i> Перейти ко входу
+            </a>
+          </div>
+          <p class="spam-note">
+            <i class="fas fa-exclamation-triangle"></i>
+            Не нашли письмо? Проверьте папку <strong>«Спам»</strong> или «Нежелательные»
+          </p>
+        </div>
+
+        <!-- Форма регистрации -->
+        <form v-else @submit.prevent="handleRegister" class="register-form">
+          <div class="form-title">
+            <h2><i class="fas fa-user-plus"></i> Регистрация</h2>
+            <p>Создайте аккаунт для доступа к платформе</p>
+          </div>
           <!-- Поле Имя -->
           <div class="form-field" :class="{ 'error': errors.name, 'success': form.name && !errors.name }">
             <div class="field-header">
@@ -197,6 +249,7 @@
                 placeholder=""
                 :disabled="loading"
                 autocomplete="name"
+                maxlength="50"
                 required
               />
               <div class="input-decoration"></div>
@@ -228,6 +281,7 @@
                 placeholder=""
                 :disabled="loading"
                 autocomplete="email"
+                maxlength="254"
                 required
               />
               <div class="input-decoration"></div>
@@ -259,6 +313,7 @@
                 placeholder=""
                 :disabled="loading"
                 autocomplete="new-password"
+                maxlength="128"
                 required
               />
               <button
@@ -299,6 +354,7 @@
                 placeholder=""
                 :disabled="loading"
                 autocomplete="new-password"
+                maxlength="128"
                 required
               />
               <button

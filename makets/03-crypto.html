@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Макет 3 — Криптовалюты | CryptoPortfolio</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    :root {
+      --primary: #3B82F6;
+      --primary-dark: #2563EB;
+      --secondary: #10B981;
+      --danger: #EF4444;
+      --warning: #F59E0B;
+      --bg-primary: #0F172A;
+      --bg-secondary: #1E293B;
+      --text-primary: #F8FAFC;
+      --text-secondary: #CBD5E1;
+      --text-muted: #64748B;
+      --border: rgba(255,255,255,0.1);
+      --radius: 12px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+      color: var(--text-primary); display: flex; height: 100vh; overflow: hidden;
+    }
+
+    /* ===== SIDEBAR ===== */
+    .sidebar {
+      width: 280px; min-width: 280px;
+      background: rgba(10,10,15,0.98); backdrop-filter: blur(20px);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; height: 100vh;
+    }
+    .sidebar-header {
+      padding: 1.5rem; display: flex; align-items: center; gap: 0.75rem;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(37,99,235,0.2), rgba(5,150,105,0.2));
+    }
+    .logo-icon { width: 48px; height: 48px; border-radius: 12px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; }
+    .logo-title { font-size: 15px; font-weight: 700; color: #F8FAFC; }
+    .logo-tagline { font-size: 11px; color: #64748B; margin-top: 2px; }
+    .sidebar-nav { padding: 0.75rem; flex: 1; overflow-y: auto; }
+    .sidebar-nav::-webkit-scrollbar { width: 4px; }
+    .sidebar-nav::-webkit-scrollbar-thumb { background: linear-gradient(135deg, #2563EB, #10B981); border-radius: 2px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.75rem 1rem; border-radius: 10px;
+      cursor: pointer; color: #64748B; font-size: 14px; font-weight: 500;
+      text-decoration: none; margin-bottom: 2px; position: relative;
+    }
+    .nav-item::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+      background: linear-gradient(135deg, #2563EB, #10B981);
+      opacity: 0; border-radius: 0 2px 2px 0;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.08); color: #F8FAFC; }
+    .nav-item:hover::before { opacity: 0.5; }
+    .nav-item.active { background: linear-gradient(90deg, rgba(37,99,235,0.15), rgba(16,185,129,0.05)); color: #F8FAFC; }
+    .nav-item.active::before { opacity: 1; }
+    .nav-item i { font-size: 1.1rem; width: 22px; text-align: center; background: linear-gradient(135deg, #3B82F6, #10B981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .nav-badge { margin-left: auto; background: #EF4444; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 10px; }
+    .sidebar-footer { padding: 1rem; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 1rem; background: linear-gradient(135deg, rgba(37,99,235,0.12), rgba(5,150,105,0.12)); }
+    .user-profile { display: flex; align-items: center; gap: 0.75rem; flex: 1; }
+    .user-avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #2563EB, #10B981); display: flex; align-items: center; justify-content: center; font-size: 16px; color: #fff; flex-shrink: 0; border: 2px solid rgba(255,255,255,0.2); box-shadow: 0 0 16px rgba(37,99,235,0.4); }
+    .user-name { font-size: 13px; font-weight: 600; color: #F8FAFC; }
+    .user-email { font-size: 11px; color: #CBD5E1; }
+    .logout-btn { width: 38px; height: 38px; border-radius: 10px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #FCA5A5; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+    /* ===== MAIN ===== */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .top-bar {
+      background: rgba(15,23,42,0.98); backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2); flex-shrink: 0;
+    }
+    .top-bar h1 { flex: 1; font-size: 1.4rem; font-weight: 700; background: linear-gradient(135deg, #F8FAFC, #CBD5E1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .top-actions { display: flex; gap: 0.5rem; }
+    .icon-btn { position: relative; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #CBD5E1; font-size: 15px; }
+    .notif-dot { position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; background: #EF4444; border-radius: 50%; border: 1.5px solid rgba(15,23,42,0.98); }
+    .content { flex: 1; overflow-y: auto; padding: 2rem; }
+
+    /* ===== SECTION HEADER ===== */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+    .section-header h2 { font-size: 1.4rem; font-weight: 700; color: #F8FAFC; }
+    .header-filters { display: flex; gap: 0.6rem; }
+
+    /* ===== CUSTOM SELECT ===== */
+    .custom-select-wrapper { position: relative; }
+    .custom-select {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 8px 14px; cursor: pointer;
+      background: rgba(30,41,59,0.8); border: 1px solid var(--border);
+      border-radius: var(--radius); color: #CBD5E1; font-size: 13px; font-weight: 500;
+      min-width: 130px; justify-content: space-between;
+    }
+    .custom-select-arrow { font-size: 10px; color: #64748B; }
+    .custom-select-dropdown {
+      position: absolute; top: calc(100% + 6px); left: 0; z-index: 50;
+      background: rgba(15,23,42,0.98); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: var(--radius); overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4); min-width: 180px;
+    }
+    .custom-select-option {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; font-size: 13px; color: #CBD5E1; cursor: pointer;
+    }
+    .custom-select-option:hover { background: rgba(37,99,235,0.15); color: #F8FAFC; }
+    .custom-select-option i { font-size: 13px; color: #3B82F6; width: 16px; }
+
+    /* ===== SEARCH BAR ===== */
+    .search-bar { position: relative; margin-bottom: 1rem; }
+    .search-bar i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #475569; font-size: 14px; }
+    .search-bar input {
+      width: 100%; padding: 11px 14px 11px 40px;
+      background: rgba(30,41,59,0.8); border: 1px solid var(--border);
+      border-radius: var(--radius); color: #F8FAFC; font-size: 14px; outline: none;
+    }
+    .search-bar input::placeholder { color: #475569; }
+    .search-bar input:focus { border-color: var(--primary-dark); }
+
+    /* ===== PRICE FILTER BAR ===== */
+    .price-filters-bar {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 10px 16px; margin-bottom: 1.5rem;
+      background: rgba(30,41,59,0.6); border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .price-filter-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #64748B; font-weight: 500; white-space: nowrap; }
+    .price-filter-label i { color: #3B82F6; font-size: 12px; }
+    .price-inputs-group { display: flex; align-items: center; gap: 8px; flex: 1; }
+    .filter-input { padding: 7px 12px; background: rgba(15,23,42,0.8); border: 1px solid var(--border); border-radius: 8px; color: #F8FAFC; font-size: 13px; outline: none; width: 110px; }
+    .filter-input::placeholder { color: #475569; }
+    .price-separator { color: #475569; font-size: 13px; }
+    .btn-reset-filters { margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 7px 14px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); border-radius: 8px; color: #FCA5A5; font-size: 12px; font-weight: 600; cursor: pointer; }
+
+    /* ===== CRYPTO GRID ===== */
+    .crypto-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+
+    /* ===== CRYPTO CARD ===== */
+    .crypto-card {
+      background: linear-gradient(145deg, #0a0e1a 0%, #020617 100%);
+      border: 1px solid rgba(96,165,250,0.15);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.6), inset 0 1px 0 rgba(96,165,250,0.08);
+      border-radius: 14px; padding: 1.5rem; cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+      position: relative; overflow: hidden;
+    }
+    .crypto-card:hover {
+      transform: translateY(-8px) scale(1.02);
+      border-color: rgba(96,165,250,0.6);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(96,165,250,0.5), 0 0 30px rgba(96,165,250,0.3);
+      background: linear-gradient(145deg, #0f1624 0%, #030b1f 100%);
+    }
+    .crypto-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+    .crypto-icon {
+      width: 64px; height: 64px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem; flex-shrink: 0;
+      border: 1px solid rgba(96,165,250,0.2);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(96,165,250,0.1);
+      background: linear-gradient(145deg, rgba(15,23,42,0.8), rgba(2,6,23,0.8));
+      transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .crypto-card:hover .crypto-icon { transform: scale(1.15) rotate(5deg); box-shadow: 0 10px 30px rgba(96,165,250,0.6), 0 0 40px rgba(96,165,250,0.4); }
+    .crypto-info h4 { font-size: 1rem; font-weight: 700; color: #ffffff; text-shadow: 0 2px 10px rgba(96,165,250,0.3); margin-bottom: 3px; transition: all 0.3s ease; }
+    .crypto-card:hover .crypto-info h4 { color: #60a5fa; text-shadow: 0 0 20px rgba(96,165,250,0.8); }
+    .crypto-symbol { font-size: 0.77rem; color: #cbd5e1; text-transform: uppercase; font-weight: 700; letter-spacing: 1px; }
+    .crypto-price-row { display: flex; justify-content: space-between; align-items: center; margin: 1rem 0 0.5rem; }
+    .crypto-price { font-size: 1.35rem; font-weight: 800; color: #60a5fa; text-shadow: 0 0 20px rgba(96,165,250,0.6), 0 2px 10px rgba(0,0,0,0.5); }
+    .crypto-change { font-size: 0.875rem; font-weight: 700; padding: 0.35rem 0.85rem; border-radius: 8px; white-space: nowrap; }
+    .price-positive { background: linear-gradient(135deg, rgba(16,185,129,0.25), rgba(16,185,129,0.15)); color: #6ee7b7; box-shadow: 0 0 15px rgba(16,185,129,0.4); border: 1px solid rgba(16,185,129,0.3); }
+    .price-negative { background: linear-gradient(135deg, rgba(239,68,68,0.25), rgba(239,68,68,0.15)); color: #fca5a5; box-shadow: 0 0 15px rgba(239,68,68,0.4); border: 1px solid rgba(239,68,68,0.3); }
+    .crypto-sparkline { margin: 0.75rem 0; height: 70px; border-radius: 8px; background: rgba(96,165,250,0.05); box-shadow: inset 0 2px 8px rgba(0,0,0,0.3); overflow: hidden; }
+    .crypto-sparkline svg { width: 100%; height: 100%; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4)); }
+    .crypto-stats { display: flex; justify-content: space-between; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(96,165,250,0.15); }
+    .crypto-stats div { display: flex; gap: 4px; font-size: 0.75rem; color: #f1f5f9; font-weight: 600; }
+    .crypto-stats small { color: #cbd5e1; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-icon">
+        <svg width="32" height="32" viewBox="0 0 56 56">
+          <rect x="8" y="8" width="40" height="40" rx="8" fill="#FFFFFF" opacity="0.08"/>
+          <g stroke="#FFFFFF" stroke-width="1" opacity="0.3"><line x1="12" y1="38" x2="44" y2="38"/><line x1="12" y1="15" x2="12" y2="38"/></g>
+          <polygon points="12,38 18,32 24,26 30,20 36,18 42,22 42,38" fill="rgba(255,255,255,0.15)"/>
+          <polyline points="12,38 18,32 24,26 30,20 36,18 42,22" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="30" cy="20" r="2.2" fill="#FFFFFF"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-title">CryptoPortfolio</div>
+        <div class="logo-tagline">Инвестируй с умом</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item"><i class="fas fa-home"></i><span>Дашборд</span></a>
+      <a href="#" class="nav-item"><i class="fas fa-briefcase"></i><span>Портфели</span></a>
+      <a href="#" class="nav-item"><i class="fas fa-chart-bar"></i><span>Рынок</span></a>
+      <a href="#" class="nav-item active"><i class="fab fa-bitcoin"></i><span>Криптовалюты</span></a>
+      <a href="#" class="nav-item"><i class="fas fa-chart-line"></i><span>Акции</span></a>
+      <a href="#" class="nav-item"><i class="fas fa-exchange-alt"></i><span>Транзакции</span></a>
+      <a href="#" class="nav-item"><i class="fas fa-chart-pie"></i><span>Аналитика</span></a>
+      <a href="#" class="nav-item"><i class="fas fa-calculator"></i><span>Торговые инструменты</span></a>
+      <a href="#" class="nav-item"><i class="fas fa-newspaper"></i><span>Новости</span><span class="nav-badge">3</span></a>
+      <a href="#" class="nav-item"><i class="fas fa-star"></i><span>Избранное</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-profile">
+        <div class="user-avatar"><i class="fas fa-user"></i></div>
+        <div>
+          <div class="user-name">Иван Васильев</div>
+          <div class="user-email">ivan@investapp.ru</div>
+        </div>
+      </div>
+      <button class="logout-btn"><i class="fas fa-sign-out-alt"></i></button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="top-bar">
+      <h1>Криптовалюты</h1>
+      <div class="top-actions">
+        <div class="icon-btn"><i class="fas fa-bell"></i><div class="notif-dot"></div></div>
+        <div class="icon-btn"><i class="fas fa-sync-alt"></i></div>
+        <div class="icon-btn"><i class="fas fa-cog"></i></div>
+        <div class="icon-btn"><i class="fas fa-user-circle"></i></div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- Section header + dropdowns -->
+      <div class="section-header">
+        <h2>Криптовалюты</h2>
+        <div class="header-filters">
+          <div class="custom-select-wrapper">
+            <div class="custom-select">
+              <span>Рейтинг</span>
+              <i class="fas fa-chevron-down custom-select-arrow"></i>
+            </div>
+            <div class="custom-select-dropdown">
+              <div class="custom-select-option"><i class="fas fa-chart-line"></i><span>По капитализации</span></div>
+              <div class="custom-select-option"><i class="fas fa-arrow-down"></i><span>Цена ↓</span></div>
+              <div class="custom-select-option"><i class="fas fa-arrow-up"></i><span>Цена ↑</span></div>
+              <div class="custom-select-option"><i class="fas fa-percent"></i><span>Изменение</span></div>
+            </div>
+          </div>
+          <div class="custom-select-wrapper">
+            <div class="custom-select">
+              <span>Все</span>
+              <i class="fas fa-chevron-down custom-select-arrow"></i>
+            </div>
+            <div class="custom-select-dropdown">
+              <div class="custom-select-option"><i class="fas fa-layer-group"></i><span>Все</span></div>
+              <div class="custom-select-option"><i class="fas fa-arrow-trend-up" style="color:#10b981"></i><span>Растущие</span></div>
+              <div class="custom-select-option"><i class="fas fa-arrow-trend-down" style="color:#ef4444"></i><span>Падающие</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search bar -->
+      <div class="search-bar">
+        <i class="fas fa-search"></i>
+        <input type="text" placeholder="Поиск криптовалюты...">
+      </div>
+
+      <!-- Price filter bar -->
+      <div class="price-filters-bar">
+        <span class="price-filter-label"><i class="fas fa-dollar-sign"></i> Диапазон цен:</span>
+        <div class="price-inputs-group">
+          <input type="number" class="filter-input" placeholder="Мин">
+          <span class="price-separator">—</span>
+          <input type="number" class="filter-input" placeholder="Макс">
+        </div>
+        <button class="btn-reset-filters"><i class="fas fa-redo"></i> Сбросить</button>
+      </div>
+
+      <!-- Crypto grid -->
+      <div class="crypto-grid">
+
+        <!-- BTC -->
+        <div class="crypto-card">
+          <div class="crypto-header">
+            <div class="crypto-icon" style="color:#F7931A"><i class="fab fa-bitcoin"></i></div>
+            <div class="crypto-info">
+              <h4>Bitcoin</h4>
+              <span class="crypto-symbol">BTC</span>
+            </div>
+          </div>
+          <div class="crypto-price-row">
+            <div class="crypto-price">$67 420.00</div>
+            <span class="crypto-change price-positive"><i class="fas fa-caret-up"></i> +3.14%</span>
+          </div>
+          <div class="crypto-sparkline">
+            <svg viewBox="0 0 220 70" preserveAspectRatio="none">
+              <defs><linearGradient id="sg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#10B981" stop-opacity=".35"/><stop offset="100%" stop-color="#10B981" stop-opacity="0"/></linearGradient></defs>
+              <polygon fill="url(#sg1)" points="0,62 55,48 110,52 165,36 220,8 220,70 0,70"/>
+              <polyline fill="none" stroke="#10B981" stroke-width="2" points="0,62 55,48 110,52 165,36 220,8"/>
+            </svg>
+          </div>
+          <div class="crypto-stats">
+            <div><small>Капитализация:</small> $1.32T</div>
+            <div><small>Объём 24ч:</small> $42B</div>
+          </div>
+        </div>
+
+        <!-- ETH -->
+        <div class="crypto-card">
+          <div class="crypto-header">
+            <div class="crypto-icon" style="color:#627EEA"><i class="fab fa-ethereum"></i></div>
+            <div class="crypto-info">
+              <h4>Ethereum</h4>
+              <span class="crypto-symbol">ETH</span>
+            </div>
+          </div>
+          <div class="crypto-price-row">
+            <div class="crypto-price">$3 185.40</div>
+            <span class="crypto-change price-positive"><i class="fas fa-caret-up"></i> +1.82%</span>
+          </div>
+          <div class="crypto-sparkline">
+            <svg viewBox="0 0 220 70" preserveAspectRatio="none">
+              <defs><linearGradient id="sg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#10B981" stop-opacity=".35"/><stop offset="100%" stop-color="#10B981" stop-opacity="0"/></linearGradient></defs>
+              <polygon fill="url(#sg2)" points="0,56 55,58 110,44 165,46 220,18 220,70 0,70"/>
+              <polyline fill="none" stroke="#10B981" stroke-width="2" points="0,56 55,58 110,44 165,46 220,18"/>
+            </svg>
+          </div>
+          <div class="crypto-stats">
+            <div><small>Капитализация:</small> $381B</div>
+            <div><small>Объём 24ч:</small> $18B</div>
+          </div>
+        </div>
+
+        <!-- BNB -->
+        <div class="crypto-card">
+          <div class="crypto-header">
+            <div class="crypto-icon" style="color:#F3BA2F"><i class="bi bi-currency-bitcoin"></i></div>
+            <div class="crypto-info">
+              <h4>BNB</h4>
+              <span class="crypto-symbol">BNB</span>
+            </div>
+          </div>
+          <div class="crypto-price-row">
+            <div class="crypto-price">$608.20</div>
+            <span class="crypto-change price-negative"><i class="fas fa-caret-down"></i> -0.51%</span>
+          </div>
+          <div class="crypto-sparkline">
+            <svg viewBox="0 0 220 70" preserveAspectRatio="none">
+              <defs><linearGradient id="sg3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#EF4444" stop-opacity=".35"/><stop offset="100%" stop-color="#EF4444" stop-opacity="0"/></linearGradient></defs>
+              <polygon fill="url(#sg3)" points="0,18 55,22 110,28 165,22 220,48 220,70 0,70"/>
+              <polyline fill="none" stroke="#EF4444" stroke-width="2" points="0,18 55,22 110,28 165,22 220,48"/>
+            </svg>
+          </div>
+          <div class="crypto-stats">
+            <div><small>Капитализация:</small> $90B</div>
+            <div><small>Объём 24ч:</small> $2.1B</div>
+          </div>
+        </div>
+
+        <!-- SOL -->
+        <div class="crypto-card">
+          <div class="crypto-header">
+            <div class="crypto-icon" style="color:#9945FF"><i class="fas fa-circle-nodes"></i></div>
+            <div class="crypto-info">
+              <h4>Solana</h4>
+              <span class="crypto-symbol">SOL</span>
+            </div>
+          </div>
+          <div class="crypto-price-row">
+            <div class="crypto-price">$175.80</div>
+            <span class="crypto-change price-positive"><i class="fas fa-caret-up"></i> +5.23%</span>
+          </div>
+          <div class="crypto-sparkline">
+            <svg viewBox="0 0 220 70" preserveAspectRatio="none">
+              <defs><linearGradient id="sg4" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#10B981" stop-opacity=".35"/><stop offset="100%" stop-color="#10B981" stop-opacity="0"/></linearGradient></defs>
+              <polygon fill="url(#sg4)" points="0,64 55,52 110,42 165,24 220,6 220,70 0,70"/>
+              <polyline fill="none" stroke="#10B981" stroke-width="2" points="0,64 55,52 110,42 165,24 220,6"/>
+            </svg>
+          </div>
+          <div class="crypto-stats">
+            <div><small>Капитализация:</small> $82B</div>
+            <div><small>Объём 24ч:</small> $5.4B</div>
+          </div>
+        </div>
+
+        <!-- ADA -->
+        <div class="crypto-card">
+          <div class="crypto-header">
+            <div class="crypto-icon" style="color:#0097F0"><i class="bi bi-water"></i></div>
+            <div class="crypto-info">
+              <h4>Cardano</h4>
+              <span class="crypto-symbol">ADA</span>
+            </div>
+          </div>
+          <div class="crypto-price-row">
+            <div class="crypto-price">$0.4512</div>
+            <span class="crypto-change price-negative"><i class="fas fa-caret-down"></i> -1.30%</span>
+          </div>
+          <div class="crypto-sparkline">
+            <svg viewBox="0 0 220 70" preserveAspectRatio="none">
+              <defs><linearGradient id="sg5" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#EF4444" stop-opacity=".35"/><stop offset="100%" stop-color="#EF4444" stop-opacity="0"/></linearGradient></defs>
+              <polygon fill="url(#sg5)" points="0,24 55,20 110,28 165,38 220,52 220,70 0,70"/>
+              <polyline fill="none" stroke="#EF4444" stroke-width="2" points="0,24 55,20 110,28 165,38 220,52"/>
+            </svg>
+          </div>
+          <div class="crypto-stats">
+            <div><small>Капитализация:</small> $16B</div>
+            <div><small>Объём 24ч:</small> $421M</div>
+          </div>
+        </div>
+
+        <!-- XRP -->
+        <div class="crypto-card">
+          <div class="crypto-header">
+            <div class="crypto-icon" style="color:#00AAE4"><i class="fas fa-bolt"></i></div>
+            <div class="crypto-info">
+              <h4>XRP</h4>
+              <span class="crypto-symbol">XRP</span>
+            </div>
+          </div>
+          <div class="crypto-price-row">
+            <div class="crypto-price">$0.5821</div>
+            <span class="crypto-change price-positive"><i class="fas fa-caret-up"></i> +2.07%</span>
+          </div>
+          <div class="crypto-sparkline">
+            <svg viewBox="0 0 220 70" preserveAspectRatio="none">
+              <defs><linearGradient id="sg6" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#10B981" stop-opacity=".35"/><stop offset="100%" stop-color="#10B981" stop-opacity="0"/></linearGradient></defs>
+              <polygon fill="url(#sg6)" points="0,48 55,42 110,36 165,30 220,16 220,70 0,70"/>
+              <polyline fill="none" stroke="#10B981" stroke-width="2" points="0,48 55,42 110,36 165,30 220,16"/>
+            </svg>
+          </div>
+          <div class="crypto-stats">
+            <div><small>Капитализация:</small> $31B</div>
+            <div><small>Объём 24ч:</small> $1.8B</div>
+          </div>
+        </div>
+
+      </div><!-- crypto-grid -->
+    </div>
+  </div>
+</body>
+</html>

@@ -15,7 +15,7 @@ const initNewsPersonalization = () => {
     sentimentBtn.addEventListener('click', toggleSentimentFilter);
   }
   
-  console.log('[NewsPersonalization] Initialized');
+
 };
 
 const togglePersonalization = async () => {
@@ -72,7 +72,7 @@ const toggleSentimentFilter = async () => {
 const applyFilters = async () => {
   try {
     if (!window.newsCache || !window.newsCache.data) {
-      console.warn('[NewsPersonalization] No data for filtering');
+
       return;
     }
     
@@ -104,7 +104,7 @@ const applyFilters = async () => {
       // Сортируем: сначала персонализированные, потом остальные
       filteredNews = [...markedPersonalized, ...markedOthers];
       
-      console.log(`[NewsPersonalization] Персонализация: ${personalizedNews.length} персонализированных + ${markedOthers.length} остальных = ${filteredNews.length} новостей`);
+
     }
     
     // Применяем фильтр по sentiment
@@ -126,7 +126,7 @@ const applyFilters = async () => {
       
       // Фильтруем по выбранному sentiment
       filteredNews = filteredNews.filter(item => item.sentiment === sentimentFilter);
-      console.log(`[NewsPersonalization] Фильтр по ${sentimentFilter}: ${filteredNews.length} новостей`);
+
     }
     
     // Обновляем счетчик и показываем информацию о фильтрации
@@ -138,7 +138,7 @@ const applyFilters = async () => {
     // Показываем сколько новостей отфильтровано
     const originalCount = window.newsCache.data.length;
     if (originalCount > filteredNews.length) {
-      console.log(`[NewsPersonalization] Отфильтровано: ${filteredNews.length} из ${originalCount} новостей (скрыто ${originalCount - filteredNews.length})`);
+
     }
     
     // Перерисовываем новости (skipCategoryFilter=true чтобы не перефильтровывать)
@@ -148,7 +148,7 @@ const applyFilters = async () => {
     }
     
   } catch (error) {
-    console.error('[NewsPersonalization] Ошибка применения фильтров:', error);
+
   }
 }
 

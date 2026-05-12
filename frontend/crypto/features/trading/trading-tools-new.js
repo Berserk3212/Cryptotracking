@@ -7,6 +7,7 @@ const app = Vue.createApp({
             cryptoList: [],
             showCryptoDropdown: '',
             showTradeDropdown: false,
+            cryptoSearchQuery: '',
             calculators: {
                 pl: {
                     title: 'Profit/Loss Calculator',
@@ -74,7 +75,12 @@ const app = Vue.createApp({
             return this.calculators[this.activeTab];
         },
         filteredCryptoList() {
-            return this.cryptoList.slice(0, 60);
+            const q = this.cryptoSearchQuery.trim().toLowerCase();
+            if (!q) return this.cryptoList.slice(0, 60);
+            return this.cryptoList.filter(c =>
+                c.symbol.toLowerCase().includes(q) ||
+                c.name.toLowerCase().includes(q)
+            ).slice(0, 100);
         }
     },
     methods: {
@@ -83,7 +89,15 @@ const app = Vue.createApp({
             this.showCryptoDropdown = '';
         },
         toggleCryptoDropdown(calcType) {
-            this.showCryptoDropdown = this.showCryptoDropdown === calcType ? '' : calcType;
+            const opening = this.showCryptoDropdown !== calcType;
+            this.showCryptoDropdown = opening ? calcType : '';
+            this.cryptoSearchQuery = '';
+            if (opening) {
+                this.$nextTick(() => {
+                    const input = this.$refs.cryptoSearchInput;
+                    if (input) input.focus();
+                });
+            }
         },
         toggleTradeDropdown() {
             this.showTradeDropdown = !this.showTradeDropdown;
@@ -99,6 +113,7 @@ const app = Vue.createApp({
             calc.form.crypto = crypto.symbol;
             calc.form.cryptoName = `${crypto.name} (${crypto.symbol})`;
             this.showCryptoDropdown = '';
+            this.cryptoSearchQuery = '';
             
             try {
                 const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${crypto.symbol}USDT`);
@@ -109,7 +124,7 @@ const app = Vue.createApp({
                     calc.form.entryPrice = price;
                 }
             } catch (error) {
-                console.error('Error loading price:', error);
+
             }
         },
         getCryptoIcon(symbol) {
@@ -400,22 +415,53 @@ const app = Vue.createApp({
                                         <i class="fas fa-chevron-down tools-crypto-arrow"></i>
                                     </div>
                                     
-                                    <div v-if="showCryptoDropdown === activeTab" class="tools-crypto-dropdown">
-                                        <div 
-                                            v-for="crypto in filteredCryptoList" 
-                                            :key="crypto.symbol"
-                                            class="tools-crypto-item"
-                                            @click="selectCrypto(crypto)"
-                                        >
-                                            <img 
-                                                :src="getCryptoIcon(crypto.symbol)" 
-                                                :alt="crypto.symbol"
-                                                class="tools-crypto-icon"
-                                                @error="$event.target.src='https://ui-avatars.com/api/?name=' + crypto.symbol + '&background=2563EB&color=fff'"
+                                    <div v-if="showCryptoDropdown === activeTab" class="tools-crypto-dropdown" @click.stop>
+                                        <!-- Search box -->
+                                        <div class="tools-crypto-search">
+                                            <i class="fas fa-search tools-crypto-search-icon"></i>
+                                            <input
+                                                ref="cryptoSearchInput"
+                                                v-model="cryptoSearchQuery"
+                                                type="text"
+                                                placeholder="Поиск по названию или тикеру..."
+                                                class="tools-crypto-search-input"
+                                                @keydown.esc="toggleCryptoDropdown(activeTab)"
+                                            />
+                                            <button
+                                                v-if="cryptoSearchQuery"
+                                                class="tools-crypto-search-clear"
+                                                @click.stop="cryptoSearchQuery = ''"
+                                                title="Очистить"
                                             >
-                                            <div class="tools-crypto-info">
-                                                <div class="tools-crypto-name">{{ crypto.name }}</div>
-                                                <div class="tools-crypto-symbol">{{ crypto.symbol }}</div>
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+
+                                        <!-- Empty state -->
+                                        <div v-if="filteredCryptoList.length === 0" class="tools-crypto-empty">
+                                            <i class="fas fa-search-minus"></i>
+                                            <p>Ничего не найдено по «{{ cryptoSearchQuery }}»</p>
+                                            <span>Попробуйте другой тикер или название</span>
+                                        </div>
+
+                                        <!-- List -->
+                                        <div class="tools-crypto-list">
+                                            <div 
+                                                v-for="crypto in filteredCryptoList" 
+                                                :key="crypto.symbol"
+                                                class="tools-crypto-item"
+                                                @click="selectCrypto(crypto)"
+                                            >
+                                                <img 
+                                                    :src="getCryptoIcon(crypto.symbol)" 
+                                                    :alt="crypto.symbol"
+                                                    class="tools-crypto-icon"
+                                                    @error="$event.target.src='https://ui-avatars.com/api/?name=' + crypto.symbol + '&background=2563EB&color=fff'"
+                                                >
+                                                <div class="tools-crypto-info">
+                                                    <div class="tools-crypto-name">{{ crypto.name }}</div>
+                                                    <div class="tools-crypto-symbol">{{ crypto.symbol }}</div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -904,30 +950,23 @@ const app = Vue.createApp({
 });
 
 // Монтируем приложение после загрузки DOM
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        const element = document.getElementById('tradingToolsApp');
-        if (element) {
-            try {
-                app.mount('#tradingToolsApp');
-                console.log('Trading Tools App mounted successfully');
-            } catch (error) {
-                console.error('Error mounting Trading Tools App:', error);
-            }
-        } else {
-            console.error('Element #tradingToolsApp not found');
-        }
-    });
-} else {
+const _mountTradingApp = () => {
     const element = document.getElementById('tradingToolsApp');
-    if (element) {
-        try {
-            app.mount('#tradingToolsApp');
-            console.log('Trading Tools App mounted successfully');
-        } catch (error) {
-            console.error('Error mounting Trading Tools App:', error);
+    if (!element) { console.error('Element #tradingToolsApp not found'); return; }
+    try {
+        if (window._tradingToolsVueApp) {
+            try { window._tradingToolsVueApp.unmount(); } catch (e) {}
         }
-    } else {
-        console.error('Element #tradingToolsApp not found');
+        app.mount('#tradingToolsApp');
+        window._tradingToolsVueApp = app;
+
+    } catch (error) {
+
     }
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _mountTradingApp);
+} else {
+    _mountTradingApp();
 }

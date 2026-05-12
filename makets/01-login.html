@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Макет 1 — Авторизация | InvestApp</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    :root {
+      --primary: #2563EB;
+      --primary-dark: #1D4ED8;
+      --primary-light: #3B82F6;
+      --secondary: #059669;
+      --accent: #10B981;
+      --bg-primary: #0F172A;
+      --bg-secondary: #1E293B;
+      --bg-surface: rgba(30,41,59,0.85);
+      --text-primary: #F8FAFC;
+      --text-secondary: #CBD5E1;
+      --text-muted: #94A3B8;
+      --border: rgba(255,255,255,0.1);
+      --border-med: rgba(255,255,255,0.15);
+      --shadow-glow: 0 0 40px rgba(37,99,235,0.2);
+      --radius: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ===== ANIMATED BACKGROUND ===== */
+    .bg-wrap { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+
+    /* Grid overlay */
+    .bg-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(90deg, transparent 99%, rgba(37,99,235,0.05) 100%),
+        linear-gradient(0deg, transparent 99%, rgba(37,99,235,0.05) 100%);
+      background-size: 50px 50px;
+    }
+
+    /* Radial glows */
+    .bg-orb {
+      position: absolute; border-radius: 50%;
+      filter: blur(80px); animation: orbFloat 20s ease-in-out infinite;
+    }
+    .bg-orb-1 { width: 500px; height: 500px; top: -10%; left: -10%; background: radial-gradient(circle, rgba(37,99,235,0.18), transparent 70%); }
+    .bg-orb-2 { width: 400px; height: 400px; bottom: -5%; right: -5%; background: radial-gradient(circle, rgba(5,150,105,0.15), transparent 70%); animation-delay: -10s; }
+    .bg-orb-3 { width: 300px; height: 300px; top: 40%; left: 40%; background: radial-gradient(circle, rgba(16,185,129,0.1), transparent 70%); animation-delay: -5s; }
+
+    @keyframes orbFloat {
+      0%,100% { transform: translate(0,0) scale(1); }
+      33% { transform: translate(40px,-30px) scale(1.05); }
+      66% { transform: translate(-30px,20px) scale(0.95); }
+    }
+
+    /* Animated charts */
+    .bg-chart { position: absolute; opacity: 0.06; }
+    .bg-chart-1 { top: 10%; left: -5%; width: 700px; }
+    .bg-chart-2 { bottom: 10%; right: -5%; width: 600px; }
+    .bg-chart path { stroke-dasharray: 1500; stroke-dashoffset: 1500; animation: drawLine 25s linear infinite; }
+    .bg-chart-2 path { animation-delay: -12s; animation-duration: 30s; animation-direction: reverse; }
+    @keyframes drawLine { to { stroke-dashoffset: 0; } }
+
+    /* Floating crypto icons */
+    .float-icon {
+      position: absolute; width: 72px; height: 72px;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 28px; color: white; backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.15); animation: floatAnim 20s ease-in-out infinite;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    .float-icon-1 { top: 14%; right: 12%; background: linear-gradient(135deg,#F7931A,#FFD166); animation-delay: 0s; }
+    .float-icon-2 { bottom: 18%; left: 8%; background: linear-gradient(135deg,#627EEA,#8A2BE2); animation-delay: -7s; }
+    .float-icon-3 { top: 52%; left: 5%; background: linear-gradient(135deg,#0033AD,#00B5FF); animation-delay: -14s; }
+    .float-icon-4 { bottom: 32%; right: 8%; background: linear-gradient(135deg,#00A2E8,#334155); animation-delay: -3s; }
+    @keyframes floatAnim {
+      0%,100% { transform: translate(0,0) rotate(0deg); }
+      25% { transform: translate(30px,-40px) rotate(5deg); }
+      50% { transform: translate(-20px,30px) rotate(10deg); }
+      75% { transform: translate(-35px,-25px) rotate(4deg); }
+    }
+
+    /* Stock bars */
+    .stock-bars { position: absolute; bottom: 0; left: 0; right: 0; height: 160px; display: flex; align-items: flex-end; justify-content: center; gap: 14px; padding: 0 40px; }
+    .s-bar { width: 26px; border-radius: 6px 6px 0 0; background: linear-gradient(to top, #2563EB, #10B981); opacity: 0.1; }
+
+    /* Overlay */
+    .bg-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(15,23,42,0.94) 0%, rgba(30,41,59,0.88) 50%, rgba(51,65,85,0.78) 100%);
+    }
+
+    /* ===== PAGE LABEL ===== */
+    .page-label {
+      position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg, #2563EB, #059669);
+      color: #fff; font-size: 11px; font-weight: 700; padding: 6px 18px;
+      border-radius: 20px; z-index: 100; letter-spacing: .6px;
+      box-shadow: 0 4px 16px rgba(37,99,235,0.4);
+    }
+
+    /* ===== LOGIN CARD (two-panel) ===== */
+    .login-card {
+      position: relative; z-index: 1;
+      display: flex;
+      width: 920px; min-height: 580px;
+      background: rgba(15,23,42,0.96);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.6), var(--shadow-glow);
+    }
+
+    /* ===== LEFT PANEL ===== */
+    .card-left {
+      flex: 1;
+      background: linear-gradient(135deg, rgba(37,99,235,0.2), rgba(5,150,105,0.2));
+      border-right: 1px solid var(--border);
+      padding: 48px 40px;
+      display: flex; flex-direction: column; justify-content: space-between;
+      position: relative; overflow: hidden;
+    }
+    .card-left::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, #2563EB, #10B981, #059669);
+    }
+
+    .logo-container { display: flex; align-items: center; gap: 14px; margin-bottom: 36px; }
+    .logo-icon-box {
+      width: 54px; height: 54px; border-radius: 14px;
+      background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.15);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-icon-box svg { width: 36px; height: 36px; }
+    .logo-title { font-size: 20px; font-weight: 800; color: #F8FAFC; }
+    .logo-tagline { font-size: 12px; color: #94A3B8; margin-top: 2px; }
+
+    .left-welcome h2 { font-size: 26px; font-weight: 700; color: #F8FAFC; margin-bottom: 8px; }
+    .left-welcome p { font-size: 14px; color: #94A3B8; line-height: 1.6; }
+
+    .features { display: flex; flex-direction: column; gap: 18px; margin-top: 32px; }
+    .feature-item { display: flex; align-items: center; gap: 14px; }
+    .feat-icon {
+      width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
+      display: flex; align-items: center; justify-content: center; font-size: 16px;
+    }
+    .feat-icon i { background: linear-gradient(135deg, #3B82F6, #10B981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .feat-text h4 { font-size: 14px; font-weight: 600; color: #E2E8F0; }
+    .feat-text p { font-size: 12px; color: #64748B; margin-top: 2px; }
+
+    /* ===== RIGHT PANEL ===== */
+    .card-right {
+      flex: 1;
+      padding: 48px 44px;
+      display: flex; flex-direction: column; justify-content: center;
+      background: rgba(15,23,42,0.6);
+    }
+
+    .form-heading { margin-bottom: 32px; }
+    .form-heading h3 { font-size: 24px; font-weight: 700; color: #F8FAFC; }
+    .form-heading p { font-size: 13px; color: #64748B; margin-top: 6px; }
+
+    /* Form fields */
+    .form-field { margin-bottom: 22px; }
+    .field-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .field-header label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: #94A3B8; }
+    .field-header label i { background: linear-gradient(135deg, #3B82F6, #10B981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-size: 13px; }
+
+    .input-container { position: relative; }
+    .input-container input {
+      width: 100%;
+      padding: 14px 16px;
+      background: rgba(30,41,59,0.8);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-bottom: 2px solid rgba(37,99,235,0.4);
+      border-radius: var(--radius);
+      color: #F8FAFC;
+      font-size: 14px;
+      outline: none;
+      transition: all 0.25s ease;
+    }
+    .input-container input:focus {
+      border-color: var(--primary);
+      border-bottom-color: var(--accent);
+      background: rgba(30,41,59,0.95);
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+    }
+    .input-container input::placeholder { color: #475569; }
+
+    .pw-toggle {
+      position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: #475569; cursor: pointer; font-size: 14px;
+    }
+
+    .field-link { font-size: 12px; color: #3B82F6; text-decoration: none; }
+    .field-link:hover { color: #10B981; }
+
+    .submit-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #2563EB, #059669);
+      border: none; border-radius: var(--radius);
+      color: #fff; font-size: 15px; font-weight: 700;
+      cursor: pointer; letter-spacing: .3px;
+      margin-top: 6px;
+      transition: all 0.3s ease;
+      box-shadow: 0 6px 20px rgba(37,99,235,0.3);
+    }
+    .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(37,99,235,0.4); }
+
+    .divider { text-align: center; color: #334155; font-size: 12px; margin: 20px 0; position: relative; }
+    .divider::before, .divider::after {
+      content: ''; position: absolute; top: 50%; width: 44%; height: 1px;
+      background: rgba(255,255,255,0.08);
+    }
+    .divider::before { left: 0; } .divider::after { right: 0; }
+
+    .social-btn {
+      width: 100%; padding: 12px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius); color: #CBD5E1; font-size: 14px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+      transition: all 0.2s ease;
+    }
+    .social-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); }
+    .google-g { width: 18px; height: 18px; }
+
+    .form-footer { text-align: center; font-size: 13px; color: #64748B; margin-top: 20px; }
+    .form-footer a { color: #3B82F6; text-decoration: none; font-weight: 500; }
+    .form-footer a:hover { color: #10B981; }
+  </style>
+</head>
+<body>
+  <!-- Animated Background -->
+  <div class="bg-wrap">
+    <div class="bg-grid"></div>
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+
+    <!-- SVG charts -->
+    <svg class="bg-chart bg-chart-1" viewBox="0 0 700 250" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0,180 C80,140 160,200 240,140 C320,80 400,160 480,100 C560,40 640,120 700,60" stroke="#2563EB" stroke-width="3" fill="none"/>
+    </svg>
+    <svg class="bg-chart bg-chart-2" viewBox="0 0 600 200" fill="none">
+      <path d="M0,120 C80,60 160,150 240,90 C320,30 400,110 480,50 C540,0 580,60 600,30" stroke="#10B981" stroke-width="3" fill="none"/>
+    </svg>
+
+    <!-- Floating icons -->
+    <div class="float-icon float-icon-1"><i class="fab fa-bitcoin"></i></div>
+    <div class="float-icon float-icon-2"><i class="fab fa-ethereum"></i></div>
+    <div class="float-icon float-icon-3"><i class="fas fa-chart-line"></i></div>
+    <div class="float-icon float-icon-4"><i class="fas fa-bolt"></i></div>
+
+    <!-- Stock bars -->
+    <div class="stock-bars">
+      <div class="s-bar" style="height:90px"></div>
+      <div class="s-bar" style="height:140px"></div>
+      <div class="s-bar" style="height:110px"></div>
+      <div class="s-bar" style="height:160px"></div>
+      <div class="s-bar" style="height:120px"></div>
+      <div class="s-bar" style="height:100px"></div>
+    </div>
+
+    <div class="bg-overlay"></div>
+  </div>
+
+
+
+  <!-- LOGIN CARD -->
+  <div class="login-card">
+
+    <!-- LEFT: Info panel -->
+    <div class="card-left">
+      <div>
+        <div class="logo-container">
+          <div class="logo-icon-box">
+            <!-- Chart SVG Logo (точно как в приложении) -->
+            <svg width="36" height="36" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+              <rect x="8" y="8" width="40" height="40" rx="8" fill="#FFFFFF" opacity="0.08"/>
+              <g stroke="#FFFFFF" stroke-width="1" opacity="0.3">
+                <line x1="12" y1="38" x2="44" y2="38"/>
+                <line x1="12" y1="15" x2="12" y2="38"/>
+              </g>
+              <polygon points="12,38 18,32 24,26 30,20 36,18 42,22 42,38" fill="rgba(255,255,255,0.15)"/>
+              <polyline points="12,38 18,32 24,26 30,20 36,18 42,22" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="30" cy="20" r="2.2" fill="#FFFFFF"/>
+              <g stroke="#FFFFFF" fill="none" stroke-width="1.5" stroke-linecap="round" opacity="0.85">
+                <path d="M 45 26 L 48 23 L 45 20"/>
+              </g>
+            </svg>
+          </div>
+          <div>
+            <div class="logo-title">InvestApp</div>
+            <div class="logo-tagline">Инвестируй с умом</div>
+          </div>
+        </div>
+
+        <div class="left-welcome">
+          <h2>Добро пожаловать</h2>
+          <p>Войдите в ваш инвестиционный портфель и управляйте активами</p>
+        </div>
+
+        <div class="features">
+          <div class="feature-item">
+            <div class="feat-icon"><i class="fas fa-chart-line"></i></div>
+            <div class="feat-text">
+              <h4>Аналитика рынка</h4>
+              <p>Расширенная аналитика и прогнозы</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feat-icon"><i class="fas fa-shield-alt"></i></div>
+            <div class="feat-text">
+              <h4>Безопасность</h4>
+              <p>Банковский уровень защиты данных</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feat-icon"><i class="fas fa-bolt"></i></div>
+            <div class="feat-text">
+              <h4>Быстрые транзакции</h4>
+              <p>Мгновенное исполнение ордеров 24/7</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Login form -->
+    <div class="card-right">
+      <div class="form-heading">
+        <h3>Вход в аккаунт</h3>
+        <p>Введите учётные данные для доступа</p>
+      </div>
+
+      <!-- Email field -->
+      <div class="form-field">
+        <div class="field-header">
+          <label><i class="fas fa-envelope"></i><span>Email адрес</span></label>
+          <i class="fas fa-check-circle" style="color:#10B981;font-size:13px"></i>
+        </div>
+        <div class="input-container">
+          <input type="email" placeholder="example@mail.com" value="user@investapp.ru">
+        </div>
+      </div>
+
+      <!-- Password field -->
+      <div class="form-field">
+        <div class="field-header">
+          <label><i class="fas fa-lock"></i><span>Пароль</span></label>
+          <a href="#" class="field-link">Забыли пароль?</a>
+        </div>
+        <div class="input-container">
+          <input type="password" value="••••••••••">
+          <button class="pw-toggle"><i class="fas fa-eye"></i></button>
+        </div>
+      </div>
+
+      <button class="submit-btn">
+        <i class="fas fa-sign-in-alt" style="margin-right:8px"></i>Войти в аккаунт
+      </button>
+
+      <div class="divider">или продолжить через</div>
+
+      <button class="social-btn">
+        <svg class="google-g" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+        Войти через Google
+      </button>
+
+      <div class="form-footer">
+        Нет аккаунта? <a href="#">Зарегистрироваться</a>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

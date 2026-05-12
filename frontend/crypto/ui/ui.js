@@ -38,9 +38,7 @@ window.togglePinMode = function() {
     if (globalPinnedMarker && window.currentSeries) {
       try {
         window.currentSeries.removePriceLine(globalPinnedMarker);
-      } catch (e) {
-        console.log('Pin marker already removed');
-      }
+      } catch (_) {}
       globalPinnedMarker = null;
       globalPinnedData = null;
     }
@@ -80,7 +78,6 @@ const debounce = (fn, delay = 500) => {
 }
 
 export const initApp = () => {
-  console.log('Initializing app...');
   setupNav();
   setupModals();
   setupTransactionCalc();
@@ -91,83 +88,96 @@ export const initApp = () => {
   setupMarketSort();
   setupAnalyticsExport();
   
+  // Обработчик изменения размера окна для responsive таблицы активов
+  let resizeTimeout;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      // Перерисовка таблицы активов в аналитике
+      const assetsBody = document.getElementById('assetsStatsBody');
+      if (assetsBody && window.cachedAnalyticsTransactions) {
+        renderAssetsStats(window.cachedAnalyticsTransactions);
+      }
+      
+      // Перерисовка таблицы акций в разделе Рынка
+      const stocksTable = document.getElementById('stocksTable');
+      if (stocksTable && window.stocksRealData && window.renderStocks) {
+        const stocksArray = Object.keys(window.stocksRealData).map((symbol) => {
+          const data = window.stocksRealData[symbol];
+          return {
+            symbol: symbol,
+            name: window.STOCK_INFO?.[symbol]?.name || symbol,
+            price: data.price,
+            change: data.change,
+            changePercent: data.changePercent,
+            high: data.high,
+            low: data.low,
+            volume: data.volume,
+            isReal: data.isReal
+          };
+        });
+        if (stocksArray.length > 0) {
+          window.renderStocks(stocksArray);
+        }
+      }
+    }, 300);
+  });
+  
   // Предзагрузка данных в фоновом режиме
   preloadMarketData();
   
   // Обновляем dropdown после загрузки данных
   document.addEventListener('cryptoListLoaded', () => {
-    console.log('Crypto data loaded, updating dropdown...');
     const dropdown = document.getElementById('cryptoDropdown');
-    if (dropdown && dropdown.classList.contains('active')) {
-      renderCryptoDropdown();
-    }
+    if (dropdown && dropdown.classList.contains('active')) renderCryptoDropdown();
   });
-  
+
   document.addEventListener('stocksDataLoaded', () => {
-    console.log('Stocks data loaded, updating dropdown...');
     const dropdown = document.getElementById('cryptoDropdown');
-    if (dropdown && dropdown.classList.contains('active')) {
-      renderCryptoDropdown();
-    }
+    if (dropdown && dropdown.classList.contains('active')) renderCryptoDropdown();
   });
-  
-  console.log('App initialized');
 }
 
 // Предзагрузка данных о рынке при инициализации
 const preloadMarketData = async () => {
-  console.log('Предзагрузка данных рынка...');
-  
+  await new Promise(resolve => setTimeout(resolve, 100));
   try {
-    // Загружаем акции в фоне
-    if (window.app?.loadStocks) {
-      console.log('Загрузка данных акций...');
-      window.app.loadStocks().catch(e => console.warn('Ошибка предзагрузки акций:', e));
-    }
-    
-    // Загружаем криптовалюты в фоне
-    if (window.app?.loadCrypto) {
-      console.log('Загрузка данных криптовалют...');
-      window.app.loadCrypto().catch(e => console.warn('Ошибка предзагрузки крипты:', e));
-    }
-    
-    console.log('Предзагрузка запущена');
-  } catch (error) {
-    console.error('Ошибка предзагрузки:', error);
-  }
+    if (window.app?.loadStocks) window.app.loadStocks().catch(() => {});
+    if (window.app?.loadCrypto) window.app.loadCrypto().catch(() => {});
+  } catch (_) {}
 }
 
 
 
 const setupNav = () => {
   document.querySelectorAll('.nav-item').forEach(link => {
+    const href = link.getAttribute('href') || '';
+    // Внешние ссылки (не начинающиеся с #) — не перехватываем
+    if (!href.startsWith('#')) return;
     link.addEventListener('click', e => {
       e.preventDefault();
-      const section = link.getAttribute('href').slice(1);
-      window.location.hash = section;
+      const section = href.slice(1);
+      if (window.location.hash === '#' + section) {
+        // Hash уже совпадает (напр. после F5) — вручную вызываем hashchange
+        window.dispatchEvent(new Event('hashchange'));
+      } else {
+        window.location.hash = section;
+      }
     });
   });
 }
 
 export const showSection = async (id) => {
-  console.log('[showSection] Showing section:', id);
-  
   // Скрываем все секции
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  
-  // Убираем active со всех nav-item
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
-  // Показываем нужную секцию
   const section = document.getElementById(id + 'Section');
   if (section) {
     section.classList.add('active');
-    console.log('Section shown:', id);
     
     // Мгновенная и надёжная загрузка новостей при переходе в раздел "Новости"
     if (id === 'news') {
-      console.log('[Новости] Показываем раздел новостей и инициируем загрузку');
-
       const container = document.getElementById('newsContainer');
       if (container) {
         container.style.display = 'grid';
@@ -184,13 +194,15 @@ export const showSection = async (id) => {
       // Инициализируем фильтры делегированно (без дублирования обработчиков)
       if (typeof window.ensureNewsFiltersInit === 'function') window.ensureNewsFiltersInit();
 
+      // Обновляем заголовок страницы сразу (до return)
+      const titleElNews = document.getElementById('pageTitle');
+      if (titleElNews) titleElNews.textContent = getTitle(id);
+      const navNews = document.querySelector(`[href="#${id}"]`);
+      if (navNews) navNews.classList.add('active');
+
       // Сразу вызываем `loadNews`. Верхний proxy в `api.js` буферизует вызов, если реализация ещё не готова.
       if (typeof window.loadNews === 'function') {
-        try {
-          window.loadNews('all');
-        } catch (e) {
-          console.warn('[Новости] Ошибка при вызове loadNews:', e.message);
-        }
+        try { window.loadNews('all'); } catch (_) {}
         return;
       }
 
@@ -200,8 +212,7 @@ export const showSection = async (id) => {
         return;
       }
 
-      // Ожидаем регистрацию proxy/реализации — верхний proxy должен обработать buffered вызов.
-      console.debug('[Новости] loadNews/scheduleLoadNews недоступны — ожидаем регистрацию реализации');
+      // Ожидаем регистрацию proxy/реализации
     }
 
     // При переходе в раздел "Избранное" — отрендерим карточки
@@ -213,29 +224,19 @@ export const showSection = async (id) => {
           try {
             const favsMod = await import('../features/favorites/favorites-controls.js');
             if (typeof favsMod.initFavoritesControls === 'function') await favsMod.initFavoritesControls();
-          } catch (e) {
-            console.warn('Could not initialize favorites controls:', e);
-          }
+          } catch (_) {}
           // Инициализируем расширенный функционал избранного
           try {
             const enhancedMod = await import('../features/favorites/favorites-enhanced.js');
-            if (typeof enhancedMod.initFavoritesEnhanced === 'function') {
-              await enhancedMod.initFavoritesEnhanced();
-            }
-          } catch (e) {
-            console.warn('Could not initialize favorites enhanced:', e);
-          }
+            if (typeof enhancedMod.initFavoritesEnhanced === 'function') await enhancedMod.initFavoritesEnhanced();
+          } catch (_) {}
         } else if (typeof window.renderFavoritesSection === 'function') {
           await window.renderFavoritesSection();
-        } else {
-          console.warn('renderFavoritesSection not available');
         }
-      } catch (e) {
-        console.error('renderFavoritesSection call failed', e);
-      }
+      } catch (_) {}
     }
   } else {
-    console.error('Section not found:', id + 'Section');
+    // Раздел не найден — возможно, eSS-секция ещё не создана
   }
   
   // Активируем nav-item
@@ -315,35 +316,61 @@ const setupTransactionCalc = () => {
 const setupCryptoDropdown = () => {
   const searchInput = document.getElementById('cryptoSearchInput');
   const dropdown = document.getElementById('cryptoDropdown');
-  const hiddenInput = document.getElementById('transactionSymbol');
-  const selectedCrypto = document.getElementById('selectedCrypto');
-  
+
   if (!searchInput || !dropdown) return;
-  
-  // Заполняем dropdown криптовалютами
-  renderCryptoDropdown();
-  
+
+  // Переносим dropdown в <body> чтобы избежать обрезки overflow:hidden модального окна
+  if (dropdown.parentElement !== document.body) {
+    document.body.appendChild(dropdown);
+  }
+
+  // Функция позиционирования дропдауна под полем ввода
+  const positionDropdown = () => {
+    const rect = searchInput.getBoundingClientRect();
+    dropdown.style.position = 'fixed';
+    dropdown.style.top = (rect.bottom + 4) + 'px';
+    dropdown.style.left = rect.left + 'px';
+    dropdown.style.width = rect.width + 'px';
+    dropdown.style.zIndex = '99999';
+  };
+
   // Показываем dropdown при фокусе
   searchInput.addEventListener('focus', function() {
+    if (!dropdown.classList.contains('active')) {
+      renderCryptoDropdown(this.value.toLowerCase().trim());
+    }
+    positionDropdown();
     dropdown.classList.add('active');
-    renderCryptoDropdown();
   });
-  
-  // Поиск при вводе — используем debounce и показываем быстрый индикатор
+
+  // Обновляем позицию при скролле или ресайзе
+  const reposition = () => {
+    if (dropdown.classList.contains('active')) positionDropdown();
+  };
+  window.addEventListener('scroll', reposition, true);
+  window.addEventListener('resize', reposition);
+
+  // Поиск при вводе — используем debounce
   const debouncedRender = debounce((term) => renderCryptoDropdown(term), 180);
   searchInput.addEventListener('input', function() {
     const searchTerm = this.value.toLowerCase().trim();
-    // Показать dropdown и быстрый индикатор
+    positionDropdown();
     dropdown.classList.add('active');
-    dropdown.innerHTML = '<div class="dropdown-loading" style="padding:0.75rem;display:flex;align-items:center;gap:.75rem;justify-content:center;">' +
-      '<div class="loader-small"></div><div style="color:#9ca3af">Загрузка...</div></div>';
     debouncedRender(searchTerm);
   });
-  
-  // Закрываем dropdown при клике вне его
+
+  // Закрываем dropdown при клике вне него
   document.addEventListener('click', function(e) {
     if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
       dropdown.classList.remove('active');
+    }
+  });
+
+  // Закрываем при нажатии Escape
+  searchInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      dropdown.classList.remove('active');
+      this.blur();
     }
   });
 }
@@ -364,10 +391,10 @@ const renderCryptoDropdown = (searchTerm = '') => {
     })));
   }
 
-  // Добавляем акции
-  if (window.STOCK_INFO && window.stocksRealData) {
+  // Добавляем акции — STOCK_INFO всегда доступен статически, stocksRealData опционален
+  if (window.STOCK_INFO) {
     const stocks = Object.entries(window.STOCK_INFO).map(([symbol, info]) => {
-      const priceData = window.stocksRealData[symbol];
+      const priceData = window.stocksRealData?.[symbol];
       return {
         symbol: symbol,
         name: info.name,
@@ -402,8 +429,8 @@ const renderCryptoDropdown = (searchTerm = '') => {
 
   // Быстрая отрисовка: сначала рендерим первые 20 элементов, затем покусково добавляем остальные (chunked rendering)
   const items = filteredAssets;
-  const containerHtml = '<div class="dropdown-header" style="padding:.5rem .75rem;color:#94a3b8;font-size:0.85rem;">Показано 0 из ' + items.length + '</div>' +
-    '<div class="dropdown-results" style="display:flex;flex-direction:column; gap:0.25rem; max-height:360px; overflow:auto; padding:0.25rem 0;"></div>';
+  const containerHtml = '<div class="dropdown-header">' + items.length + ' активов</div>' +
+    '<div class="dropdown-results"></div>';
   dropdown.innerHTML = containerHtml;
   const container = dropdown.querySelector('.dropdown-results');
 
@@ -616,9 +643,8 @@ const selectCrypto = (symbol, name, price) => {
     } else {
       // Для криптовалют
       info = window.CRYPTO_INFO[symbol] || { icon: null, color: '#F7931A' };
-      iconHTML = info.icon 
-        ? `<i class="fab fa-${info.icon}"></i>` 
-        : `<span style="font-weight: 700;">${symbol.charAt(0)}</span>`;
+      const cryptoBg = info.color.replace('#', '');
+      iconHTML = `<img src="https://assets.coincap.io/assets/icons/${symbol.toLowerCase()}@2x.png" alt="${symbol}" style="width:100%;height:100%;object-fit:contain;" onerror="if(!this.dataset.cf){this.dataset.cf='1';this.src='https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/icon/${symbol.toLowerCase()}.png';}else{this.onerror=null;this.src='https://ui-avatars.com/api/?name=${symbol}&background=${cryptoBg}&color=fff&size=64&bold=true';}" />`;
     }
     
     const currencySymbol = getCurrencySymbol();
@@ -637,8 +663,6 @@ const selectCrypto = (symbol, name, price) => {
     `;
     selectedCrypto.style.display = 'flex';
   }
-  
-  console.log(`Выбран актив: ${symbol} по цене $${price}`);
 }
 
 const updateTransactionTotal = () => {
@@ -730,7 +754,19 @@ export const setupMarketTabs = () => {
       }
       if (tab === 'crypto') {
         document.getElementById('cryptoContent').style.display = 'block';
-        if (window.app.loadCrypto) window.app.loadCrypto();
+
+        if (!window.cryptoManager) {
+          const grid = document.getElementById('marketCryptoGrid');
+          if (grid) grid.innerHTML = '<div class="no-data">Ошибка: менеджер криптовалют не загружен. Перезагрузите страницу.</div>';
+          return;
+        }
+
+        if (window.app.loadCrypto) {
+          try {
+            const result = window.app.loadCrypto();
+            if (result?.catch) result.catch(() => {});
+          } catch (_) {}
+        }
       }
       if (tab === 'indices') {
         document.getElementById('indicesContent').style.display = 'block';
@@ -782,13 +818,18 @@ export const setupMarketSort = () => {
 // === ЭКСПОРТ АНАЛИТИКИ В PDF ===
 const setupAnalyticsExport = () => {
   const exportBtn = document.getElementById('exportAnalyticsPDFBtn');
-  if (!exportBtn) {
-    console.warn('Export analytics button not found');
-    return;
-  }
+  if (!exportBtn) return;
   
   exportBtn.addEventListener('click', async () => {
+    // Защита от повторных кликов
+    if (exportBtn.disabled) {
+      return;
+    }
+    
     try {
+      exportBtn.disabled = true;
+      exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Генерация...';
+      
       // Получаем выбранный портфель из dropdown
       const portfolioDisplay = document.getElementById('analyticsPortfolioDisplay');
       const selectedOption = document.querySelector('#analyticsPortfolioDropdown .custom-select-option.selected');
@@ -800,8 +841,10 @@ const setupAnalyticsExport = () => {
       // Вызываем функцию экспорта
       await exportAnalyticsToPDF(portfolioId);
     } catch (error) {
-      console.error('Ошибка экспорта аналитики:', error);
       showNotification('Ошибка при экспорте аналитики в PDF', 'error');
+    } finally {
+      exportBtn.disabled = false;
+      exportBtn.innerHTML = '<i class="fas fa-file-pdf"></i> Экспорт в PDF';
     }
   });
 }
@@ -825,18 +868,13 @@ export const showNotification = (msg, type = 'info') => {
 
 // === ПОРТФЕЛИ И ТРАНЗАКЦИИ ===
 export const loadPortfolios = async () => {
-  window.loadPortfolios = loadPortfolios; // Keep global
-  console.log('Loading portfolios...');
+  window.loadPortfolios = loadPortfolios;
   const grid = document.getElementById('portfoliosGrid');
-  if (!grid) {
-    console.error('Portfolios grid not found');
-    return;
-  }
+  if (!grid) return;
 
   try {
     const portfolios = await getPortfolios();
-    console.log('Portfolios loaded:', portfolios.length);
-    
+
     if (portfolios.length === 0) {
       grid.innerHTML = `
         <div class="empty-state">
@@ -857,20 +895,18 @@ export const loadPortfolios = async () => {
     const mountVuePortfolios = (items) => {
       try {
         if (typeof Vue !== 'undefined' && Vue && Vue.createApp) {
+          // Unmount previous portfolios Vue instance if any
+          if (window._portfoliosVueApp) {
+            try { window._portfoliosVueApp.unmount(); } catch (e) {}
+            window._portfoliosVueApp = null;
+          }
           const { createApp, ref } = Vue;
           const app = createApp({
             setup() {
               const portfolios = ref(items || []);
               const remove = async (id) => {
                 if (!confirm('Удалить портфель и все транзакции?')) return;
-                try {
-                  await deletePortfolio(id);
-                  portfolios.value = portfolios.value.filter(p => p.id !== id);
-                  populatePortfolioSelect();
-                } catch (e) {
-                  console.error('Ошибка удаления портфеля', e);
-                  alert('Не удалось удалить портфель');
-                }
+                try { await deletePortfolio(id); portfolios.value = portfolios.value.filter(p => p.id !== id); populatePortfolioSelect(); } catch (_) { alert('Не удалось удалить портфель'); }
               };
               const openTransaction = (portfolioId) => {
                 if (window.app && window.app.showTransactionModal) window.app.showTransactionModal('BUY', portfolioId);
@@ -901,20 +937,16 @@ export const loadPortfolios = async () => {
             `
           });
           app.mount('#vuePortfoliosRoot');
+          window._portfoliosVueApp = app;
           // Apply default style variant (can be changed via `window.app.portfolioStyle`) and make root a grid
           try {
             const root = document.getElementById('vuePortfoliosRoot');
             const style = (window.app && window.app.portfolioStyle) ? window.app.portfolioStyle : 'tt-1';
             if (root) root.classList.add(`portfolio-style-${style}`);
-          } catch (e) {
-            console.warn('Could not apply portfolio style class', e);
-          }
-          console.log('Vue portfolios mounted');
+          } catch (_) {}
           return true;
         }
-      } catch (e) {
-        console.warn('Vue mount failed, fallback to static render', e);
-      }
+      } catch (_) {}
       return false;
     };
 
@@ -949,10 +981,7 @@ export const loadPortfolios = async () => {
     
     // Обновляем фильтр портфелей в аналитике
     await populateAnalyticsFilters();
-    
-    console.log('Portfolios rendered');
   } catch (err) {
-    console.error('Error loading portfolios:', err);
     grid.innerHTML = `
       <div class="empty-state">
         <i class="fas fa-exclamation-triangle"></i>
@@ -980,23 +1009,15 @@ const escapeHtml = (text) => {
 }
 
 export const loadTransactions = async () => {
-  window.loadTransactions = loadTransactions; // Keep global
-  console.log('loadTransactions called');
+  window.loadTransactions = loadTransactions;
   const tbody = document.getElementById('transactionsTableBody');
-  if (!tbody) {
-    console.error('Transaction table not found (#transactionsTableBody)');
-    return;
-  }
+  if (!tbody) return;
 
   try {
-    console.log('Loading transactions from Supabase...');
     const transactions = await getTransactions();
-    console.log('Transactions loaded:', transactions);
-    console.log('Transaction count:', transactions.length);
-    
+
     if (transactions.length === 0) {
       tbody.innerHTML = '<tr><td colspan="8" class="no-data">Нет транзакций</td></tr>';
-      console.log('No transactions');
       return;
     }
 
@@ -1029,21 +1050,17 @@ export const loadTransactions = async () => {
     }).join('');
 
     // Throttle lazy icon loading to avoid massive parallel requests (process this tbody)
-    if (window._iconLoader && typeof window._iconLoader.processContainer === 'function') {
-      window._iconLoader.processContainer(tbody);
-    }
-    console.log('Transactions rendered to table');
+    if (window._iconLoader?.processContainer) window._iconLoader.processContainer(tbody);
     
     // Инициализируем кастомные фильтры после загрузки транзакций
     initTransactionFilters();
-    
-    // Обновляем список портфелей в фильтре (если портфели уже загружены)
-    if (window.updateTransactionPortfolioFilter) {
-        window.updateTransactionPortfolioFilter();
+
+    if (window.updateTransactionPortfolioFilter) window.updateTransactionPortfolioFilter();
+
+    if (typeof window.updateTransactionStats === 'function') {
+      setTimeout(() => window.updateTransactionStats(), 500);
     }
   } catch (err) {
-    console.error('Error loading transactions:', err);
-    console.error('Error details:', err.message, err.stack);
     tbody.innerHTML = '<tr><td colspan="8">Ошибка: ' + err.message + '</td></tr>';
   }
 }
@@ -1077,9 +1094,7 @@ const populatePortfolioSelect = () => {
         });
       });
     }
-  } catch (err) {
-    console.warn('populatePortfolioSelect: unable to populate visible dropdown', err);
-  }
+  } catch (_) {}
 }
 
 // Setup visible transaction dropdowns (type + portfolio) toggles
@@ -1134,28 +1149,18 @@ const setupTransactionDropdowns = () => {
 
 // === АНАЛИТИКА ===
 export const initAnalytics = async () => {
-  window.initAnalytics = initAnalytics; // Keep global
-  console.log('Initializing analytics...');
-  // Показываем загрузку и заранее гарантируем, что транзакции в кэше
+  window.initAnalytics = initAnalytics;
   showAnalyticsLoading();
   try {
-    const t0 = performance.now();
     await getTransactions();
-    const t1 = performance.now();
-    console.log(`getTransactions took ${Math.round(t1 - t0)} ms`);
-  } catch (err) {
-    console.warn('getTransactions failed before analytics:', err);
-  }
+  } catch (_) {}
   await populateAnalyticsFilters();
   setupAnalyticsFilters();
   await renderAnalytics();
   hideAnalyticsLoading();
-  console.log('Analytics initialized');
 }
 
 const showAnalyticsLoading = () => {
-  console.log('⏳ Showing analytics loading...');
-  // Скрываем графики во время загрузки
   const grid = document.querySelector('.charts-grid');
   if (grid && !document.querySelector('.analytics-loading-overlay')) {
     const overlay = document.createElement('div');
@@ -1246,16 +1251,104 @@ const populateAnalyticsFilters = async () => {
     `;
     dropdown.appendChild(option);
   });
-  
-  console.log(`Добавлено ${portfolios.length} портфелей в аналитику`);
 }
+
+const setupChartPeriodTabs = () => {
+  const chartsGrid = document.querySelector('.charts-grid');
+  if (!chartsGrid || chartsGrid._chartTabsSetup) return;
+  chartsGrid._chartTabsSetup = true;
+
+  chartsGrid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.period-btn');
+    if (!btn) return;
+    const tabsEl = btn.closest('.chart-period-tabs');
+    if (!tabsEl) return;
+
+    tabsEl.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const chartId = tabsEl.dataset.chart;
+    const data = window._analyticsData;
+    if (!data) return;
+
+    if (chartId === 'pnl') renderPnLChart(data.allReturns);
+    else if (chartId === 'risk') renderRiskChart(data.allReturns, data.transactions);
+    else if (chartId === 'volatility') renderVolatilityChart(data.holdings, data.historicalPrices);
+  });
+};
 
 const setupAnalyticsFilters = () => {
   // Инициализация кастомного select для аналитики
-  initAnalyticsCustomSelect('analyticsPortfolioDisplay', 'analyticsPortfolioDropdown', (value) => {
-    console.log('Analytics portfolio changed:', value);
+  initAnalyticsCustomSelect('analyticsPortfolioDisplay', 'analyticsPortfolioDropdown', () => {
     renderAnalytics();
   });
+  
+  // Обработчик выбора периода для графика истории портфеля
+  const periodSelect = document.getElementById('portfolioHistoryPeriod');
+  if (periodSelect) {
+    periodSelect.addEventListener('change', async () => {
+      const transactions = getFilteredTransactions();
+      if (!transactions.length) return;
+      const period = periodSelect.value;
+      const symbols = [...new Set(transactions.map(t => t.symbol))];
+
+      // Загружаем актуальные рыночные цены (крипто + акции)
+      try { await getPricesForSymbols(symbols); } catch (e) { /* ignore */ }
+
+      // Для акций доподгружаем из Finnhub если нет в кэше
+      const FINNHUB_TOKEN = 'd49lflpr01qlaebhu1egd49lflpr01qlaebhu1f0';
+      const stockSymbols = symbols.filter(s => window.STOCK_INFO?.[s] && !(getPriceSync(s) > 0));
+      await Promise.allSettled(stockSymbols.map(async sym => {
+        try {
+          const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${FINNHUB_TOKEN}`);
+          if (r.ok) {
+            const d = await r.json();
+            if (d?.c > 0) {
+              if (!window.stocksRealData) window.stocksRealData = {};
+              window.stocksRealData[sym] = { price: d.c, change: d.c - d.pc, changePercent: ((d.c - d.pc) / d.pc * 100) };
+            }
+          }
+        } catch (_) {}
+      }));
+
+      let historicalPrices = {};
+      try {
+        if (typeof window.fetchHistoricalDailyPrices === 'function') {
+          const firstDate = [...transactions]
+            .sort((a, b) => new Date(a.created_at || a.date) - new Date(b.created_at || b.date))[0]
+            ?.created_at?.slice(0, 10) || '2020-01-01';
+          historicalPrices = await window.fetchHistoricalDailyPrices(symbols, firstDate);
+        }
+      } catch (_) {}
+
+      // Пересобираем holdings с актуальными ценами
+      const holdings = {};
+      for (const t of transactions) {
+        if (!holdings[t.symbol]) holdings[t.symbol] = { totalQty: 0, totalCost: 0, totalValue: 0, currentPrice: 0 };
+        const qty = parseFloat(t.quantity) || 0;
+        const price = parseFloat(t.price) || 0;
+        if (t.type === 'BUY') { holdings[t.symbol].totalQty += qty; holdings[t.symbol].totalCost += qty * price; }
+        else if (t.type === 'SELL') holdings[t.symbol].totalQty -= qty;
+        holdings[t.symbol].currentPrice = price;
+      }
+      for (const sym in holdings) {
+        const mkt = getPriceSync(sym);
+        if (mkt) holdings[sym].currentPrice = mkt;
+        holdings[sym].totalValue = holdings[sym].totalQty * holdings[sym].currentPrice;
+      }
+
+      const returns = calculateReturns(transactions, period, historicalPrices);
+      const allReturns = calculateReturns(transactions, 'all', historicalPrices);
+
+      // Обновляем глобальные данные (historical prices могли обновиться)
+      window._analyticsData = { allReturns, transactions, holdings, historicalPrices };
+
+      renderReturnChart(returns);
+      renderRiskChart(allReturns, transactions);
+      renderVolatilityChart(holdings, historicalPrices);
+      renderPnLChart(allReturns);
+    });
+  }
 }
 
 // Функция инициализации кастомного select для аналитики
@@ -1263,10 +1356,7 @@ const initAnalyticsCustomSelect = (displayId, dropdownId, onChange) => {
   const display = document.getElementById(displayId);
   const dropdown = document.getElementById(dropdownId);
   
-  if (!display || !dropdown) {
-    console.warn(`[initAnalyticsCustomSelect] Элементы не найдены: ${displayId}, ${dropdownId}`);
-    return;
-  }
+  if (!display || !dropdown) return;
   
   // Удаляем старые обработчики (клонируя элемент)
   const newDisplay = display.cloneNode(true);
@@ -1342,12 +1432,12 @@ const getFilteredTransactions = () => {
 }
 
 const renderAnalytics = async () => {
-  console.log('Rendering analytics...');
+
   try {
     const transactions = getFilteredTransactions();
     
     if (transactions.length === 0) {
-      console.warn('No transactions for analytics');
+
       
       // Скрываем canvas элементы и показываем сообщение
       const grid = document.querySelector('.charts-grid');
@@ -1408,23 +1498,55 @@ const renderAnalytics = async () => {
       });
     }
 
-    console.log('Found', transactions.length, 'transactions for analytics');
 
-    // Запрашиваем цены для всех символов
+
+    // Запрашиваем цены
     const symbols = [...new Set(transactions.map(t => t.symbol))];
-    console.log('Fetching prices for symbols:', symbols);
     try {
       await getPricesForSymbols(symbols);
-    } catch (err) {
-      console.warn('Price fetch failed, using fallbacks:', err);
+    } catch (_) {}
+
+    // Дозагружаем цены акций из Finnhub если нет в кэше
+    const FINNHUB_TOKEN = 'd49lflpr01qlaebhu1egd49lflpr01qlaebhu1f0';
+    const stockSymbols = symbols.filter(s => window.STOCK_INFO?.[s] && !(getPriceSync(s) > 0));
+    if (stockSymbols.length > 0) {
+      await Promise.allSettled(stockSymbols.map(async sym => {
+        try {
+          const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${FINNHUB_TOKEN}`);
+          if (r.ok) {
+            const d = await r.json();
+            if (d?.c > 0) {
+              if (!window.stocksRealData) window.stocksRealData = {};
+              window.stocksRealData[sym] = {
+                price: d.c,
+                change: +(d.c - d.pc).toFixed(2),
+                changePercent: +(((d.c - d.pc) / d.pc) * 100).toFixed(2)
+              };
+            }
+          }
+        } catch (_) {}
+      }));
     }
 
-    const returns = calculateReturns(transactions);
+    const periodSelect = document.getElementById('portfolioHistoryPeriod');
+    const period = periodSelect?.value || 'all';
+
+    // Загружаем исторические дневные цены с Binance для устранения плоских линий
+    let historicalPrices = {};
+    try {
+      if (typeof window.fetchHistoricalDailyPrices === 'function' && transactions.length) {
+        const firstDate = [...transactions]
+          .sort((a, b) => new Date(a.created_at || a.date) - new Date(b.created_at || b.date))[0]
+          ?.created_at?.slice(0, 10) || '2020-01-01';
+        historicalPrices = await window.fetchHistoricalDailyPrices(symbols, firstDate);
+      }
+    } catch (_) {}
+
+    const returns = calculateReturns(transactions, period, historicalPrices);
     const diversification = calculateDiversification(transactions);
-    const risk = calculateRisk(transactions);
-    const pnl = calculatePnL(transactions);
-    
-    // Получаем holdings для графика волатильности
+    const risk = calculateRisk(transactions, historicalPrices);
+
+    // Получаем holdings с актуальными рыночными ценами для графика волатильности
     const holdings = {};
     for (const t of transactions) {
       if (!holdings[t.symbol]) {
@@ -1438,32 +1560,40 @@ const renderAnalytics = async () => {
       } else if (t.type === 'SELL') {
         holdings[t.symbol].totalQty -= qty;
       }
-      holdings[t.symbol].currentPrice = price;
+      holdings[t.symbol].currentPrice = price; // fallback: цена последней транзакции
     }
-    
-    // Вычисляем текущую стоимость
+
+    // Подставляем актуальную рыночную цену вместо цены последней транзакции
     for (const symbol in holdings) {
       const h = holdings[symbol];
+      const marketPrice = getPriceSync(symbol);
+      if (marketPrice) h.currentPrice = marketPrice;
       h.totalValue = h.totalQty * h.currentPrice;
     }
 
+    // allReturns — всё время (не зависит от основного периода), используется для кнопок периодов на отдельных графиках
+    const allReturns = calculateReturns(transactions, 'all', historicalPrices);
+
+    // Сохраняем данные для setupChartPeriodTabs при смене периода на отдельных графиках
+    window._analyticsData = { allReturns, transactions, holdings, historicalPrices };
+
     renderReturnChart(returns);
     renderDiversificationChart(diversification);
-    renderRiskChart(risk);
-    renderVolatilityChart(holdings);
-    renderPnLChart(pnl);
+    renderRiskChart(allReturns, transactions);
+    renderVolatilityChart(holdings, historicalPrices);
+    renderPnLChart(allReturns);
     renderTopAssetsChart(transactions);
 
-    updateMetrics(returns, transactions);
+    setupChartPeriodTabs();
+
+    updateMetrics(allReturns, transactions);
     renderAssetsStats(transactions);
-    console.log('Analytics rendered successfully');
+
   } catch (err) {
-    console.error('Error in renderAnalytics:', err);
     const grid = document.querySelector('.charts-grid');
     if (grid) {
       grid.innerHTML = `
         <div style="grid-column: 1/-1; padding: 2rem; text-align: center; background: #fee2e2; border-radius: 8px; border: 1px solid #fca5a5;">
-          <i style="font-size: 2rem; color: #dc2626;"></i>
           <p style="margin-top: 0.5rem; color: #dc2626;">Ошибка загрузки аналитики</p>
           <p style="font-size: 0.85rem; color: #991b1b;">${err.message}</p>
         </div>
@@ -1499,48 +1629,114 @@ const calculatePortfolioValue = (transactions) => {
   return total;
 }
 
-const calculateReturns = (transactions) => {
+const calculateReturns = (transactions, period = 'all', historicalPrices = {}) => {
   // Сортируем транзакции по дате создания
   const sortedTx = [...transactions].sort((a, b) => 
     new Date(a.created_at || a.date) - new Date(b.created_at || b.date));
-  
-  // Группируем по датам и считаем стоимость портфеля с ТЕКУЩИМИ рыночными ценами
-  const holdings = {};
-  const historyData = [];
-  
+
+  if (sortedTx.length === 0) return [];
+
+  // Строим снимки состояния на каждый день транзакций
+  const dailySnapshots = [];
+  let currentHoldings = {};
+  let txPrices = {};
+
+  const txByDate = {};
   sortedTx.forEach(tx => {
-    const symbol = tx.symbol;
-    if (!holdings[symbol]) {
-      holdings[symbol] = 0;
-    }
-    
-    // Обновляем количество активов
-    if (tx.type === 'BUY') {
-      holdings[symbol] += tx.quantity;
-    } else if (tx.type === 'SELL') {
-      holdings[symbol] -= tx.quantity;
-    }
-    
-    // Считаем ТЕКУЩУЮ стоимость портфеля используя актуальные рыночные цены
-    let portfolioValue = 0;
-    for (const [sym, qty] of Object.entries(holdings)) {
-      if (qty > 0) {
-        // Используем текущую рыночную цену вместо исторической
-        const currentPrice = getPriceSync(sym);
-        if (currentPrice) {
-          portfolioValue += qty * currentPrice;
-        }
+    const d = (tx.created_at || tx.date || '').slice(0, 10);
+    if (!txByDate[d]) txByDate[d] = [];
+    txByDate[d].push(tx);
+  });
+
+  Object.keys(txByDate).sort().forEach(dateStr => {
+    txByDate[dateStr].forEach(tx => {
+      const symbol = tx.symbol;
+      const txPrice = parseFloat(tx.price) || 0;
+      if (!currentHoldings[symbol]) currentHoldings[symbol] = 0;
+      if (txPrice > 0) txPrices[symbol] = txPrice;
+      if (tx.type === 'BUY') {
+        currentHoldings[symbol] += parseFloat(tx.quantity) || 0;
+      } else if (tx.type === 'SELL') {
+        currentHoldings[symbol] = Math.max(0, currentHoldings[symbol] - (parseFloat(tx.quantity) || 0));
       }
-    }
-    
-    const dateStr = new Date(tx.created_at || tx.date).toLocaleDateString('ru-RU');
-    historyData.push({
-      date: dateStr,
-      value: portfolioValue
+    });
+    dailySnapshots.push({
+      dateStr,
+      holdings: { ...currentHoldings },
+      prices: { ...txPrices }
     });
   });
+
+  // Заполняем каждый день от первой транзакции до сегодня
+  const firstDate = new Date(dailySnapshots[0].dateStr + 'T00:00:00Z');
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  const allPoints = [];
+  let snapshotIdx = 0;
+  let activeHoldings = {};
+  let activePrices = {};
+
+  for (let d = new Date(firstDate); d <= today; d.setUTCDate(d.getUTCDate() + 1)) {
+    const dateStr = d.toISOString().slice(0, 10);
+
+    while (snapshotIdx < dailySnapshots.length && dailySnapshots[snapshotIdx].dateStr <= dateStr) {
+      activeHoldings = { ...dailySnapshots[snapshotIdx].holdings };
+      activePrices = { ...dailySnapshots[snapshotIdx].prices };
+      snapshotIdx++;
+    }
+
+    const isToday = dateStr === today.toISOString().slice(0, 10);
+    let value = 0;
+    for (const [sym, qty] of Object.entries(activeHoldings)) {
+      if (qty > 0) {
+        // Приоритет: сегодняшняя цена → реальная историческая (Binance) → цена транзакции
+        const price = (isToday ? getPriceSync(sym) : null)
+          || historicalPrices[sym]?.[dateStr]
+          || activePrices[sym] || 0;
+        value += qty * price;
+      }
+    }
+
+    if (value > 0 || allPoints.length > 0) {
+      allPoints.push({
+        date: new Date(d),
+        dateStr: d.toLocaleDateString('ru-RU'),
+        value
+      });
+    }
+  }
+
+  // Фильтруем по периоду
+  const now = new Date();
+  const cutoffMap = {
+    '7d': new Date(now.getTime() - 7 * 86400000),
+    '1m': new Date(now.getTime() - 30 * 86400000),
+    '3m': new Date(now.getTime() - 90 * 86400000),
+    '6m': new Date(now.getTime() - 180 * 86400000),
+    '1y': new Date(now.getTime() - 365 * 86400000),
+    'all': new Date(0)
+  };
+  const cutoff = cutoffMap[period] || new Date(0);
+
+  let filtered = allPoints.filter(p => p.date >= cutoff);
   
-  return historyData;
+  // Если выбран период и нет точек до него — добавляем последнюю известную точку как стартовую
+  if (filtered.length <= 1 && allPoints.length > 0) {
+    const lastBeforeCutoff = [...allPoints].reverse().find(p => p.date < cutoff);
+    if (lastBeforeCutoff) {
+      filtered = [
+        { dateStr: cutoff.toLocaleDateString('ru-RU'), isoDate: cutoff.toISOString().slice(0, 10), date: cutoff, value: lastBeforeCutoff.value },
+        ...filtered
+      ];
+    }
+  }
+  
+  return filtered.map(p => ({
+    date: p.dateStr,
+    isoDate: p.isoDate || (p.date instanceof Date ? p.date.toISOString().slice(0, 10) : ''),
+    value: p.value
+  }));
 }
 
 const calculateDiversification = (transactions) => {
@@ -1558,8 +1754,8 @@ const calculateDiversification = (transactions) => {
   }));
 }
 
-const calculateRisk = (transactions) => {
-  const returns = calculateReturns(transactions);
+const calculateRisk = (transactions, historicalPrices = {}) => {
+  const returns = calculateReturns(transactions, 'all', historicalPrices);
   const daily = returns.map((r, i) => i > 0 ? (r.value - returns[i-1].value) / returns[i-1].value : 0);
   const avg = daily.reduce((a, b) => a + b, 0) / daily.length;
   const variance = daily.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / daily.length;
@@ -1582,10 +1778,37 @@ const calculatePnL = (transactions) => {
   }));
 }
 
+// ── Helpers for per-chart period selectors ─────────────────────────────────
+const getChartPeriod = (chartId) => {
+  const btn = document.querySelector(`.chart-period-tabs[data-chart="${chartId}"] .period-btn.active`);
+  return btn?.dataset.period || 'all';
+};
+
+const filterReturnsByPeriod = (allReturns, period) => {
+  if (!period || period === 'all') return allReturns;
+  const days = { '1m': 30, '3m': 90, '6m': 180, '1y': 365 }[period];
+  if (!days) return allReturns;
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  return allReturns.filter(r => (r.isoDate || '') >= cutoff);
+};
+
+const filterHistoricalByPeriod = (historicalPrices, period) => {
+  if (!period || period === 'all') return historicalPrices;
+  const days = { '1m': 30, '3m': 90, '6m': 180, '1y': 365 }[period];
+  if (!days) return historicalPrices;
+  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  const filtered = {};
+  for (const [sym, prices] of Object.entries(historicalPrices)) {
+    filtered[sym] = Object.fromEntries(Object.entries(prices).filter(([date]) => date >= cutoff));
+  }
+  return filtered;
+};
+// ───────────────────────────────────────────────────────────────────────────
+
 const renderReturnChart = (returns) => {
   const ctx = document.getElementById('portfolioValueChart');
   if (!ctx) {
-    console.warn('Portfolio value chart canvas not found');
+
     return;
   }
 
@@ -1620,7 +1843,7 @@ const renderReturnChart = (returns) => {
 const renderDiversificationChart = (data) => {
   const ctx = document.getElementById('assetTypeChart');
   if (!ctx || data.length === 0) {
-    console.warn('Diversification chart canvas not found or no data');
+
     return;
   }
 
@@ -1643,130 +1866,370 @@ const renderDiversificationChart = (data) => {
   });
 }
 
-const renderRiskChart = (volatility) => {
+const renderRiskChart = (allReturns = [], transactions = []) => {
   const ctx = document.getElementById('riskProfileChart');
   if (!ctx) {
-    console.warn('Risk profile chart canvas not found');
+
     return;
   }
 
   if (analyticsCharts.risk) analyticsCharts.risk.destroy();
-  
-  // Используем bar график вместо несуществующего gauge
+
+  // Применяем период этого графика
+  const chartPeriod = getChartPeriod('risk');
+  const returns = filterReturnsByPeriod(allReturns, chartPeriod);
+
+  // Вычисляем волатильность из отфильтрованных данных
+  // Фильтруем нулевые дни (дни без исторических цен дают 0 — искажают std)
+  const allDailyR = [];
+  let volatility = 0;
+  if (returns.length > 1) {
+    for (let i = 1; i < returns.length; i++) {
+      if (returns[i - 1].value > 0) allDailyR.push((returns[i].value - returns[i - 1].value) / returns[i - 1].value);
+    }
+    const dailyReturnsNonZero = allDailyR.filter(r => r !== 0);
+    if (dailyReturnsNonZero.length > 0) {
+      const avg = dailyReturnsNonZero.reduce((s, v) => s + v, 0) / dailyReturnsNonZero.length;
+      const variance = dailyReturnsNonZero.reduce((s, v) => s + (v - avg) ** 2, 0) / dailyReturnsNonZero.length;
+      volatility = Math.sqrt(variance) * Math.sqrt(252) * 100;
+    }
+  }
+  const dailyReturns = allDailyR.filter(r => r !== 0);
+
+  // Максимальная просадка из временного ряда портфеля
+  let maxDrawdown = 0;
+  if (returns.length > 1) {
+    let peak = returns[0].value;
+    for (const r of returns) {
+      if (r.value > peak) peak = r.value;
+      const dd = peak > 0 ? ((peak - r.value) / peak) * 100 : 0;
+      if (dd > maxDrawdown) maxDrawdown = dd;
+    }
+  }
+
+  // Sharpe Ratio: annualized, с безрисковой ставкой 4% и фильтрацией нулевых дней
+  let sharpeRatio = 0;
+  if (dailyReturns.length > 1) {
+    const avg = dailyReturns.reduce((s, v) => s + v, 0) / dailyReturns.length;
+    const std = Math.sqrt(dailyReturns.reduce((s, v) => s + (v - avg) ** 2, 0) / dailyReturns.length);
+    const riskFreeDaily = 0.04 / 252;
+    if (std > 0) sharpeRatio = ((avg - riskFreeDaily) * Math.sqrt(252)) / std;
+  }
+
+  // Концентрация: максимальная доля одного актива по текущей рыночной стоимости
+  const assetValue = {};
+  const assetQty = {};
+  transactions.forEach(t => {
+    const qty = parseFloat(t.quantity) || 0;
+    if (!assetQty[t.symbol]) assetQty[t.symbol] = 0;
+    if (t.type === 'BUY') assetQty[t.symbol] += qty;
+    else if (t.type === 'SELL') assetQty[t.symbol] -= qty;
+  });
+  let totalCurrentValue = 0;
+  for (const [sym, qty] of Object.entries(assetQty)) {
+    if (qty > 0) {
+      const price = getPriceSync(sym) || 0;
+      const val = qty * price;
+      assetValue[sym] = val;
+      totalCurrentValue += val;
+    }
+  }
+  // Если нет рыночных цен — fallback по объёму покупок
+  let maxConc = 0;
+  if (totalCurrentValue > 0) {
+    maxConc = Math.max(...Object.values(assetValue).map(v => (v / totalCurrentValue) * 100));
+  } else {
+    const assetBuy = {};
+    let totalBuy = 0;
+    transactions.forEach(t => {
+      if (t.type === 'BUY') {
+        const v = (parseFloat(t.quantity) || 0) * (parseFloat(t.price) || 0);
+        assetBuy[t.symbol] = (assetBuy[t.symbol] || 0) + v;
+        totalBuy += v;
+      }
+    });
+    if (totalBuy > 0) maxConc = Math.max(...Object.values(assetBuy).map(v => (v / totalBuy) * 100));
+  }
+
+  const volClamped = Math.min(volatility, 100);
+  const ddClamped = Math.min(maxDrawdown, 100);
+  const concClamped = Math.min(maxConc, 100);
+
+  const riskLevel = volatility < 15 ? 'Низкий' : volatility < 30 ? 'Средний' : volatility < 60 ? 'Высокий' : 'Очень высокий';
+  const riskColor = volatility < 15 ? '#10b981' : volatility < 30 ? '#f59e0b' : volatility < 60 ? '#ef4444' : '#dc2626';
+
+  const labels = ['Волатильность (год.)', 'Макс. просадка', 'Концентрация (топ)'];
+  const values = [+volClamped.toFixed(1), +ddClamped.toFixed(1), +concClamped.toFixed(1)];
+  const colors = [
+    volClamped < 20 ? '#10b981' : volClamped < 50 ? '#f59e0b' : '#ef4444',
+    ddClamped < 10 ? '#10b981' : ddClamped < 30 ? '#f59e0b' : '#ef4444',
+    concClamped < 40 ? '#10b981' : concClamped < 70 ? '#f59e0b' : '#ef4444',
+  ];
+
   analyticsCharts.risk = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: ['Волатильность'],
+      labels,
       datasets: [{
-        label: 'Риск (%)',
-        data: [volatility.toFixed(2)],
-        backgroundColor: ['#ef4444'],
-        borderColor: ['#dc2626'],
-        borderWidth: 2
+        data: values,
+        backgroundColor: colors.map(c => c + 'bb'),
+        borderColor: colors,
+        borderWidth: 2,
+        borderRadius: 6,
+        borderSkipped: false,
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: true,
       indexAxis: 'y',
+      plugins: {
+        legend: { display: false },
+        title: {
+          display: true,
+          text: `Уровень риска: ${riskLevel}   |   Sharpe: ${sharpeRatio.toFixed(2)}`,
+          color: riskColor,
+          font: { size: 12, weight: '600' },
+          padding: { bottom: 10 }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.parsed.x.toFixed(1) + '%'
+          }
+        }
+      },
       scales: {
         x: {
           beginAtZero: true,
-          max: 50
+          max: 100,
+          ticks: { color: '#94a3b8', callback: v => v + '%' },
+          grid: { color: 'rgba(255,255,255,0.06)' }
+        },
+        y: {
+          ticks: { color: '#94a3b8' },
+          grid: { display: false }
         }
-      },
-      plugins: {
-        legend: { display: true }
       }
     }
   });
 }
 
-// Новый график волатильности активов
-const renderVolatilityChart = (holdings) => {
+const renderVolatilityChart = (holdings, historicalPrices = {}) => {
   const ctx = document.getElementById('volatilityChart');
   if (!ctx) {
-    console.warn('Volatility chart canvas not found');
+
     return;
   }
 
   if (analyticsCharts.volatility) analyticsCharts.volatility.destroy();
-  
-  // Берем топ-10 активов по стоимости
+
+  // Фильтруем исторические цены по периоду этого графика
+  const chartPeriod = getChartPeriod('volatility');
+  const filteredHistoricalPrices = filterHistoricalByPeriod(historicalPrices, chartPeriod);
+
+  // Только активы с положительным остатком, топ-10 по текущей стоимости
   const topAssets = Object.entries(holdings)
+    .filter(([, h]) => h.totalQty > 0 && h.totalValue > 0)
     .sort((a, b) => b[1].totalValue - a[1].totalValue)
     .slice(0, 10);
-  
-  // Вычисляем волатильность для каждого актива (упрощенная версия на основе изменения цены)
-  const volatilityData = topAssets.map(([symbol, data]) => {
-    const avgPrice = data.totalCost / data.totalQty;
-    const currentPrice = data.currentPrice || avgPrice;
-    const priceChange = Math.abs(((currentPrice - avgPrice) / avgPrice) * 100);
-    return priceChange || 0;
+
+  if (topAssets.length === 0) return;
+
+  const results = topAssets.map(([symbol, h]) => {
+    // Приоритет 1: историческая волатильность — annualized stddev дневных доходностей
+    const prices = filteredHistoricalPrices[symbol];
+    if (prices) {
+      const dates = Object.keys(prices).sort();
+      if (dates.length >= 5) {
+        const dailyReturns = [];
+        for (let i = 1; i < dates.length; i++) {
+          const prev = prices[dates[i - 1]];
+          const curr = prices[dates[i]];
+          if (prev > 0) dailyReturns.push((curr - prev) / prev);
+        }
+        if (dailyReturns.length >= 4) {
+          const n = dailyReturns.length;
+          const mean = dailyReturns.reduce((s, r) => s + r, 0) / n;
+          const variance = dailyReturns.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / n;
+          const vol = Math.sqrt(variance) * Math.sqrt(252) * 100;
+          return { symbol, value: +vol.toFixed(1), mode: 'historic' };
+        }
+      }
+    }
+
+    // Приоритет 2: P&L% от средней цены покупки до текущей рыночной цены
+    const avgBuy = h.totalQty > 0 ? h.totalCost / h.totalQty : 0;
+    const curr = h.currentPrice || avgBuy;
+    const pnlPct = avgBuy > 0 ? ((curr - avgBuy) / avgBuy) * 100 : 0;
+    return { symbol, value: +pnlPct.toFixed(1), mode: 'pnl' };
   });
-  
+
+  const allHistoric = results.every(r => r.mode === 'historic');
+  const chartTitle = allHistoric
+    ? 'Историческая волатильность (год.)'
+    : 'P&L от средней цены покупки';
+
   analyticsCharts.volatility = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: topAssets.map(([symbol]) => symbol),
+      labels: results.map(r => r.symbol),
       datasets: [{
-        label: 'Волатильность (%)',
-        data: volatilityData,
-        backgroundColor: volatilityData.map(v => 
-          v > 20 ? '#ef4444' : v > 10 ? '#f59e0b' : '#10b981'),
-        borderColor: volatilityData.map(v => 
-          v > 20 ? '#dc2626' : v > 10 ? '#d97706' : '#059669'),
-        borderWidth: 2
+        label: chartTitle,
+        data: results.map(r => r.value),
+        backgroundColor: results.map(r => {
+          if (r.mode === 'historic') {
+            return r.value > 80 ? 'rgba(239,68,68,0.8)' : r.value > 40 ? 'rgba(245,158,11,0.8)' : 'rgba(16,185,129,0.8)';
+          }
+          return r.value >= 0 ? 'rgba(16,185,129,0.8)' : 'rgba(239,68,68,0.8)';
+        }),
+        borderColor: results.map(r => {
+          if (r.mode === 'historic') {
+            return r.value > 80 ? '#ef4444' : r.value > 40 ? '#f59e0b' : '#10b981';
+          }
+          return r.value >= 0 ? '#10b981' : '#ef4444';
+        }),
+        borderWidth: 2,
+        borderRadius: 4,
+        borderSkipped: false,
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: true,
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            callback: function(value) {
-              return value + '%';
+      plugins: {
+        legend: { display: false },
+        title: {
+          display: true,
+          text: chartTitle,
+          color: '#94a3b8',
+          font: { size: 11 }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const r = results[ctx.dataIndex];
+              const sign = (r.mode === 'pnl' && r.value > 0) ? '+' : '';
+              return (r.mode === 'historic' ? 'Волат.: ' : 'P&L: ') + sign + ctx.parsed.y.toFixed(1) + '%';
             }
           }
         }
       },
-      plugins: {
-        legend: { display: true },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              return 'Волатильность: ' + context.parsed.y.toFixed(2) + '%';
-            }
-          }
+      scales: {
+        y: {
+          beginAtZero: false,
+          ticks: {
+            color: '#94a3b8',
+            callback: v => (v > 0 ? '+' : '') + v + '%'
+          },
+          grid: { color: 'rgba(255,255,255,0.06)' }
+        },
+        x: {
+          ticks: { color: '#94a3b8' },
+          grid: { display: false }
         }
       }
     }
   });
 }
 
-const renderPnLChart = (data) => {
+const renderPnLChart = (allReturns) => {
   const ctx = document.getElementById('monthlyReturnsChart');
   if (!ctx) {
-    console.warn('PnL chart canvas not found');
+
     return;
   }
 
   if (analyticsCharts.pnl) analyticsCharts.pnl.destroy();
+
+  // Применяем период этого графика
+  const chartPeriod = getChartPeriod('pnl');
+  const portfolioReturns = filterReturnsByPeriod(allReturns, chartPeriod);
+
+  if (!portfolioReturns || portfolioReturns.length < 2) {
+    ctx.parentElement.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:2rem">Недостаточно данных для анализа</p>';
+    return;
+  }
+
+  // Транзакции для исключения эффекта новых вложений (Modified Dietz)
+  const transactions = window._analyticsData?.transactions || [];
+  // Суммируем чистые вложения по месяцам (YYYY-MM)
+  const netFlowByMonth = {};
+  transactions.forEach(tx => {
+    const m = (tx.created_at || tx.date || '').slice(0, 7); // YYYY-MM
+    if (!m) return;
+    const amount = (parseFloat(tx.quantity) || 0) * (parseFloat(tx.price) || 0);
+    netFlowByMonth[m] = (netFlowByMonth[m] || 0) + (tx.type === 'BUY' ? amount : tx.type === 'SELL' ? -amount : 0);
+  });
+
+  // Группируем по месяцам: берём первое и последнее значение портфеля за каждый месяц
+  const byMonth = {};
+  portfolioReturns.forEach(r => {
+    // r.date = "dd.mm.yyyy" (toLocaleDateString('ru-RU'))
+    const parts = r.date.split('.');
+    if (parts.length !== 3) return;
+    const key = `${parts[1]}.${parts[2]}`; // MM.YYYY
+    if (!byMonth[key]) byMonth[key] = { first: r.value, last: r.value };
+    else byMonth[key].last = r.value;
+  });
+
+  const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+  const monthly = Object.entries(byMonth)
+    .sort(([a], [b]) => {
+      const [am, ay] = a.split('.');
+      const [bm, by] = b.split('.');
+      return new Date(+ay, +am - 1) - new Date(+by, +bm - 1);
+    })
+    .map(([key, d]) => {
+      const [mm, yy] = key.split('.');
+      // Modified Dietz: исключаем новые вложения из доходности
+      // Предполагаем вложения происходят в середине месяца (вес 0.5)
+      const isoMonth = `${yy}-${mm}`;
+      const flow = netFlowByMonth[isoMonth] || 0;
+      const buyFlow = Math.max(flow, 0); // только покупки увеличивают базу
+      const denominator = d.first + 0.5 * buyFlow;
+      const ret = denominator > 0 ? ((d.last - d.first - flow) / denominator) * 100 : 0;
+      return { label: `${monthNames[+mm - 1]} '${yy.slice(2)}`, ret: +ret.toFixed(2) };
+    })
+    .filter(d => isFinite(d.ret));
+
   analyticsCharts.pnl = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: data.map(d => d.month),
-      datasets: [
-        { label: 'Прибыль', data: data.map(d => d.profit), backgroundColor: '#10b981' },
-        { label: 'Убытки', data: data.map(d => -d.loss), backgroundColor: '#ef4444' }
-      ]
+      labels: monthly.map(d => d.label),
+      datasets: [{
+        label: 'Доходность %',
+        data: monthly.map(d => d.ret),
+        backgroundColor: monthly.map(d => d.ret >= 0 ? 'rgba(16,185,129,0.8)' : 'rgba(239,68,68,0.75)'),
+        borderColor: monthly.map(d => d.ret >= 0 ? '#10b981' : '#ef4444'),
+        borderWidth: 1,
+        borderRadius: 4,
+        borderSkipped: false,
+      }]
     },
-    options: { 
+    options: {
       responsive: true,
+      maintainAspectRatio: true,
       plugins: {
-        legend: { display: true }
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => (ctx.parsed.y >= 0 ? '+' : '') + ctx.parsed.y.toFixed(2) + '%'
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: false,
+          ticks: {
+            color: '#94a3b8',
+            callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%'
+          },
+          grid: { color: 'rgba(255,255,255,0.06)' }
+        },
+        x: {
+          ticks: { color: '#94a3b8', maxRotation: 45 },
+          grid: { display: false }
+        }
       }
     }
   });
@@ -1775,7 +2238,7 @@ const renderPnLChart = (data) => {
 const renderTopAssetsChart = (transactions) => {
   const ctx = document.getElementById('topAssetsChart');
   if (!ctx) {
-    console.warn('Top assets chart canvas not found');
+
     return;
   }
 
@@ -1848,17 +2311,25 @@ const renderTopAssetsChart = (transactions) => {
 }
 
 const updateMetrics = (returns, transactions) => {
-  console.log('Updating analytics metrics...');
+
   try {
-    const dailyReturns = returns.slice(1).map((r, i) => (r.value - returns[i].value) / returns[i].value);
+    // Считаем дневные доходности только по дням с реальным изменением цены.
+    // Дни без исторических данных дают нулевое изменение — они искусственно
+    // занижают среднее и завышают std, что делает Sharpe некорректным.
+    const allDailyReturns = returns.slice(1).map((r, i) => (r.value - returns[i].value) / returns[i].value);
+    const dailyReturns = allDailyReturns.filter(r => r !== 0);
     const avg = dailyReturns.length > 0 ? dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length : 0;
-    const std = dailyReturns.length > 0 ? Math.sqrt(dailyReturns.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / dailyReturns.length) : 0;
-    const sharpe = std > 0 ? (avg * 252) / (std * Math.sqrt(252)) : 0;
+    const std = dailyReturns.length > 1
+      ? Math.sqrt(dailyReturns.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / dailyReturns.length)
+      : 0;
+    // Стандартная annualized Sharpe (безрисковая ставка ~4% годовых = 0.04/252 в день)
+    const riskFreeDaily = 0.04 / 252;
+    const sharpe = std > 0 ? ((avg - riskFreeDaily) * Math.sqrt(252)) / std : 0;
 
     // Рассчитываем портфель с использованием реальных цен
     const holdings = {};
-    let totalValue = 0;
-    let totalCost = 0;
+    let totalBuyAmount = 0;    // суммарные вложения (все BUY)
+    let totalSellProceeds = 0; // суммарная выручка от продаж (все SELL)
     
     transactions.forEach(t => {
       // Группируем только по символу, без portfolio_id
@@ -1867,30 +2338,52 @@ const updateMetrics = (returns, transactions) => {
       if (t.type === 'BUY') {
         holdings[key].qty += t.quantity;
         holdings[key].cost += t.quantity * t.price;
-        totalCost += t.quantity * t.price;
+        totalBuyAmount += t.quantity * t.price;
       } else {
+        // При продаже уменьшаем базу затрат по средней цене покупки
+        const avgBuyPrice = holdings[key].qty > 0 ? holdings[key].cost / holdings[key].qty : t.price;
+        holdings[key].cost -= t.quantity * avgBuyPrice;
         holdings[key].qty -= t.quantity;
-        holdings[key].cost -= t.quantity * t.price;
+        totalSellProceeds += t.quantity * t.price;
       }
       holdings[key].lastPrice = t.price;
     });
 
-    // Считаем текущую стоимость с реальными ценами
+    // Считаем текущую рыночную стоимость удерживаемых активов
+    let totalValue = 0;
     for (const key in holdings) {
-      const symbol = key; // теперь key это уже symbol
-      const price = getPriceSync(symbol) || holdings[key].lastPrice || 0;
+      const price = getPriceSync(key) || holdings[key].lastPrice || 0;
       if (holdings[key].qty > 0) {
         totalValue += holdings[key].qty * price;
       }
     }
     
-    const pnl = totalValue - totalCost;
-    const roi = totalCost > 0 ? (pnl / totalCost * 100).toFixed(2) : 0;
+    // PnL = (рыночная стоимость + реализованная выручка) - общие вложения
+    const pnl = (totalValue + totalSellProceeds) - totalBuyAmount;
+    const totalCost = totalBuyAmount; // для совместимости с остальным кодом
+    const roi = totalBuyAmount > 0 ? (pnl / totalBuyAmount * 100).toFixed(2) : 0;
     const assetCount = Object.keys(holdings).filter(k => holdings[k].qty > 0).length;
 
-    const wins = transactions.filter(t => t.type === 'SELL').length;
-    const total = transactions.filter(t => t.type === 'SELL').length;
-    const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
+    // Win rate: доля прибыльных продаж (цена продажи > средняя цена покупки)
+    const winHoldings = {};
+    let wins = 0;
+    let totalSells = 0;
+    for (const t of transactions) {
+      const key = t.symbol;
+      if (!winHoldings[key]) winHoldings[key] = { qty: 0, cost: 0 };
+      if (t.type === 'BUY') {
+        winHoldings[key].qty += t.quantity;
+        winHoldings[key].cost += t.quantity * t.price;
+      } else if (t.type === 'SELL') {
+        const avgBuyPrice = winHoldings[key].qty > 0 ? winHoldings[key].cost / winHoldings[key].qty : 0;
+        if (avgBuyPrice > 0 && t.price > avgBuyPrice) wins++;
+        // Уменьшаем базу затрат по средней цене покупки
+        winHoldings[key].cost -= t.quantity * (avgBuyPrice || t.price);
+        winHoldings[key].qty -= t.quantity;
+        totalSells++;
+      }
+    }
+    const winRate = totalSells > 0 ? Math.round((wins / totalSells) * 100) : 0;
 
     // Обновляем элементы
     const currencySymbol = getCurrencySymbol();
@@ -1979,9 +2472,9 @@ const updateMetrics = (returns, transactions) => {
       holdings 
     });
     
-    console.log('Metrics updated:', { totalValue, pnl, roi, assetCount, sharpe, diversificationIndex });
+
   } catch (err) {
-    console.error('Error in updateMetrics:', err);
+
   }
 }
 
@@ -1992,12 +2485,15 @@ const generateRecommendations = (metrics) => {
   
   // Рекомендация по диверсификации
   if (diversificationIndex < 30) {
+    const lowDivText = assetCount >= 5
+      ? `Ваш портфель содержит ${assetCount} активов, однако один или несколько доминируют (индекс диверсификации ${diversificationIndex}%). Рекомендуем ребалансировать портфель, снизив концентрацию в крупнейших позициях.`
+      : `Ваш портфель содержит ${assetCount} активов с индексом диверсификации ${diversificationIndex}%. Рекомендуем увеличить количество активов до 5-10 для снижения рисков.`;
     recommendations.push({
       icon: 'fas fa-layer-group',
       color: '#ef4444',
       title: 'Низкая диверсификация портфеля',
-      text: `Ваш портфель содержит ${assetCount} активов с индексом диверсификации ${diversificationIndex}%. Рекомендуем увеличить количество активов до 5-10 для снижения рисков.`,
-      action: 'Добавить новые активы',
+      text: lowDivText,
+      action: assetCount >= 5 ? 'Ребалансировать портфель' : 'Добавить новые активы',
       priority: 'high'
     });
   } else if (diversificationIndex < 50) {
@@ -2012,7 +2508,16 @@ const generateRecommendations = (metrics) => {
   }
   
   // Рекомендация по Sharpe Ratio
-  if (sharpe < 1 && sharpe > 0) {
+  if (sharpe < 0) {
+    recommendations.push({
+      icon: 'fas fa-chart-line',
+      color: '#ef4444',
+      title: 'Отрицательный Sharpe Ratio',
+      text: `Ваш Sharpe Ratio: ${sharpe.toFixed(2)}. Портфель теряет в стоимости с учётом принятого риска. Пересмотрите состав активов или снизьте долю убыточных позиций.`,
+      action: 'Пересмотреть стратегию',
+      priority: 'high'
+    });
+  } else if (sharpe < 1 && sharpe > 0) {
     recommendations.push({
       icon: 'fas fa-chart-line',
       color: '#f97316',
@@ -2110,22 +2615,23 @@ const generateRecommendations = (metrics) => {
   const priorityOrder = { 'high': 0, 'medium': 1, 'info': 2 };
   recommendations.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
   
-  body.innerHTML = recommendations.map((rec, idx) => `
-    <div style="padding: 1.25rem; margin-bottom: 1rem; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; border-left: 4px solid ${rec.color}; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);">
-      <div style="display: flex; align-items: flex-start; gap: 1rem;">
-        <div style="flex-shrink: 0; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: ${rec.color}20; border-radius: 10px;">
+  body.innerHTML = `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; align-items: stretch;">` +
+  recommendations.map((rec, idx) => `
+    <div class="recommendation-card" data-priority="${rec.priority}" style="padding: 1.25rem; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 12px; border-left: 4px solid ${rec.color}; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); display: flex; flex-direction: column;">
+      <div class="recommendation-content" style="display: flex; align-items: flex-start; gap: 1rem; flex: 1;">
+        <div class="recommendation-icon" style="flex-shrink: 0; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: ${rec.color}20; border-radius: 10px;">
           <i class="${rec.icon}" style="font-size: 1.5rem; color: ${rec.color};"></i>
         </div>
-        <div style="flex: 1;">
-          <h4 style="margin: 0 0 0.5rem 0; color: #f1f5f9; font-size: 1.05rem; font-weight: 600;">${rec.title}</h4>
-          <p style="margin: 0 0 1rem 0; color: #cbd5e1; font-size: 0.9rem; line-height: 1.6;">${rec.text}</p>
-          <button class="rec-action-btn" data-action="${rec.action}" data-index="${idx}" style="padding: 0.6rem 1.2rem; font-size: 0.875rem; background: linear-gradient(135deg, ${rec.color} 0%, ${rec.color}dd 100%); border: none; color: white; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);">
+        <div class="recommendation-text" style="flex: 1; display: flex; flex-direction: column;">
+          <h4 class="recommendation-title" style="margin: 0 0 0.5rem 0; color: #f1f5f9; font-size: 1.05rem; font-weight: 600;">${rec.title}</h4>
+          <p class="recommendation-description" style="margin: 0 0 1rem 0; color: #cbd5e1; font-size: 0.9rem; line-height: 1.6; flex: 1;">${rec.text}</p>
+          <button class="rec-action-btn" data-action="${rec.action}" data-index="${idx}" style="padding: 0.6rem 1.2rem; font-size: 0.875rem; background: linear-gradient(135deg, ${rec.color} 0%, ${rec.color}dd 100%); border: none; color: white; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); align-self: flex-start;">
             <i class="fas fa-arrow-right" style="margin-right: 0.5rem;"></i>${rec.action}
           </button>
         </div>
       </div>
     </div>
-  `).join('');
+  `).join('') + `</div>`;
   
   // Добавляем обработчики для кнопок
   document.querySelectorAll('.rec-action-btn').forEach(btn => {
@@ -2149,7 +2655,7 @@ const generateRecommendations = (metrics) => {
 
 // === ОБРАБОТЧИК ДЕЙСТВИЙ ДЛЯ РЕКОМЕНДАЦИЙ ===
 const handleRecommendationAction = (action, recommendation) => {
-  console.log('Обработка рекомендации:', action, recommendation);
+
   
   switch(action) {
     case 'Проверить активы':
@@ -2442,9 +2948,16 @@ const showStrategyModal = () => {
   const renderAssetsStats = (transactions) => {
     const tbody = document.getElementById('assetsStatsBody');
     if (!tbody) {
-      console.warn('assetsStatsBody not found');
+
       return;
     }
+    
+    // Кэшируем транзакции для пересчета при изменении размера экрана
+    window.cachedAnalyticsTransactions = transactions;
+    
+    // Проверяем мобильное устройство
+    const isMobile = window.innerWidth <= 768;
+    
     // Символ валюты для всего рендера (избегаем ReferenceError)
     const currencySymbol = getCurrencySymbol();
 
@@ -2453,22 +2966,26 @@ const showStrategyModal = () => {
       const holdings = {};
       transactions.forEach(t => {
         const key = `${t.symbol}`;
-        if (!holdings[key]) holdings[key] = { qty: 0, cost: 0, lastPrice: 0, lastDate: 0, symbol: t.symbol };
+        if (!holdings[key]) holdings[key] = { qty: 0, cost: 0, lastPrice: 0, lastDate: 0, firstDate: Infinity, symbol: t.symbol, txCount: 0, buyDates: [] };
         if (t.type === 'BUY') {
           holdings[key].qty += t.quantity;
           holdings[key].cost += t.quantity * t.price;
+          const buyTime = new Date(t.date || t.created_at).getTime();
+          holdings[key].buyDates.push({ date: t.date || t.created_at, price: t.price, qty: t.quantity });
+          if (buyTime < holdings[key].firstDate) holdings[key].firstDate = buyTime;
         } else {
           holdings[key].qty -= t.quantity;
           holdings[key].cost -= t.quantity * t.price;
         }
-        const time = new Date(t.date).getTime();
+        holdings[key].txCount++;
+        const time = new Date(t.date || t.created_at).getTime();
         if (time >= holdings[key].lastDate) {
           holdings[key].lastDate = time;
           holdings[key].lastPrice = t.price;
         }
       });
 
-      const rows = [];
+      const assetsData = [];
       let totalValue = 0;
       let totalPnL = 0;
       
@@ -2485,37 +3002,155 @@ const showStrategyModal = () => {
         totalValue += value;
         totalPnL += pnl;
 
-        const formatNumber = (num) => {
-          return num.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 8 });
-        };
-
-        rows.push(`
-          <tr class="asset-row">
-            <td>
-              <div class="asset-cell">
-                <div class="asset-icon-cell">${getAssetIcon(symbol)}</div>
-                <div class="asset-name notranslate" translate="no"><strong class="notranslate" translate="no">${symbol}</strong></div>
-              </div>
-            </td>
-            <td class="asset-qty notranslate" translate="no">${formatNumber(h.qty)}</td>
-            <td class="asset-avg-price notranslate" translate="no">${currencySymbol}${formatNumber(convertToSelectedCurrency(avgPrice))}</td>
-            <td class="asset-current-price notranslate" translate="no">${currencySymbol}${formatNumber(convertToSelectedCurrency(currentPrice))}</td>
-            <td class="asset-value notranslate" translate="no">${currencySymbol}${formatNumber(convertToSelectedCurrency(value))}</td>
-            <td class="asset-pnl ${pnl>=0? 'positive' : 'negative'} notranslate" translate="no">${pnl>=0? '+' : ''}${currencySymbol}${formatNumber(Math.abs(convertToSelectedCurrency(pnl)))}</td>
-            <td class="asset-roi ${roi>=0? 'positive' : 'negative'} notranslate" translate="no">${roi>=0? '+' : ''}${roi.toFixed(2)}%</td>
-          </tr>
-        `);
+        assetsData.push({
+          symbol,
+          qty: h.qty,
+          avgPrice,
+          currentPrice,
+          value,
+          pnl,
+          roi,
+          firstBuyDate: h.firstDate !== Infinity ? new Date(h.firstDate) : null,
+          lastBuyDate: h.lastDate ? new Date(h.lastDate) : null,
+          txCount: h.txCount || 0,
+          buyDates: h.buyDates || [],
+        });
       }
 
-      if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #94a3b8; font-style: italic;">Нет активных позиций</td></tr>';
-      } else {
+      if (assetsData.length === 0) {
+        if (isMobile) {
+          tbody.closest('.assets-table-wrapper').innerHTML = '<div style="text-align: center; padding: 2rem; color: #94a3b8; font-style: italic;">Нет активных позиций</div>';
+        } else {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #94a3b8; font-style: italic;">Нет активных позиций</td></tr>';
+        }
+        return;
+      }
+
+      const formatNumber = (num) => {
+        return num.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 8 });
+      };
+
+      // МОБИЛЬНАЯ ВЕРСИЯ: Карточки
+      if (isMobile) {
+        const wrapper = tbody.closest('.assets-table-wrapper');
+        const cardsHTML = assetsData.map(asset => {
+          const iconColor = getAssetColor(asset.symbol);
+          const iconHTML = getAssetIcon(asset.symbol);
+          return `
+            <div class="asset-card-mobile">
+              <div class="asset-card-mobile-header">
+                <div class="asset-card-mobile-icon" style="background: linear-gradient(135deg, ${iconColor}, ${iconColor}dd); color: white;">
+                  ${iconHTML}
+                </div>
+                <div class="asset-card-mobile-name">
+                  <h4>${asset.symbol}</h4>
+                  <span>${formatNumber(asset.qty)} шт.</span>
+                </div>
+              </div>
+              <div class="asset-card-mobile-body">
+                <div class="asset-card-mobile-field">
+                  <div class="asset-card-mobile-field-label">Ср. цена покупки</div>
+                  <div class="asset-card-mobile-field-value">${currencySymbol}${formatNumber(convertToSelectedCurrency(asset.avgPrice))}</div>
+                </div>
+                <div class="asset-card-mobile-field">
+                  <div class="asset-card-mobile-field-label">Текущая цена</div>
+                  <div class="asset-card-mobile-field-value">${currencySymbol}${formatNumber(convertToSelectedCurrency(asset.currentPrice))}</div>
+                </div>
+                <div class="asset-card-mobile-field">
+                  <div class="asset-card-mobile-field-label">Стоимость</div>
+                  <div class="asset-card-mobile-field-value">${currencySymbol}${formatNumber(convertToSelectedCurrency(asset.value))}</div>
+                </div>
+                <div class="asset-card-mobile-field">
+                  <div class="asset-card-mobile-field-label">Прибыль/Убыток</div>
+                  <div class="asset-card-mobile-field-value ${asset.pnl >= 0 ? 'positive' : 'negative'}">
+                    ${asset.pnl >= 0 ? '+' : ''}${currencySymbol}${formatNumber(Math.abs(convertToSelectedCurrency(asset.pnl)))}
+                  </div>
+                </div>
+                <div class="asset-card-mobile-field">
+                  <div class="asset-card-mobile-field-label">ROI</div>
+                  <div class="asset-card-mobile-field-value ${asset.roi >= 0 ? 'positive' : 'negative'}">
+                    ${asset.roi >= 0 ? '+' : ''}${asset.roi.toFixed(2)}%
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+        
+        // Итоговая карточка
+        const totalCard = `
+          <div class="asset-card-mobile" style="background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border: 2px solid #3b82f6;">
+            <div class="asset-card-mobile-header" style="border-bottom-color: #cbd5e1;">
+              <div class="asset-card-mobile-icon" style="background: #3b82f6; color: white;">
+                <i class="fas fa-sigma"></i>
+              </div>
+              <div class="asset-card-mobile-name">
+                <h4>ИТОГО</h4>
+              </div>
+            </div>
+            <div class="asset-card-mobile-body">
+              <div class="asset-card-mobile-field">
+                <div class="asset-card-mobile-field-label">Общая стоимость</div>
+                <div class="asset-card-mobile-field-value" style="font-size: 1.125rem; color: #1e293b;">${currencySymbol}${formatPrice(convertToSelectedCurrency(totalValue))}</div>
+              </div>
+              <div class="asset-card-mobile-field">
+                <div class="asset-card-mobile-field-label">Общая П/У</div>
+                <div class="asset-card-mobile-field-value ${totalPnL >= 0 ? 'positive' : 'negative'}" style="font-size: 1.125rem;">
+                  ${totalPnL >= 0 ? '+' : ''}${currencySymbol}${formatPrice(Math.abs(convertToSelectedCurrency(totalPnL)))}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        wrapper.innerHTML = cardsHTML + totalCard;
+        
+        // Загружаем иконки через icon loader
+        if (window._iconLoader && typeof window._iconLoader.processContainer === 'function') {
+          window._iconLoader.processContainer(wrapper);
+        }
+      } 
+      // ДЕСКТОПНАЯ ВЕРСИЯ: Таблица
+      else {
+        const rows = assetsData.map(asset => {
+          const posJson = JSON.stringify({
+            symbol: asset.symbol,
+            qty: asset.qty,
+            avgPrice: asset.avgPrice,
+            currentPrice: asset.currentPrice,
+            value: asset.value,
+            pnl: asset.pnl,
+            roi: asset.roi,
+            firstBuyDate: asset.firstBuyDate ? asset.firstBuyDate.toISOString() : null,
+            lastBuyDate: asset.lastBuyDate ? asset.lastBuyDate.toISOString() : null,
+            txCount: asset.txCount,
+            buyDates: asset.buyDates,
+          }).replace(/'/g, '&#39;');
+          return `
+          <tr class="asset-row asset-row-clickable" onclick="window.openDetailFromAnalytics('${asset.symbol}', '${posJson.replace(/"/g, "&quot;")}')"
+              title="Открыть детальный анализ ${asset.symbol}">
+            <td>
+              <div class="asset-cell">
+                <div class="asset-icon-cell">${getAssetIcon(asset.symbol)}</div>
+                <div class="asset-name notranslate" translate="no"><strong class="notranslate" translate="no">${asset.symbol}</strong></div>
+              </div>
+            </td>
+            <td class="asset-qty notranslate" translate="no">${formatNumber(asset.qty)}</td>
+            <td class="asset-avg-price notranslate" translate="no">${currencySymbol}${formatNumber(convertToSelectedCurrency(asset.avgPrice))}</td>
+            <td class="asset-current-price notranslate" translate="no">${currencySymbol}${formatNumber(convertToSelectedCurrency(asset.currentPrice))}</td>
+            <td class="asset-value notranslate" translate="no">${currencySymbol}${formatNumber(convertToSelectedCurrency(asset.value))}</td>
+            <td class="asset-pnl ${asset.pnl >= 0 ? 'positive' : 'negative'} notranslate" translate="no">${asset.pnl >= 0 ? '+' : ''}${currencySymbol}${formatNumber(Math.abs(convertToSelectedCurrency(asset.pnl)))}</td>
+            <td class="asset-roi ${asset.roi >= 0 ? 'positive' : 'negative'} notranslate" translate="no">${asset.roi >= 0 ? '+' : ''}${asset.roi.toFixed(2)}%</td>
+          </tr>
+        `;
+        });
+
         // Добавляем итоговую строку
         rows.push(`
           <tr class="total-row">
             <td colspan="4" class="total-label">ИТОГО:</td>
             <td class="total-value">${currencySymbol}${formatPrice(convertToSelectedCurrency(totalValue))}</td>
-            <td class="total-pnl ${totalPnL>=0? 'positive' : 'negative'}">${totalPnL>=0? '+' : ''}${currencySymbol}${formatPrice(Math.abs(convertToSelectedCurrency(totalPnL)))}</td>
+            <td class="total-pnl ${totalPnL >= 0 ? 'positive' : 'negative'}">${totalPnL >= 0 ? '+' : ''}${currencySymbol}${formatPrice(Math.abs(convertToSelectedCurrency(totalPnL)))}</td>
             <td></td>
           </tr>
         `);
@@ -2526,12 +3161,34 @@ const showStrategyModal = () => {
           window._iconLoader.processContainer(tbody);
         }
       }
-      console.log('Assets stats rendered:', rows.length - 1, 'assets');
+      
+
     } catch (err) {
-      console.error('Error rendering assets stats:', err);
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #dc2626; background: #fee2e2;">Ошибка загрузки: ' + err.message + '</td></tr>';
+
+      if (isMobile) {
+        tbody.closest('.assets-table-wrapper').innerHTML = '<div style="text-align: center; padding: 2rem; color: #dc2626; background: #fee2e2;">Ошибка загрузки: ' + err.message + '</div>';
+      } else {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #dc2626; background: #fee2e2;">Ошибка загрузки: ' + err.message + '</td></tr>';
+      }
     }
   }
+  
+  // Вспомогательная функция для получения цвета актива
+  const getAssetColor = (symbol) => {
+    const colors = {
+      'BTC': '#F7931A',
+      'ETH': '#627EEA',
+      'BNB': '#F3BA2F',
+      'SOL': '#14F195',
+      'XRP': '#23292F',
+      'ADA': '#0033AD',
+      'DOT': '#E6007A',
+      'MATIC': '#8247E5',
+      'LINK': '#2A5ADA',
+      'UNI': '#FF007A'
+    };
+    return colors[symbol] || '#6366f1';
+  };
   
   const getAssetIcon = (symbol) => {
     const cryptoIcons = {
@@ -2674,13 +3331,13 @@ const updateDate = () => {
 // Deprecated: эта функция больше не используется
 const loadDashboardData_DEPRECATED = async () => {
   try {
-    console.log('Deprecated loadDashboardData called from ui.js');
+
     
     const portfolios = getPortfoliosSync();
     const transactions = getTransactionsSync();
 
-    console.log('Portfolios:', portfolios?.length);
-    console.log('Transactions:', transactions?.length);
+
+
 
     const el = document.getElementById('portfolioCount');
     if (el) el.textContent = portfolios.length;
@@ -2734,7 +3391,7 @@ const loadDashboardData_DEPRECATED = async () => {
       const ret = document.getElementById('totalReturn');
       if (ret) ret.textContent = `+${change.toFixed(1)}%`;
       
-      console.log('Real data loaded:', { totalInvested, currentValue, change });
+
     } else {
       // Заглушки если нет транзакций
       const balance = document.getElementById('totalBalance');
@@ -2746,7 +3403,7 @@ const loadDashboardData_DEPRECATED = async () => {
       const ret = document.getElementById('totalReturn');
       if (ret) ret.textContent = '+0%';
       
-      console.log('No transactions found, showing zeros');
+
     }
     
     const crypto = document.getElementById('cryptoValue');
@@ -2756,17 +3413,17 @@ const loadDashboardData_DEPRECATED = async () => {
     if (stocks) stocks.textContent = '$0';
     
   } catch (err) {
-    console.error('loadDashboardData error:', err);
+
   }
 }
 
 // Deprecated: эта функция больше не используется, графики теперь инициализируются в dashboard.js
 const initDashboardCharts_DEPRECATED = () => {
-  console.log('Deprecated initDashboardCharts called from ui.js - using dashboard.js instead');
+
   return; // Не делаем ничего
   
   const transactions = getTransactionsSync();
-  console.log('Transactions for charts:', transactions?.length);
+
   
   // График тренда (miniChart)
   const ctxTrend = document.getElementById('miniChart');
@@ -2896,7 +3553,7 @@ const initDashboardCharts_DEPRECATED = () => {
     });
   }
   
-  console.log('Dashboard charts initialized with real data');
+
 }
 
 const loadRecentTransactions = () => {
@@ -2985,18 +3642,18 @@ const CACHE_DURATION = 60000; // 1 минута
 
 window.showCryptoDetail = async function(symbol) {
   window.currentCryptoSymbol = symbol;
-  console.log('showCryptoDetail called with symbol:', symbol);
+
   
   // Проверяем кеш
   const now = Date.now();
   const cached = window.cryptoDataCache[symbol];
   if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-    console.log('Using cached data for', symbol);
+
   }
   
   const modal = document.getElementById('cryptoDetailModal');
   if (!modal) {
-    console.error('Modal not found!');
+
     return;
   }
   
@@ -3004,9 +3661,9 @@ window.showCryptoDetail = async function(symbol) {
   if (window.tvChart) {
     try {
       window.tvChart.remove();
-      console.log('Previous chart cleaned up');
+
     } catch (e) {
-      console.warn('Chart cleanup warning:', e);
+
     }
     window.tvChart = null;
     candlestickSeries = null;
@@ -3014,10 +3671,17 @@ window.showCryptoDetail = async function(symbol) {
     volumeSeries = null;
   }
   
-  // Clear container
+  // Clear container and reset any inline styles LightweightCharts set during previous render
   const container = document.getElementById('cryptoDetailPriceChart');
   if (container) {
     container.innerHTML = '';
+    container.style.cssText = ''; // reset LWC-set inline position/width/height
+  }
+  // Force chart wrapper to refresh its flex-layout dimensions
+  const chartWrapperEl = document.getElementById('chartAreaWrapper');
+  if (chartWrapperEl) {
+    chartWrapperEl.style.cssText = ''; // clear any stale inline styles
+    void chartWrapperEl.offsetHeight;  // force reflow
   }
   
   // Open modal FIRST, then create chart
@@ -3025,8 +3689,9 @@ window.showCryptoDetail = async function(symbol) {
   modal.classList.add('active');
   
   // Ждем окончания анимации и рендера модального окна
-  await new Promise(resolve => setTimeout(resolve, 50));
-  console.log('Modal opened');
+  // 100ms вместо 50ms — после dock/undock браузеру нужно больше времени пересчитать flex-layout
+  await new Promise(resolve => setTimeout(resolve, 100));
+
   
   // Show legend for main symbol
   const chartLegend = document.getElementById('chartLegend');
@@ -3039,7 +3704,7 @@ window.showCryptoDetail = async function(symbol) {
     const tickerCacheKey = `ticker_${symbol}`;
     let data;
     if (cached) {
-      console.log('Using cached ticker for', symbol);
+
       data = cached.tickerData;
     } else {
       const response = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}USDT`);
@@ -3050,7 +3715,7 @@ window.showCryptoDetail = async function(symbol) {
         tickerData: data,
         timestamp: now
       };
-      console.log('Cached ticker for', symbol);
+
     }
     
     const price = parseFloat(data.lastPrice);
@@ -3081,12 +3746,18 @@ window.showCryptoDetail = async function(symbol) {
       img.alt = symbol;
       img.style.cssText = 'width: 100%; height: 100%; object-fit: contain;';
       
-      // Fallback handler
+      // Fallback handler — multi-step: CryptoIcons CDN → ui-avatars
       img.onerror = function() {
-        const fallbackIcon = document.createElement('i');
-        fallbackIcon.className = `fab fa-${cryptoInfo.icon || 'bitcoin'}`;
-        iconEl.innerHTML = '';
-        iconEl.appendChild(fallbackIcon);
+        if (!this.dataset.cryptoFallback) {
+          this.dataset.cryptoFallback = '1';
+          this.src = `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/icon/${symbol.toLowerCase()}.png`;
+        } else {
+          this.onerror = null;
+          const fallbackIcon = document.createElement('i');
+          fallbackIcon.className = `fab fa-${cryptoInfo.icon || 'bitcoin'}`;
+          iconEl.innerHTML = '';
+          iconEl.appendChild(fallbackIcon);
+        }
       };
       
       iconEl.innerHTML = '';
@@ -3168,7 +3839,7 @@ window.showCryptoDetail = async function(symbol) {
     
     await window.loadCryptoDetailCharts(symbol, currentCryptoInterval);
   } catch (error) {
-    console.error('Error:', error);
+
     showNotification('Ошибка загрузки', 'error');
   }
 };
@@ -3206,11 +3877,11 @@ const updateOHLCDisplay = (open, high, low, close, change) => {
 }
 
 window.changeCryptoChartPeriod = async function(interval) {
-  console.log('changeCryptoChartPeriod called with interval:', interval, 'symbol:', window.currentCryptoSymbol);
+
   
   // Защита от вызова без выбранного символа
   if (!window.currentCryptoSymbol) {
-    console.warn('Cannot change period: no crypto symbol selected');
+
     return;
   }
   
@@ -3221,31 +3892,31 @@ window.changeCryptoChartPeriod = async function(interval) {
     btn.classList.remove('active');
     if (btn.dataset.period === interval) {
       btn.classList.add('active');
-      console.log('Activated button for period:', interval);
+
     }
   });
   
-  console.log('Loading chart with new period...');
+
   await window.loadCryptoDetailCharts(window.currentCryptoSymbol, interval);
-  console.log('Chart period changed successfully');
+
 };
 
 window.switchChartType = function(type) {
-  console.log('switchChartType called with type:', type);
+
   
   // Защита от вызова без выбранного символа
   if (!window.currentCryptoSymbol) {
-    console.warn('Cannot switch chart type: no crypto symbol selected');
+
     return;
   }
   
   currentChartType = type;
-  console.log('Switching to chart type:', type);
+
   
   // При переходе на TradingView сбрасываем сравнение
   if (type === 'tradingview') {
     if (compareSymbol) {
-      console.log('Resetting comparison for TradingView mode');
+
       removeCompareSymbol();
     }
     // Скрываем легенду в TradingView режиме
@@ -3254,34 +3925,36 @@ window.switchChartType = function(type) {
       chartLegend.style.display = 'none';
     }
   } else if (type === 'indicators') {
-    // В режиме индикаторов также скрываем легенду
+    // В режиме индикаторов скрываем легенду, OHLC и toolbar
     const chartLegend = document.getElementById('chartLegend');
-    if (chartLegend) {
-      chartLegend.style.display = 'none';
-    }
+    if (chartLegend) chartLegend.style.display = 'none';
     const chartOhlc = document.getElementById('chartOhlcDisplay');
     if (chartOhlc) chartOhlc.style.display = 'none';
+    const toolbar = document.getElementById('cryptoDrawingToolbar');
+    if (toolbar) toolbar.style.display = 'none';
   } else if (type === 'tech-table') {
-    // В режиме таблицы индикаторов скрываем легенду и OHLC
+    // В режиме таблицы индикаторов скрываем легенду, OHLC и toolbar
     const chartLegend = document.getElementById('chartLegend');
-    if (chartLegend) {
-      chartLegend.style.display = 'none';
-    }
+    if (chartLegend) chartLegend.style.display = 'none';
     const chartOhlc = document.getElementById('chartOhlcDisplay');
     if (chartOhlc) chartOhlc.style.display = 'none';
+    const toolbar = document.getElementById('cryptoDrawingToolbar');
+    if (toolbar) toolbar.style.display = 'none';
   } else {
-    // Показываем легенду в Price режиме
+    // Показываем легенду в Price режиме и toolbar
     const chartLegend = document.getElementById('chartLegend');
     if (chartLegend) {
       chartLegend.style.display = 'flex';
     }
+    const toolbar = document.getElementById('cryptoDrawingToolbar');
+    if (toolbar) toolbar.style.display = '';
   }
   
   document.querySelectorAll('.chart-tab').forEach(tab => {
     tab.classList.remove('active');
     if (tab.dataset.chart === type) {
       tab.classList.add('active');
-      console.log('Activated tab:', type);
+
     }
   });
   
@@ -3290,11 +3963,11 @@ window.switchChartType = function(type) {
 };
 
 window.toggleChartScale = function() {
-  console.log('toggleChartScale called');
+
   
   // Защита от вызова без выбранного символа
   if (!window.currentCryptoSymbol) {
-    console.warn('Cannot toggle chart scale: no crypto symbol selected');
+
     return;
   }
   
@@ -3305,18 +3978,26 @@ window.toggleChartScale = function() {
 };
 
 // Экспортируем глобально для использования в dock/undock
+// Счётчик запросов — каждый новый вызов отменяет предыдущий (last-wins).
+let _chartLoadSeq = 0;
+
 const loadCryptoDetailCharts = async (symbol, interval) => {
+  const mySeq = ++_chartLoadSeq; // захватываем номер до первого await
+
   try {
-    console.log('Loading chart for', symbol, 'interval:', interval);
+
     
     // Reset visibility state when loading new charts
     mainSeriesVisible = true;
     compareSeriesVisible = true;
     
     if (!symbol) {
-      console.error('Cannot load chart: symbol is null or undefined!');
+
       return;
     }
+
+    // Если за время ожидания пришёл более новый запрос — выходим
+    const stale = () => mySeq !== _chartLoadSeq;
     
     // Map intervals to Binance API format
     const intervalMap = {
@@ -3355,9 +4036,10 @@ const loadCryptoDetailCharts = async (symbol, interval) => {
     const cacheKey = `${symbol}_${binanceInterval}_${limit}`;
     const now = Date.now();
     if (window.cryptoDataCache[cacheKey] && (now - window.cryptoDataCache[cacheKey].timestamp) < CACHE_DURATION) {
-      console.log('Using cached klines for', cacheKey);
+
       const klines = window.cryptoDataCache[cacheKey].data;
       
+      if (stale()) return;
       // Render chart based on current type
       if (currentChartType === 'tradingview') {
         renderTradingViewChart(klines, symbol);
@@ -3366,13 +4048,13 @@ const loadCryptoDetailCharts = async (symbol, interval) => {
       } else if (currentChartType === 'tech-table') {
         window.renderTechIndicatorsTable(klines, symbol, currentCryptoInterval);
       } else {
-        renderPriceLineChart(klines, symbol);
+        await renderPriceLineChart(klines, symbol);
       }
       return;
     }
     
     const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}USDT&interval=${binanceInterval}&limit=${limit}`;
-    console.log('Fetching:', url);
+
     
     const response = await fetch(url);
     if (!response.ok) {
@@ -3380,10 +4062,10 @@ const loadCryptoDetailCharts = async (symbol, interval) => {
     }
     
     const klines = await response.json();
-    console.log('Received klines:', klines.length);
+
     
     if (!klines || klines.length === 0) {
-      console.error('No klines data received');
+
       showNotification('Нет данных для отображения', 'warning');
       return;
     }
@@ -3393,8 +4075,9 @@ const loadCryptoDetailCharts = async (symbol, interval) => {
       data: klines,
       timestamp: now
     };
-    console.log('Cached klines for', cacheKey);
+
     
+    if (stale()) return;
     // Render chart based on current type
     if (currentChartType === 'tradingview') {
       renderTradingViewChart(klines, symbol);
@@ -3403,11 +4086,11 @@ const loadCryptoDetailCharts = async (symbol, interval) => {
     } else if (currentChartType === 'tech-table') {
       window.renderTechIndicatorsTable(klines, symbol, currentCryptoInterval);
     } else {
-      renderPriceLineChart(klines, symbol);
+      await renderPriceLineChart(klines, symbol);
     }
     
   } catch (error) {
-    console.error('Chart error:', error);
+
     showNotification('Ошибка загрузки графика: ' + error.message, 'error');
   }
 }
@@ -3436,7 +4119,7 @@ const fetchKlinesForComparison = async (symbol, interval) => {
     
     return await response.json();
   } catch (error) {
-    console.error('Error fetching comparison klines:', error);
+
     return null;
   }
 }
@@ -3445,12 +4128,25 @@ const fetchKlinesForComparison = async (symbol, interval) => {
 
 // Simple line chart for "Price" tab (like CoinMarketCap)
 const renderPriceLineChart = async (klines, symbol) => {
-  console.log('renderPriceLineChart called with', klines.length, 'candles');
+
   
-  const container = document.getElementById('cryptoDetailPriceChart');
+  let container = document.getElementById('cryptoDetailPriceChart');
   if (!container) {
-    console.error('Container not found!');
+
     return;
+  }
+
+  // In docked mode the original modal is hidden (display:none), so getElementById
+  // returns the hidden copy first. Prefer the visible twin (docked clone) if one exists.
+  if (container.clientWidth === 0 && container.clientHeight === 0) {
+    const twins = document.querySelectorAll('#cryptoDetailPriceChart');
+    for (const twin of twins) {
+      if (twin !== container && (twin.clientWidth > 0 || twin.clientHeight > 0)) {
+
+        container = twin;
+        break;
+      }
+    }
   }
   
   // Remove indicators mode class if present
@@ -3458,10 +4154,17 @@ const renderPriceLineChart = async (klines, symbol) => {
   if (chartContainer) {
     chartContainer.classList.remove('indicators-mode');
   }
-  
-  // Check if LightweightCharts is available
+
+  // Восстанавливаем панель рисования (могла быть скрыта в режиме indicators/tech-table)
+  const drawingToolbarPL = document.getElementById('cryptoDrawingToolbar');
+  if (drawingToolbarPL) drawingToolbarPL.style.display = '';
+
+  // OHLC не нужен в режиме area/line графика
+  const ohlcEl = document.getElementById('chartOhlcDisplay');
+  if (ohlcEl) ohlcEl.style.display = 'none';
+  // Легенда остаётся видимой во всех режимах графика
   if (typeof LightweightCharts === 'undefined') {
-    console.error('LightweightCharts library not loaded!');
+
     showNotification('Библиотека графиков не загружена', 'error');
     return;
   }
@@ -3469,23 +4172,154 @@ const renderPriceLineChart = async (klines, symbol) => {
   // Destroy existing chart
   if (window.tvChart) {
     try {
-      console.log('Destroying existing chart...');
+
+      
+      // Disconnect ResizeObserver
+      if (window.chartResizeObserver && container) {
+        try {
+          window.chartResizeObserver.unobserve(container);
+
+        } catch (e) {
+
+        }
+      }
+      
       window.tvChart.remove();
       window.tvChart = null;
-      console.log('Chart destroyed');
+
     } catch (e) {
-      console.warn('Chart cleanup warning:', e);
+
     }
   }
   
   // Clear container
   container.innerHTML = '';
   
-  // Ensure container is ready
-  if (!container.clientWidth || !container.clientHeight) {
-    console.warn('Container has no dimensions, waiting...');
-    await new Promise(resolve => setTimeout(resolve, 100));
+  // Убеждаемся что вся цепочка предков (включая модалку) видима,
+  // иначе clientWidth/clientHeight будут 0 сколько бы мы ни ждали.
+  // ВАЖНО: используем точный селектор .modal (не [class*="modal"]!) чтобы не поймать
+  // .modal-content, .modal-header и т.д., которые могут иметь display:none из-за
+  // родителя, даже когда сами по себе не hidden.
+  const modalAncestor = container.closest('.modal, .modal-overlay-news, .modal-as-section');
+  if (modalAncestor) {
+    // В dock-режиме контейнер перенесён в .modal-as-section (видимый раздел) — не прерываем
+    if (modalAncestor.classList.contains('modal-as-section')) {
+      // OK — chart container is in the visible docked section
+    } else {
+      const st = window.getComputedStyle(modalAncestor);
+      if (st.display === 'none' || st.visibility === 'hidden') {
+
+        return;
+      }
+    }
   }
+
+  // Force layout recalculation — два RAF гарантируют что CSS применился
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  
+  // Ensure parent has dimensions
+  const parentContainer = container.closest('.chart-area-wrapper') || container.parentElement;
+  if (parentContainer) {
+    const isMobile = window.innerWidth < 768;
+    const minHeight = isMobile ? 300 : 500;
+    // На мобильном chart-area-wrapper = position:absolute;inset:0 — clientHeight
+    // должна быть уже правильной (55vh). Форсируем только если реально 0.
+    void parentContainer.offsetHeight; // принудительный reflow перед проверкой
+    if (!parentContainer.clientHeight || parentContainer.clientHeight < 50) {
+      // Только min-height, НЕ height — не ломаем position:absolute sizing
+      parentContainer.style.minHeight = `${minHeight}px`;
+
+    }
+    // Fix width: 0 that occurs when flex-basis:0% hasn't resolved yet
+    if (!parentContainer.clientWidth) {
+      parentContainer.style.width = '100%';
+      void parentContainer.offsetWidth;  // force synchronous reflow
+
+    }
+  }
+  
+  // Force minimum height/width on container itself
+  // NOTE: use setProperty with 'important' to override any CSS !important rules
+  if (!container.clientHeight || container.clientHeight < 100) {
+    const minHeight = window.innerWidth < 768 ? 300 : 500;
+    container.style.setProperty('min-height', `${minHeight}px`, 'important');
+    container.style.setProperty('height', `${minHeight}px`, 'important');
+    void container.offsetHeight; // force reflow
+
+  }
+  if (!container.clientWidth) {
+    container.style.setProperty('width', '100%', 'important');
+    void container.offsetWidth;
+  }
+
+  // Wait for dimensions with smart retry logic
+  let retries = 0;
+  const maxRetries = 15;
+  while ((!container.clientWidth || !container.clientHeight) && retries < maxRetries) {
+
+    
+    // Progressive delay: faster retries initially, then slower
+    const delay = retries < 5 ? 50 : (retries < 10 ? 100 : 200);
+    await new Promise(resolve => setTimeout(resolve, delay));
+    
+    // Force reflow every few attempts
+    if (retries % 3 === 0) {
+      void container.offsetHeight; // Force reflow
+      await new Promise(resolve => requestAnimationFrame(resolve));
+    }
+    
+    retries++;
+  }
+  
+  // Final check with explicit fallback
+  if (!container.clientWidth || !container.clientHeight) {
+
+    
+    // Last resort: force absolute dimensions (setProperty overrides CSS !important)
+    const fallbackHeight = window.innerWidth < 768 ? 300 : 500;
+    container.style.setProperty('width', '100%', 'important');
+    container.style.setProperty('height', `${fallbackHeight}px`, 'important');
+    container.style.setProperty('min-height', `${fallbackHeight}px`, 'important');
+    container.style.setProperty('position', 'relative', 'important');
+    
+    // Wait one more time
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    if (!container.clientHeight) {
+      // Walk up DOM (but stop before body/html) to find a visible ancestor with real width
+      const isMobileChart = window.innerWidth < 768;
+      let rectWidth = 0;
+      let ancestor = container.parentElement;
+      while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
+        const r = ancestor.getBoundingClientRect();
+        if (r.width > 0) {
+          rectWidth = Math.round(r.width);
+          break;
+        }
+        ancestor = ancestor.parentElement;
+      }
+      // Try modal content as last resort for width
+      if (!rectWidth) {
+        const mc = container.closest('.modal-content, .docked-body, .docked-container');
+        if (mc) rectWidth = Math.round(mc.getBoundingClientRect().width);
+      }
+      // Always use a fixed chart height — never derive from ancestor rect (could be page height)
+      const rectHeight = isMobileChart ? 300 : 500;
+      rectWidth = rectWidth || Math.round(window.innerWidth * (isMobileChart ? 0.95 : 0.8));
+
+      // Force explicit pixel dimensions so clientWidth/clientHeight become non-zero
+      container.style.setProperty('width',      `${rectWidth}px`,  'important');
+      container.style.setProperty('height',     `${rectHeight}px`, 'important');
+      container.style.setProperty('min-height', `${rectHeight}px`, 'important');
+      container.style.setProperty('position',   'relative',        'important');
+      container.style.setProperty('display',    'block',           'important');
+
+    }
+    
+
+  }
+  
+
   
   // Prepare line data (using close prices)
   const lineData = klines.map(k => ({
@@ -3500,10 +4334,10 @@ const renderPriceLineChart = async (klines, symbol) => {
     const data24h = await ticker24h.json();
     window.current24hChange = parseFloat(data24h.priceChangePercent) || 0;
   } catch (e) {
-    console.warn('Failed to fetch 24h change for tooltip:', e);
+
   }
   
-  console.log('Prepared line data:', lineData.length, 'points');
+
   
   // Load comparison data BEFORE creating chart if needed
   let originalCompareData = null;
@@ -3512,7 +4346,7 @@ const renderPriceLineChart = async (klines, symbol) => {
   
   if (compareSymbol) {
     try {
-      console.log('Pre-loading comparison data for:', compareSymbol);
+
       const compareKlines = await fetchKlinesForComparison(compareSymbol, currentCryptoInterval);
       
       if (compareKlines && compareKlines.length > 0) {
@@ -3523,7 +4357,7 @@ const renderPriceLineChart = async (klines, symbol) => {
         
         originalCompareData = compareLineData;
         compareFirstPrice = compareLineData[0].value;
-        console.log('Comparison data loaded:', compareLineData.length, 'points');
+
         
         // Сохраняем 24-часовое изменение для сравниваемой криптовалюты
         window.compare24hChange = 0;
@@ -3531,11 +4365,11 @@ const renderPriceLineChart = async (klines, symbol) => {
           const compareData24h = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${compareSymbol}USDT`).then(r => r.json());
           window.compare24hChange = parseFloat(compareData24h?.priceChangePercent) || 0;
         } catch (e) {
-          console.warn('Failed to fetch compare 24h change:', e);
+
         }
       }
     } catch (error) {
-      console.error('Error pre-loading comparison data:', error);
+
     }
   }
   
@@ -3546,11 +4380,11 @@ const renderPriceLineChart = async (klines, symbol) => {
     
     // Если контейнер не имеет размеров, ждем немного
     if (width < 100 || height < 100) {
-      console.warn('Container too small, waiting for proper sizing...');
+
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     
-    console.log('Creating line chart with dimensions:', width, 'x', height);
+
     
     // Get crypto color
     const cryptoInfo = window.CRYPTO_INFO?.[symbol] || { color: '#3b82f6' };
@@ -3589,7 +4423,9 @@ const renderPriceLineChart = async (klines, symbol) => {
       },
     });
     
-    console.log('Chart instance created');
+
+    // Захватываем локальную ссылку — она не будет обнулена другими async-вызовами
+    const localTvChart = window.tvChart;
     
     // Check if we need percentage mode (when comparing)
     const usePercentageMode = compareSymbol !== null && originalCompareData !== null;
@@ -3604,7 +4440,7 @@ const renderPriceLineChart = async (klines, symbol) => {
       const syncedLineData = lineData.filter(d => commonTimes.has(d.time));
       const syncedCompareData = originalCompareData.filter(d => commonTimes.has(d.time));
       
-      console.log('Synced data:', syncedLineData.length, 'common points from', lineData.length, 'and', originalCompareData.length);
+
       
       // In comparison mode, normalize data to percentage
       const firstPrice = syncedLineData[0].value;
@@ -3622,7 +4458,7 @@ const renderPriceLineChart = async (klines, symbol) => {
       });
       
       lineSeries.setData(normalizedLineData);
-      console.log('Line data set (percentage mode)');
+
       
       // Configure price scale for percentage
       window.tvChart.applyOptions({
@@ -3650,7 +4486,7 @@ const renderPriceLineChart = async (klines, symbol) => {
         });
         
         compareSeriesLine.setData(normalizedCompareData);
-        console.log('Synced comparison line added');
+
       }
     } else {
       // Normal mode - absolute prices
@@ -3663,7 +4499,11 @@ const renderPriceLineChart = async (klines, symbol) => {
       });
       
       lineSeries.setData(lineData);
-      console.log('Line data set');
+
+      // Маркеры покупок из Аналитики
+      if (typeof window.applyBuyMarkersFromAnalytics === 'function') {
+        window.applyBuyMarkersFromAnalytics(lineSeries, lineData);
+      }
     }
     
     // Update legend (always, regardless of comparison)
@@ -3674,7 +4514,7 @@ const renderPriceLineChart = async (klines, symbol) => {
       const data24h = await ticker24h.json();
       change24h = parseFloat(data24h.priceChangePercent) || 0;
     } catch (e) {
-      console.warn('Failed to fetch 24h change:', e);
+
     }
     
     const symbol1Data = {
@@ -3690,7 +4530,7 @@ const renderPriceLineChart = async (klines, symbol) => {
         const compareData24h = await compareTicker.json();
         compareChange24h = parseFloat(compareData24h.priceChangePercent) || 0;
       } catch (e) {
-        console.warn('Failed to fetch compare 24h change:', e);
+
       }
       
       const symbol2Data = {
@@ -3703,21 +4543,27 @@ const renderPriceLineChart = async (klines, symbol) => {
     }
     
     // Fit content и принудительное обновление
-    if (window.tvChart && typeof window.tvChart.timeScale === 'function') {
+    // Проверяем что наш chart всё ещё актуален (не был уничтожен пока мы ждали)
+    if (localTvChart && window.tvChart === localTvChart && typeof localTvChart.timeScale === 'function') {
       try { 
-        window.tvChart.timeScale().fitContent(); 
+        localTvChart.timeScale().fitContent(); 
         // Принудительное обновление размеров после загрузки данных
         await new Promise(resolve => setTimeout(resolve, 50));
-        const newWidth = container.clientWidth || width;
-        const newHeight = container.clientHeight || height;
-        if (newWidth > 0 && newHeight > 0) {
-          window.tvChart.applyOptions({ width: newWidth, height: newHeight });
+        // Повторная проверка после await — за это время chart мог быть уничтожен
+        if (window.tvChart !== localTvChart) {
+
+        } else {
+          const newWidth = container.clientWidth || width;
+          const newHeight = container.clientHeight || height;
+          if (newWidth > 0 && newHeight > 0) {
+            localTvChart.applyOptions({ width: newWidth, height: newHeight });
+          }
+
         }
-        console.log('Line chart rendering complete!'); 
       }
-      catch (e) { console.warn('Could not fit line chart content:', e); }
+      catch (_) {}
     } else {
-      console.warn('tvChart not available to fit line chart content');
+
     }
     
     // Handle resize
@@ -3743,7 +4589,16 @@ const renderPriceLineChart = async (klines, symbol) => {
     
     // Store current series globally
     window.currentSeries = lineSeries;
-    
+    // Инициализация инструментов разметки
+    document.dispatchEvent(new CustomEvent('lwcChartReady', {
+      detail: {
+        chart:       localTvChart,
+        series:      lineSeries,
+        containerId: 'chartAreaWrapper',
+        toolbarId:   'cryptoDrawingToolbar',
+      },
+    }));
+
     // Add click handler for pin marker (only works in pin mode)
     const handlePinClick = (e) => {
       if (!isPinModeActive) return;
@@ -3776,7 +4631,7 @@ const renderPriceLineChart = async (klines, symbol) => {
             try {
               lineSeries.removePriceLine(globalPinnedMarker);
             } catch (e) {
-              console.log('Old marker already removed');
+
             }
           }
           
@@ -3791,7 +4646,7 @@ const renderPriceLineChart = async (klines, symbol) => {
             title: '',
           });
           
-          console.log('Pin marker set at', new Date(closestData.time * 1000));
+
         }
       }
     };
@@ -3799,7 +4654,12 @@ const renderPriceLineChart = async (klines, symbol) => {
     container.addEventListener('click', handlePinClick);
     
     // Subscribe to crosshair move for tooltip
-    window.tvChart.subscribeCrosshairMove(param => {
+    if (!localTvChart) {
+
+      return;
+    }
+    
+    localTvChart.subscribeCrosshairMove(param => {
       // If pin is locked, show pinned data in tooltip
       if (isPinModeActive && globalPinnedData) {
         const date = new Date(globalPinnedData.time * 1000);
@@ -4006,19 +4866,62 @@ const renderPriceLineChart = async (klines, symbol) => {
       tooltip.style.bottom = 'auto';
     });
     
+    // Add ResizeObserver to handle container size changes
+    if (!window.chartResizeObserver) {
+      window.chartResizeObserver = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          const { width, height } = entry.contentRect;
+          
+          // Only resize if dimensions are valid
+          if (width > 100 && height > 100 && window.tvChart) {
+            try {
+              requestAnimationFrame(() => {
+                if (window.tvChart) {
+                  window.tvChart.applyOptions({ 
+                    width, 
+                    height 
+                  });
+
+                }
+              });
+            } catch (e) {
+
+            }
+          }
+        }
+      });
+    }
+    
+    // Observe container
+    if (container && window.chartResizeObserver) {
+      window.chartResizeObserver.observe(container);
+    }
+    
   } catch (error) {
-    console.error('Error creating line chart:', error);
+
     showNotification('Ошибка создания графика', 'error');
   }
 }
 
 const renderTradingViewChart = async (klines, symbol) => {
-  console.log('renderTradingViewChart called with', klines.length, 'candles');
+
   
-  const container = document.getElementById('cryptoDetailPriceChart');
+  let container = document.getElementById('cryptoDetailPriceChart');
   if (!container) {
-    console.error('Container not found!');
+
     return;
+  }
+
+  // In docked mode the original modal is hidden — prefer visible twin
+  if (container.clientWidth === 0 && container.clientHeight === 0) {
+    const twins = document.querySelectorAll('#cryptoDetailPriceChart');
+    for (const twin of twins) {
+      if (twin !== container && (twin.clientWidth > 0 || twin.clientHeight > 0)) {
+
+        container = twin;
+        break;
+      }
+    }
   }
   
   // Remove indicators mode class and restore OHLC
@@ -4026,19 +4929,26 @@ const renderTradingViewChart = async (klines, symbol) => {
   if (chartContainer) {
     chartContainer.classList.remove('indicators-mode');
   }
-  
+
+  // Восстанавливаем панель рисования (могла быть скрыта в режиме indicators/tech-table)
+  const drawingToolbar = document.getElementById('cryptoDrawingToolbar');
+  if (drawingToolbar) drawingToolbar.style.display = '';
+
+  // Принудительный reflow — нужен чтобы браузер применил стили до измерения размеров
+  void container.offsetHeight;
+
   const ohlc = document.getElementById('chartOhlcDisplay');
   if (ohlc) ohlc.style.display = 'flex';
   
   // Restore legend for TradingView mode
   const legend = document.getElementById('chartLegend');
-  if (legend) legend.style.display = 'block';
+  if (legend) legend.style.display = 'flex';
   
-  console.log('Container dimensions:', container.clientWidth, 'x', container.clientHeight);
+
   
   // Check if LightweightCharts is available
   if (typeof LightweightCharts === 'undefined') {
-    console.error('LightweightCharts library not loaded!');
+
     showNotification('Библиотека графиков не загружена', 'error');
     return;
   }
@@ -4046,25 +4956,96 @@ const renderTradingViewChart = async (klines, symbol) => {
   // Destroy existing chart before creating new one
   if (window.tvChart) {
     try {
-      console.log('Destroying existing chart before period change...');
+
+      
+      // Disconnect ResizeObserver
+      if (window.chartResizeObserver && container) {
+        try {
+          window.chartResizeObserver.unobserve(container);
+        } catch (e) {
+
+        }
+      }
+      
       window.tvChart.remove();
       window.tvChart = null;
       candlestickSeries = null;
       volumeSeries = null;
-      console.log('Chart destroyed successfully');
+
     } catch (e) {
-      console.warn('Chart cleanup warning:', e);
+
     }
   }
   
   // Clear container
   container.innerHTML = '';
   
-  // Ensure container is ready
-  if (!container.clientWidth || !container.clientHeight) {
-    console.warn('Container has no dimensions, waiting...');
-    await new Promise(resolve => setTimeout(resolve, 100));
+  // Force layout recalculation
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  
+  // Ensure parent has dimensions
+  const parentContainer = container.closest('.chart-area-wrapper') || container.parentElement;
+  if (parentContainer && (!parentContainer.clientHeight || parentContainer.clientHeight < 100)) {
+    // Force minimum height on parent
+    const minHeight = window.innerWidth < 768 ? 300 : 500;
+    parentContainer.style.minHeight = `${minHeight}px`;
+    parentContainer.style.height = `${minHeight}px`;
+
   }
+  
+  // Force minimum height on container itself
+  if (!container.style.minHeight || parseInt(container.style.minHeight) < 100) {
+    const minHeight = window.innerWidth < 768 ? 300 : 500;
+    container.style.minHeight = `${minHeight}px`;
+    if (!container.style.height || container.style.height === '0px') {
+      container.style.height = `${minHeight}px`;
+    }
+
+  }
+  
+  // Wait for dimensions with smart retry logic
+  let retries = 0;
+  const maxRetries = 15;
+  while ((!container.clientWidth || !container.clientHeight) && retries < maxRetries) {
+
+    
+    // Progressive delay: faster retries initially, then slower
+    const delay = retries < 5 ? 50 : (retries < 10 ? 100 : 200);
+    await new Promise(resolve => setTimeout(resolve, delay));
+    
+    // Force reflow every few attempts
+    if (retries % 3 === 0) {
+      void container.offsetHeight; // Force reflow
+      await new Promise(resolve => requestAnimationFrame(resolve));
+    }
+    
+    retries++;
+  }
+  
+  // Final check with explicit fallback
+  if (!container.clientWidth || !container.clientHeight) {
+
+    
+    // Last resort: force absolute dimensions (setProperty overrides CSS !important)
+    const fallbackHeight = window.innerWidth < 768 ? 300 : 500;
+    container.style.setProperty('width', '100%', 'important');
+    container.style.setProperty('height', `${fallbackHeight}px`, 'important');
+    container.style.setProperty('min-height', `${fallbackHeight}px`, 'important');
+    container.style.setProperty('position', 'relative', 'important');
+    
+    // Wait one more time
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    if (!container.clientHeight) {
+
+      showNotification('Не удалось загрузить график', 'error');
+      return;
+    }
+    
+
+  }
+  
+
   
   // Prepare data
   const candleData = klines.map(k => ({
@@ -4081,9 +5062,9 @@ const renderTradingViewChart = async (klines, symbol) => {
     color: parseFloat(k[4]) >= parseFloat(k[1]) ? 'rgba(16, 185, 129, 0.5)' : 'rgba(239, 68, 68, 0.5)'
   })).sort((a, b) => a.time - b.time);
   
-  console.log('Prepared data:', candleData.length, 'candles');
-  console.log('First candle:', candleData[0]);
-  console.log('Last candle:', candleData[candleData.length - 1]);
+
+
+
   
   // Сохраняем 24-часовое изменение в глобальной переменной
   window.current24hChange = 0;
@@ -4092,7 +5073,7 @@ const renderTradingViewChart = async (klines, symbol) => {
     const data24h = await ticker24h.json();
     window.current24hChange = parseFloat(data24h.priceChangePercent) || 0;
   } catch (e) {
-    console.warn('Failed to fetch 24h change for candlestick:', e);
+
   }
   
   // Load comparison data BEFORE creating chart if needed
@@ -4101,7 +5082,7 @@ const renderTradingViewChart = async (klines, symbol) => {
   
   if (compareSymbol) {
     try {
-      console.log('Pre-loading comparison data for:', compareSymbol);
+
       const compareKlines = await fetchKlinesForComparison(compareSymbol, currentCryptoInterval);
       
       if (compareKlines && compareKlines.length > 0) {
@@ -4111,25 +5092,24 @@ const renderTradingViewChart = async (klines, symbol) => {
         })).sort((a, b) => a.time - b.time);
         
         compareFirstPrice = originalCompareData[0].close;
-        console.log('Comparison data loaded:', originalCompareData.length, 'points');
+
       }
     } catch (error) {
-      console.error('Error pre-loading comparison data:', error);
+
     }
   }
   
   try {
     // Create chart with explicit dimensions
-    const width = container.clientWidth || 1000;
-    const height = container.clientHeight || 550;
+    const width = container.clientWidth || 600;
+    const height = container.clientHeight || 400;
     
-    // Если контейнер не имеет размеров, ждем немного
-    if (width < 100 || height < 100) {
-      console.warn('Candlestick container too small, waiting for proper sizing...');
-      await new Promise(resolve => setTimeout(resolve, 100));
+    if (width < 50 || height < 50) {
+
+      return;
     }
     
-    console.log('Creating chart with dimensions:', width, 'x', height);
+
     
     window.tvChart = LightweightCharts.createChart(container, {
       width: width,
@@ -4174,7 +5154,7 @@ const renderTradingViewChart = async (klines, symbol) => {
       },
     });
     
-    console.log('Chart created successfully');
+
     
     // Check if we need percentage mode (when comparing)
     const usePercentageMode = compareSymbol !== null && originalCompareData !== null;
@@ -4189,7 +5169,7 @@ const renderTradingViewChart = async (klines, symbol) => {
       const syncedCandleData = candleData.filter(d => commonTimes.has(d.time));
       const syncedCompareData = originalCompareData.filter(d => commonTimes.has(d.time));
       
-      console.log('Synced candle data:', syncedCandleData.length, 'common points from', candleData.length, 'and', originalCompareData.length);
+
       
       // In comparison mode, use line series with percentage normalization
       const firstPrice = syncedCandleData[0].close;
@@ -4209,7 +5189,7 @@ const renderTradingViewChart = async (klines, symbol) => {
       });
       
       candlestickSeries.setData(normalizedCandleData);
-      console.log('Line series added (percentage mode)');
+
       
       // Configure price scale for normal mode
       window.tvChart.applyOptions({
@@ -4241,7 +5221,7 @@ const renderTradingViewChart = async (klines, symbol) => {
         });
         
         compareSeriesCandle.setData(normalizedCompareData);
-        console.log('Synced comparison line added');
+
       }
     } else {
       // Normal mode - candlesticks
@@ -4254,10 +5234,14 @@ const renderTradingViewChart = async (klines, symbol) => {
         wickDownColor: '#ef4444',
       });
       
-      console.log('Candlestick series added');
+
       
       candlestickSeries.setData(candleData);
-      console.log('Candlestick data set');
+
+      // Маркеры покупок из Аналитики
+      if (typeof window.applyBuyMarkersFromAnalytics === 'function') {
+        window.applyBuyMarkersFromAnalytics(candlestickSeries, candleData);
+      }
     }
     
     // Add volume series (only in non-comparison mode)
@@ -4274,10 +5258,10 @@ const renderTradingViewChart = async (klines, symbol) => {
         },
       });
       
-      console.log('Volume series added');
+
       
       volumeSeries.setData(volumeData);
-      console.log('Volume data set');
+
     }
     
     // Update legend (only for Price mode, not TradingView)
@@ -4289,7 +5273,7 @@ const renderTradingViewChart = async (klines, symbol) => {
         const data24h = await ticker24h.json();
         change24h = parseFloat(data24h.priceChangePercent) || 0;
       } catch (e) {
-        console.warn('Failed to fetch 24h change:', e);
+
       }
       
       const symbol1Data = {
@@ -4305,7 +5289,7 @@ const renderTradingViewChart = async (klines, symbol) => {
           const compareData24h = await compareTicker.json();
           compareChange24h = parseFloat(compareData24h.priceChangePercent) || 0;
         } catch (e) {
-          console.warn('Failed to fetch compare 24h change:', e);
+
         }
         
         const symbol2Data = {
@@ -4330,17 +5314,19 @@ const renderTradingViewChart = async (klines, symbol) => {
         window.tvChart.timeScale().fitContent();
         // Принудительное обновление размеров после загрузки данных
         await new Promise(resolve => setTimeout(resolve, 50));
-        const newWidth = container.clientWidth || width;
-        const newHeight = container.clientHeight || height;
-        if (newWidth > 0 && newHeight > 0) {
-          window.tvChart.applyOptions({ width: newWidth, height: newHeight });
+        if (window.tvChart) {
+          const newWidth = container.clientWidth || width;
+          const newHeight = container.clientHeight || height;
+          if (newWidth > 0 && newHeight > 0) {
+            window.tvChart.applyOptions({ width: newWidth, height: newHeight });
+          }
         }
-        console.log('Chart content fitted');
+
       } catch (e) {
-        console.warn('Could not fit chart content:', e);
+
       }
     } else {
-      console.warn('tvChart not available to fit content');
+
     }
     
     // Handle resize
@@ -4348,7 +5334,11 @@ const renderTradingViewChart = async (klines, symbol) => {
       if (window.tvChart && entries.length > 0) {
         const { width, height } = entries[0].contentRect;
         if (width > 0 && height > 0) {
-          window.tvChart.applyOptions({ width, height });
+          try {
+            window.tvChart.applyOptions({ width, height });
+          } catch (e) {
+
+          }
         }
       }
     });
@@ -4357,7 +5347,16 @@ const renderTradingViewChart = async (klines, symbol) => {
     
     // Store current series globally for pin functionality
     window.currentSeries = candlestickSeries;
-    
+    // Инициализация инструментов разметки
+    document.dispatchEvent(new CustomEvent('lwcChartReady', {
+      detail: {
+        chart:       window.tvChart,
+        series:      candlestickSeries,
+        containerId: 'chartAreaWrapper',
+        toolbarId:   'cryptoDrawingToolbar',
+      },
+    }));
+
     // Add click handler for pin marker (only works in pin mode)
     const handleCandlePinClick = (e) => {
       if (!isPinModeActive) return;
@@ -4390,7 +5389,7 @@ const renderTradingViewChart = async (klines, symbol) => {
             try {
               candlestickSeries.removePriceLine(globalPinnedMarker);
             } catch (e) {
-              console.log('Old marker already removed');
+
             }
           }
           
@@ -4407,7 +5406,7 @@ const renderTradingViewChart = async (klines, symbol) => {
             title: '',
           });
           
-          console.log('Pin marker set at', new Date(closestData.time * 1000));
+
         }
       }
     };
@@ -4415,6 +5414,10 @@ const renderTradingViewChart = async (klines, symbol) => {
     container.addEventListener('click', handleCandlePinClick);
     
     // Subscribe to crosshair move for OHLC updates only (no tooltip in TradingView mode)
+    if (!window.tvChart) {
+
+      return;
+    }
     window.tvChart.subscribeCrosshairMove(param => {
       // If pin mode is active and there's pinned data, use it
       if (isPinModeActive && globalPinnedData) {
@@ -4443,10 +5446,41 @@ const renderTradingViewChart = async (klines, symbol) => {
       }
     });
     
-    console.log('Chart rendering complete!');
+
+    
+    // Add ResizeObserver to handle container size changes
+    if (!window.chartResizeObserver) {
+      window.chartResizeObserver = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          const { width, height } = entry.contentRect;
+          
+          // Only resize if dimensions are valid
+          if (width > 100 && height > 100 && window.tvChart) {
+            try {
+              requestAnimationFrame(() => {
+                if (window.tvChart) {
+                  window.tvChart.applyOptions({ 
+                    width, 
+                    height 
+                  });
+
+                }
+              });
+            } catch (e) {
+
+            }
+          }
+        }
+      });
+    }
+    
+    // Observe container
+    if (container && window.chartResizeObserver) {
+      window.chartResizeObserver.observe(container);
+    }
     
   } catch (error) {
-    console.error('Error creating chart:', error);
+
     showNotification('Ошибка создания графика: ' + error.message, 'error');
   }
 }
@@ -4469,7 +5503,7 @@ window.addTransactionFromCrypto = function() {
   setTimeout(() => {
     modal.style.display = '';
     modal.classList.add('active');
-    console.log('Transaction modal opened from crypto');
+
   }, 10);
   
   // Заполняем тип и дату
@@ -4516,20 +5550,20 @@ window.addToWatchlist = async function() {
       showNotification('Функция избранного недоступна', 'error');
     }
   } catch (err) {
-    console.error('addToWatchlist error:', err);
+
     showNotification('Ошибка при добавлении в избранное', 'error');
   }
 };
 
 // Добавь в конец ui.js - ИСПРАВЛЕНО: правильные ID и защита от дублирования
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('Setting up form handlers...');
+
   
   // Обработчик кнопки "Создать портфель"
   const createPortfolioBtn = document.getElementById('createPortfolioBtn');
   if (createPortfolioBtn) {
     createPortfolioBtn.addEventListener('click', () => {
-      console.log('Opening portfolio modal');
+
       const modal = document.getElementById('createPortfolioModal');
       if (modal) {
         modal.classList.remove('active');
@@ -4550,7 +5584,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     newForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      console.log('Creating portfolio...');
+
       
       const submitBtn = e.target.querySelector('button[type="submit"]');
       const originalText = submitBtn.innerHTML;
@@ -4570,25 +5604,25 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       try {
-        console.log('Saving portfolio:', { name, description, currency, riskLevel });
+
         await createPortfolio(name, description, currency, riskLevel);
-        console.log('Portfolio created successfully');
+
         
         window.app.closeModal('createPortfolioModal');
         newForm.reset();
         await loadPortfolios();
         showNotification('Портфель успешно создан!', 'success');
       } catch (error) {
-        console.error('Error creating portfolio:', error);
+
         showNotification('Ошибка при создании портфеля: ' + error.message, 'error');
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
       }
     });
-    console.log('Portfolio form handler attached');
+
   } else {
-    console.error('Portfolio form not found (#createPortfolioForm)');
+
   }
 
   // Custom dropdowns for Create Portfolio modal (currency and risk) — reuse trading-tools styles
@@ -4660,7 +5694,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     newTransactionForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      console.log('Adding transaction...');
+
       
       const submitBtn = e.target.querySelector('button[type="submit"]');
       const originalText = submitBtn.innerHTML;
@@ -4690,28 +5724,28 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       try {
-        console.log('Saving transaction:', { portfolioId, type, symbol, quantity, price, date });
+
         await addTransaction(portfolioId, type, symbol, quantity, price, date);
-        console.log('Transaction added successfully');
+
         
         window.app.closeModal('transactionModal');
         newTransactionForm.reset();
         await loadTransactions();
         showNotification('Транзакция успешно добавлена!', 'success');
       } catch (error) {
-        console.error('Error adding transaction:', error);
+
         showNotification('Ошибка при добавлении транзакции: ' + error.message, 'error');
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
       }
     });
-    console.log('Transaction form handler attached');
+
     // initialize visible transaction dropdown behaviors
     try {
       setupTransactionDropdowns();
     } catch (err) {
-      console.warn('setupTransactionDropdowns error', err);
+
     }
   }
 });
@@ -4764,12 +5798,18 @@ const populateCompareList = () => {
     img.alt = symbol;
     img.style.cssText = 'width: 100%; height: 100%; object-fit: contain;';
     
-    // Fallback to icon
+    // Multi-step fallback: CryptoIcons CDN → fa icon
     img.onerror = function() {
-      const fallbackIcon = document.createElement('i');
-      fallbackIcon.className = `fab fa-${info.icon || 'bitcoin'}`;
-      iconDiv.innerHTML = '';
-      iconDiv.appendChild(fallbackIcon);
+      if (!this.dataset.cryptoFallback) {
+        this.dataset.cryptoFallback = '1';
+        this.src = `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/icon/${symbol.toLowerCase()}.png`;
+      } else {
+        this.onerror = null;
+        const fallbackIcon = document.createElement('i');
+        fallbackIcon.className = `fab fa-${info.icon || 'bitcoin'}`;
+        iconDiv.innerHTML = '';
+        iconDiv.appendChild(fallbackIcon);
+      }
     };
     
     iconDiv.appendChild(img);
@@ -4793,11 +5833,11 @@ const populateCompareList = () => {
 }
 
 window.selectCompareSymbol = async function(symbol) {
-  console.log('Selecting compare symbol:', symbol);
+
   
   // Toggle: если кликнули на уже выбранный - убираем его
   if (compareSymbol === symbol) {
-    console.log('Deselecting compare symbol');
+
     removeCompareSymbol();
     return;
   }
@@ -4826,7 +5866,7 @@ window.selectCompareSymbol = async function(symbol) {
 };
 
 window.removeCompareSymbol = function() {
-  console.log('Removing comparison');
+
   compareSymbol = null;
   compareSeriesLine = null;
   compareSeriesCandle = null;
@@ -4952,21 +5992,84 @@ const toggleCompareSeries = () => {
 window.toggleMainSeries = toggleMainSeries;
 window.toggleCompareSeries = toggleCompareSeries;
 
-// CRITICAL: Override window.app.showCryptoDetail to use our new TradingView implementation
+// ============================================================================
+// ОТКРЫТИЕ ДЕТАЛЬНОГО МОДАЛА ИЗ АНАЛИТИКИ (с панелью позиции + маркеры покупок)
+// ============================================================================
+
+/**
+ * Сохраняет данные позиции и открывает модальное окно актива.
+ * Вызывается при клике на строку в таблице аналитики.
+ */
+window.openDetailFromAnalytics = function(symbol, posJsonEncoded) {
+  let posData = null;
+  try {
+    posData = JSON.parse(posJsonEncoded.replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
+  } catch(e) {
+
+  }
+
+  // Сохраняем данные позиции — они подхватятся после рендера графика
+  window._analyticsPosition = posData;
+
+  const isStock = window.STOCK_INFO && window.STOCK_INFO[symbol];
+  if (isStock) {
+    window.showStockDetail(symbol);
+  } else {
+    window.showCryptoDetail(symbol);
+  }
+};
+
+/**
+ * Ставит маркеры покупок на серию Lightweight Charts.
+ * Вызывается после setData.
+ */
+window.applyBuyMarkersFromAnalytics = function(series, chartData) {
+  const pos = window._analyticsPosition;
+  if (!pos || !pos.buyDates || pos.buyDates.length === 0) return;
+  if (!series || typeof series.setMarkers !== 'function') return;
+
+  const markers = pos.buyDates.map(bd => {
+    const ts = Math.floor(new Date(bd.date).getTime() / 1000);
+    // Находим ближайшую свечу
+    const closest = chartData.reduce((prev, curr) =>
+      Math.abs(curr.time - ts) < Math.abs(prev.time - ts) ? curr : prev
+    , chartData[0]);
+    return {
+      time: closest.time,
+      position: 'belowBar',
+      color: '#22d3ee',
+      shape: 'arrowUp',
+      text: '▲ Куплено',
+      size: 1.2,
+    };
+  });
+
+  // Удаляем дубли по времени
+  const seen = new Set();
+  const unique = markers.filter(m => { if (seen.has(m.time)) return false; seen.add(m.time); return true; });
+
+  try {
+    series.setMarkers(unique);
+  } catch(e) {
+
+  }
+  // Сбрасываем контекст — позиция применена однократно
+  window._analyticsPosition = null;
+};
 // This MUST happen to ensure the new chart system is used instead of the old Chart.js one
 if (!window.app) {
   window.app = {};
-  console.log('Created window.app object');
+
 }
 
-console.log('Overriding window.app.showCryptoDetail with new TradingView implementation');
+
 window.app.showCryptoDetail = window.showCryptoDetail;
 
 // Verify the override worked
 if (window.app.showCryptoDetail === window.showCryptoDetail) {
-  console.log('Successfully overridden window.app.showCryptoDetail');
+
 } else {
-  console.error('Failed to override window.app.showCryptoDetail!');
+
 }
 
 // Export other functions globally
@@ -4979,15 +6082,15 @@ window.switchChartType = window.switchChartType || function() {}; // Already def
 window.changeCryptoChartPeriod = window.changeCryptoChartPeriod || function() {}; // Already defined above
 window.toggleChartScale = window.toggleChartScale || function() {}; // Already defined above
 
-console.log('UI.js loaded with TradingView Lightweight Charts integration');
+
 
 // Упрощенная функция для загрузки новостей
 window.loadNewsDirect = function(category = 'all') {
-  console.log('Direct news load for category:', category);
+
   
   const container = document.getElementById('newsContainer');
   if (!container) {
-    console.error('News container not found!');
+
     return;
   }
   
@@ -5002,13 +6105,13 @@ window.loadNewsDirect = function(category = 'all') {
   if (typeof window.loadNews === 'function') {
     window.loadNews(category);
   } else {
-    console.error('loadNews function not available!');
+
   }
 };
 
 // Функция для принудительной загрузки новостей
 window.forceLoadNews = function() {
-  console.log('Force loading news...');
+
   if (typeof window.loadNews === 'function') {
     window.loadNews('all', true); // force refresh
   }
@@ -5016,12 +6119,12 @@ window.forceLoadNews = function() {
 
 // Упрощенная версия scheduleLoadNews для новостей
 window.scheduleNewsLoad = function() {
-  console.log('Scheduling news load...');
+
   
   // Проверяем, на вкладке ли новостей
   const newsSection = document.getElementById('newsSection');
   if (!newsSection || !newsSection.classList.contains('active')) {
-    console.log('Not on news section, skipping');
+
     return;
   }
   
@@ -5030,7 +6133,7 @@ window.scheduleNewsLoad = function() {
     if (typeof window.loadNews === 'function') {
       window.loadNews('all');
     } else {
-      console.log('loadNews not available yet, retrying...');
+
       setTimeout(() => {
         if (typeof window.loadNews === 'function') {
           window.loadNews('all');
@@ -5046,17 +6149,17 @@ export const showSectionWithNews = (id) => {
   originalShowSection(id);
   
   if (id === 'news') {
-    console.log('News section shown, loading news...');
+
     
     // Небольшая задержка для гарантии отрисовки DOM
     setTimeout(() => {
       const container = document.getElementById('newsContainer');
       if (container) {
-        console.log('News container found, loading...');
+
         if (typeof window.loadNews === 'function') {
           window.loadNews('all');
         } else {
-          console.log('loadNews function not ready, waiting...');
+
           // Пробуем еще раз через 500мс
           setTimeout(() => {
             if (typeof window.loadNews === 'function') {
@@ -5065,7 +6168,7 @@ export const showSectionWithNews = (id) => {
           }, 500);
         }
       } else {
-        console.log('News container not found, retrying...');
+
         setTimeout(() => {
           if (typeof window.loadNews === 'function') {
             window.loadNews('all');
@@ -5079,4 +6182,3 @@ export const showSectionWithNews = (id) => {
 // Заменяем оригинальную функцию showSection
 window.showSection = showSectionWithNews;
 
-console.log('UI.js fully loaded with news fixes');

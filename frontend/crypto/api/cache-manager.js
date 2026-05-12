@@ -21,12 +21,8 @@ class CacheManager {
     
     if (this.memoryCache.has(key)) {
       const cached = this.memoryCache.get(key);
-      if (ignoreTTL || Date.now() < cached.expiry) {
-        console.log(`[Cache HIT - Memory${ignoreTTL ? ' (TTL ignored)' : ''}] ${type}`, params);
-        return cached.data;
-      } else {
-        this.memoryCache.delete(key);
-      }
+      if (ignoreTTL || Date.now() < cached.expiry) return cached.data;
+      this.memoryCache.delete(key);
     }
     
     try {
@@ -34,18 +30,14 @@ class CacheManager {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (ignoreTTL || Date.now() < parsed.expiry) {
-          console.log(`[Cache HIT - Storage${ignoreTTL ? ' (TTL ignored)' : ''}] ${type}`, params);
           this.memoryCache.set(key, parsed);
           return parsed.data;
         } else {
           localStorage.removeItem(key);
         }
       }
-    } catch (e) {
-      console.warn('Cache read error:', e);
-    }
+    } catch (_) {}
     
-    console.log(`[Cache MISS] ${type}`, params);
     return null;
   }
 
@@ -62,71 +54,41 @@ class CacheManager {
     // Сохраняем в localStorage
     try {
       localStorage.setItem(key, JSON.stringify(cacheEntry));
-      console.log(`[Cache SET] ${type}`, params, `TTL: ${ttl / 1000}s`);
     } catch (e) {
-      // localStorage переполнен - очищаем старые записи
       if (e.name === 'QuotaExceededError') {
         this.clearOldEntries();
-        try {
-          localStorage.setItem(key, JSON.stringify(cacheEntry));
-        } catch (e2) {
-          console.warn('Cache storage failed after cleanup:', e2);
-        }
+        try { localStorage.setItem(key, JSON.stringify(cacheEntry)); } catch (_) {}
       }
     }
   }
 
-  /**
-   * Очистить устаревшие записи из localStorage
-   */
+  // Очистить устаревшие записи из localStorage
   clearOldEntries() {
     const now = Date.now();
-    let cleared = 0;
-    
     try {
-      const keys = Object.keys(localStorage);
-      for (const key of keys) {
-        if (key.startsWith(this.CACHE_PREFIX)) {
-          try {
-            const item = JSON.parse(localStorage.getItem(key));
-            if (now >= item.expiry) {
-              localStorage.removeItem(key);
-              cleared++;
-            }
-          } catch (e) {
-            // Невалидная запись - удаляем
-            localStorage.removeItem(key);
-            cleared++;
-          }
-        }
-      }
-      console.log(`[Cache] Cleared ${cleared} expired entries`);
-    } catch (e) {
-      console.warn('Cache cleanup error:', e);
-    }
-  }
-
-  /**
-   * Полная очистка кеша
-   */
-  clear() {
-    this.memoryCache.clear();
-    try {
-      const keys = Object.keys(localStorage);
-      for (const key of keys) {
-        if (key.startsWith(this.CACHE_PREFIX)) {
+      for (const key of Object.keys(localStorage)) {
+        if (!key.startsWith(this.CACHE_PREFIX)) continue;
+        try {
+          const item = JSON.parse(localStorage.getItem(key));
+          if (now >= item.expiry) localStorage.removeItem(key);
+        } catch (_) {
           localStorage.removeItem(key);
         }
       }
-      console.log('[Cache] Full cache cleared');
-    } catch (e) {
-      console.warn('Cache clear error:', e);
-    }
+    } catch (_) {}
   }
 
-  /**
-   * Получить статистику кеша
-   */
+  // Полная очистка кэша
+  clear() {
+    this.memoryCache.clear();
+    try {
+      for (const key of Object.keys(localStorage)) {
+        if (key.startsWith(this.CACHE_PREFIX)) localStorage.removeItem(key);
+      }
+    } catch (_) {}
+  }
+
+  // Статистика кэша
   getStats() {
     let storageCount = 0;
     let storageSize = 0;
@@ -139,9 +101,7 @@ class CacheManager {
           storageSize += localStorage.getItem(key).length;
         }
       }
-    } catch (e) {
-      console.warn('Cache stats error:', e);
-    }
+    } catch (_) {}
     
     return {
       memoryEntries: this.memoryCache.size,
@@ -151,10 +111,5 @@ class CacheManager {
   }
 }
 
-// Создаем глобальный экземпляр
 window.cacheManager = new CacheManager();
-
-// Очищаем устаревшие записи при загрузке
 window.cacheManager.clearOldEntries();
-
-console.log('[CacheManager] Initialized', window.cacheManager.getStats());

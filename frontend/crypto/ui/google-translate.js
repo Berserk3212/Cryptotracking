@@ -1,14 +1,152 @@
 ﻿(function() {
   'use strict';
   
+  // КРИТИЧЕСКИ ВАЖНО: Добавляем CSS ДО загрузки Google Translate
+  const hideStyle = document.createElement('style');
+  hideStyle.id = 'google-translate-killer';
+  hideStyle.textContent = `
+    /* МАКСИМАЛЬНО АГРЕССИВНОЕ СКРЫТИЕ ВСЕХ ЭЛЕМЕНТОВ GOOGLE TRANSLATE */
+    /* Скрываем все возможные варианты селекторов */
+    .goog-te-banner-frame,
+    iframe.goog-te-banner-frame,
+    .skiptranslate:not(select):not(:has(select)),
+    body > .skiptranslate:not(:has(select)),
+    div.skiptranslate:not(:has(select)),
+    span.skiptranslate:not(:has(select)),
+    #google_translate_element .skiptranslate:not(select),
+    .goog-te-gadget,
+    .goog-te-gadget-simple,
+    .goog-logo-link,
+    .goog-te-gadget-icon,
+    .goog-te-spinner-pos,
+    .goog-te-ftab,
+    .VIpgJd-ZVi9od-ORHb-OEVmcd,
+    .VIpgJd-ZVi9od-xl07Ob-lTBxed,
+    iframe[id^="goog-gt"]:not([id*="element"]),
+    iframe.goog-te-menu-frame,
+    iframe.goog-te-menu2-frame,
+    iframe.goog-te-balloon-frame,
+    #goog-gt-tt,
+    img[src*="cleardot.gif"],
+    img[src*="te_ctrl"],
+    img[src*="translate.google"],
+    a[href*="translate.google.com"],
+    div[style*="color: rgb(155, 185, 210)"],
+    div[style*="color: rgb(204, 204, 204)"],
+    div[style*="background-color: rgba(0, 0, 0, 0.2)"],
+    div[id^="goog-gt-"],
+    font[color="#FFFFFF"],
+    font[color="white"] {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      position: fixed !important;
+      left: -999999px !important;
+      top: -999999px !important;
+      width: 0px !important;
+      height: 0px !important;
+      max-width: 0px !important;
+      max-height: 0px !important;
+      pointer-events: none !important;
+      z-index: -999999999 !important;
+      overflow: hidden !important;
+      clip: rect(0,0,0,0) !important;
+      clip-path: inset(100%) !important;
+      transform: scale(0) !important;
+    }
+    
+    /* Скрываем контейнер элемента */
+    #google_translate_element {
+      display: none !important;
+      position: fixed !important;
+      left: -999999px !important;
+      top: -999999px !important;
+    }
+    
+    /* Убираем отступ от body */
+    body {
+      top: 0px !important;
+      margin-top: 0px !important;
+      padding-top: 0px !important;
+    }
+    
+    /* Специально для верхней панели Google */
+    body > div:first-child.skiptranslate,
+    body > :first-child:not(#app):not(main):not(header):not(nav):not(.container) {
+      display: none !important;
+      height: 0 !important;
+    }
+  `;
+  
+  // Добавляем стили НЕМЕДЛЕННО
+  if (document.head) {
+    document.head.insertBefore(hideStyle, document.head.firstChild);
+  } else {
+    document.addEventListener('DOMContentLoaded', () => {
+      document.head.insertBefore(hideStyle, document.head.firstChild);
+    });
+  }
+  
+  // MutationObserver только для применения CSS к новым элементам (БЕЗ удаления)
+  const styleObserver = new MutationObserver((mutations) => {
+    mutations.forEach(mutation => {
+      mutation.addedNodes.forEach(node => {
+        if (node.nodeType === 1) { // Element node
+          const el = node;
+          const classList = el.classList ? Array.from(el.classList) : [];
+          const id = el.id || '';
+          const tagName = el.tagName ? el.tagName.toLowerCase() : '';
+          
+          // Применяем стили скрытия к элементам Google (НО НЕ удаляем!)
+          const isGoogleElement = 
+            classList.some(c => c.startsWith('goog-te') || c.includes('skiptranslate') || c.includes('VIpgJd')) ||
+            (id.startsWith('goog-gt') && id !== 'google_translate_element') ||
+            (tagName === 'iframe' && el.src && el.src.includes('translate.google') && !el.src.includes('translate_a/element'));
+          
+          // Проверяем, это НЕ функциональный элемент
+          const hasSelect = el.tagName === 'SELECT' || el.querySelector('select');
+          const isFunctionalContainer = id === 'google_translate_element';
+          
+          if (isGoogleElement && !hasSelect && !isFunctionalContainer) {
+            // ТОЛЬКО скрываем через inline styles, НЕ удаляем
+            el.style.cssText = 'display:none!important;visibility:hidden!important;opacity:0!important;position:fixed!important;left:-99999px!important;top:-99999px!important;width:0!important;height:0!important;pointer-events:none!important;z-index:-999999!important;';
+          }
+        }
+      });
+    });
+  });
+  
+  // Запускаем observer после загрузки
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      if (document.body) {
+        styleObserver.observe(document.body, {
+          childList: true,
+          subtree: true
+        });
+      }
+    });
+  } else {
+    if (document.body) {
+      styleObserver.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+    }
+  }
+  
   function loadGoogleTranslate() {
-    const container = document.createElement('div');
-    container.id = 'google_translate_element';
-    container.style.display = 'none';
-    document.body.appendChild(container);
+    // Создаем скрытый контейнер
+    let container = document.querySelector('#google_translate_element');
+    
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'google_translate_element';
+      container.style.cssText = 'display:none!important;visibility:hidden!important;position:absolute!important;left:-99999px!important;';
+      document.body.appendChild(container);
+    }
     
     if (typeof google !== 'undefined' && google.translate) {
-      console.log('Google Translate already loaded, initializing...');
       window.googleTranslateElementInit();
       return;
     }
@@ -16,35 +154,26 @@
     const script = document.createElement('script');
     script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
     script.async = true;
-    script.onload = function() {
-      console.log('Google Translate script loaded successfully');
-    };
-    script.onerror = function() {
-      console.error('Failed to load Google Translate script - may be blocked by adblocker or firewall');
-    };
     document.body.appendChild(script);
-    
-    console.log('Loading Google Translate...');
   }
   
   window.googleTranslateElementInit = function() {
-    console.log('googleTranslateElementInit called');
+
     
     if (typeof google === 'undefined' || !google.translate) {
-      console.error('Google Translate API not available');
-      console.log('Check: typeof google =', typeof google);
+
+
       return;
     }
     
-    console.log('Google Translate API available');
+
     
     try {
       const container = document.querySelector('#google_translate_element');
       if (!container) {
-        console.error('Container #google_translate_element not found');
+
         return;
       }
-      console.log('Container found:', container);
       
       const element = new google.translate.TranslateElement({
         pageLanguage: 'ru',
@@ -53,8 +182,6 @@
         multilanguagePage: true,
         autoDisplay: false
       }, 'google_translate_element');
-      
-      console.log('TranslateElement created:', element);
       
       let checkCount = 0;
       const checkWidget = setInterval(() => {
@@ -66,95 +193,73 @@
         const link = document.querySelector('.VIpgJd-ZVi9od-xl07Ob-lTBxed');
         const allSelects = document.querySelectorAll('select');
         
-        if (checkCount === 1) {
-          console.log('Searching for widget...');
-        }
-        
-        if (checkCount === 30) {
-          console.log('Widget analysis:');
-          console.log('  - Container HTML:', container.innerHTML.substring(0, 300));
-          console.log('  - All selects:', allSelects.length);
-          console.log('  - Link found:', !!link);
-          console.log('  - Google API:', !!google.translate);
-        }
-        
         const foundSelect = select1 || select2 || select3;
         
         if (foundSelect) {
           clearInterval(checkWidget);
-          console.log('Widget select found!', foundSelect);
-          console.log('   Options:', foundSelect.options.length);
-          
           window.googleTranslateSelect = foundSelect;
           
           // Восстанавливаем язык
           const savedLanguage = localStorage.getItem('app_language');
           if (savedLanguage && savedLanguage !== 'ru') {
-            console.log('Restoring saved language:', savedLanguage);
             setTimeout(() => {
               window.changeLanguageGoogle(savedLanguage);
             }, 500);
           }
         } else if (link && checkCount === 10) {
           // Если через 1 секунду нашлась только ссылка - используем Cookie метод
-          console.log('Old-style select not found, using Cookie-based translation');
           clearInterval(checkWidget);
           window.googleTranslateCookieMethod = true;
-          
           const savedLanguage = localStorage.getItem('app_language');
           if (savedLanguage && savedLanguage !== 'ru') {
             setTimeout(() => {
               window.changeLanguageGoogle(savedLanguage);
             }, 500);
           }
+        } else if (checkCount > 150) {
+          // Таймаут после 15 секунд
+          clearInterval(checkWidget);
+          window.googleTranslateCookieMethod = true;
         }
       }, 100);
       
-      // Таймаут через 15 секунд
+      // Скрываем все элементы Google UI после инициализации
       setTimeout(() => {
-        clearInterval(checkWidget);
-        if (!window.googleTranslateSelect && !window.googleTranslateCookieMethod) {
-          console.error('Widget not initialized after 15 seconds');
-          console.log('Trying cookie method as fallback');
-          window.googleTranslateCookieMethod = true;
-        }
-        
-        // Скрываем все элементы Google UI после инициализации
         hideGoogleElements();
-      }, 15000);
+      }, 1000);
       
     } catch (error) {
-      console.error('Google Translate initialization error:', error);
+
     }
   };
   
-  // Функция для скрытия всех элементов Google UI
+  // Функция для СКРЫТИЯ (не удаления) UI элементов Google через CSS
   function hideGoogleElements() {
-    const selectorsToHide = [
-      '.goog-te-banner-frame',
-      '.goog-te-gadget',
-      '.goog-te-gadget-simple',
-      '.goog-logo-link',
-      '.goog-te-gadget-icon',
-      '.skiptranslate',
-      'iframe.goog-te-menu-frame',
-      'img[src*="cleardot.gif"]',
-      'img[src*="te_ctrl"]'
-    ];
+    // Скрываем контейнер но НЕ удаляем (нужен для работы)
+    const container = document.querySelector('#google_translate_element');
+    if (container) {
+      container.style.cssText = 'display:none!important;position:fixed!important;left:-99999px!important;top:-99999px!important;';
+    }
     
-    selectorsToHide.forEach(selector => {
-      document.querySelectorAll(selector).forEach(el => {
-        el.style.display = 'none';
-        el.style.opacity = '0';
-        el.style.visibility = 'hidden';
-      });
-    });
+    // Убираем отступ body
+    if (document.body) {
+      document.body.style.top = '0';
+      document.body.style.marginTop = '0';
+      document.body.style.paddingTop = '0';
+    }
+    if (document.documentElement) {
+      document.documentElement.style.marginTop = '0';
+      document.documentElement.style.paddingTop = '0';
+    }
   }
   
-  // Периодически проверяем и скрываем элементы Google
-  setInterval(hideGoogleElements, 2000);
+  // Вызываем один раз при загрузке и при событиях навигации
+  hideGoogleElements();
   
-  // Функция смены языка через Google Translate
+  // Скрываем при навигации (не слишком часто)
+  window.addEventListener('hashchange', hideGoogleElements);
+  
+  // Функция смены языка
   window.changeLanguageGoogle = function(langCode, retryCount = 0) {
     const maxRetries = 20;
     const retryDelay = 500;
@@ -173,7 +278,7 @@
                    document.querySelector('select.goog-te-combo');
     
     if (select && select.options.length > 1) {
-      console.log('Using SELECT method, changing to:', langCode);
+
       select.value = googleLang;
       const event = new Event('change', { bubbles: true, cancelable: true });
       select.dispatchEvent(event);
@@ -182,7 +287,7 @@
       }
       
       localStorage.setItem('app_language', langCode);
-      console.log('Language changed successfully to:', langCode);
+
       
       showLanguageNotification(langCode);
       return;
@@ -190,7 +295,7 @@
     
     // Метод 2: Использование Cookie (новый виджет с ссылкой)
     if (window.googleTranslateCookieMethod || retryCount > 10) {
-      console.log('Using COOKIE method. Changing to:', langCode);
+
       
       // Удаляем старые cookies
       document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
@@ -199,7 +304,7 @@
       if (langCode === 'ru') {
         // Возврат к русскому - просто перезагружаем
         localStorage.setItem('app_language', 'ru');
-        console.log('Returning to Russian (original)');
+
         showLanguageNotification('ru');
         setTimeout(() => location.reload(), 500);
       } else {
@@ -209,7 +314,7 @@
         document.cookie = `googtrans=${cookieValue}; path=/; domain=${window.location.hostname}`;
         
         localStorage.setItem('app_language', langCode);
-        console.log('Cookie set:', cookieValue);
+
         showLanguageNotification(langCode);
         
         // Перезагружаем страницу для применения перевода
@@ -221,13 +326,13 @@
     // Retry если виджет еще не готов
     if (retryCount < maxRetries) {
       if (retryCount === 0) {
-        console.log('Waiting for Google Translate widget...');
+
       }
       setTimeout(() => {
         window.changeLanguageGoogle(langCode, retryCount + 1);
       }, retryDelay);
     } else {
-      console.error('Widget not ready, trying cookie method as last resort');
+
       window.googleTranslateCookieMethod = true;
       window.changeLanguageGoogle(langCode, 0);
     }
@@ -246,84 +351,68 @@
     }
   }
   
-  // Скрываем баннер Google Translate
-  const style = document.createElement('style');
-  style.textContent = `
-    /* Скрываем верхний баннер Google Translate */
-    .goog-te-banner-frame {
-      display: none !important;
-    }
-    
-    body {
-      top: 0 !important;
-    }
-    
-    .skiptranslate {
-      display: none !important;
-    }
-    
-    /* Скрываем виджет Google */
-    #google_translate_element {
-      display: none !important;
-    }
-    
-    /* Скрываем логотип и иконку Google в углу */
-    .goog-logo-link,
-    .goog-te-gadget-icon,
-    img[src*="cleardot.gif"],
-    img[src*="te_ctrl"],
-    .goog-te-gadget img,
-    .VIpgJd-ZVi9od-xl07Ob-lTBxed img {
-      display: none !important;
-      opacity: 0 !important;
-      visibility: hidden !important;
-    }
-    
-    /* Скрываем весь gadget полностью */
-    .goog-te-gadget,
-    .goog-te-gadget-simple {
-      display: none !important;
-    }
-    
-    /* Скрываем iframe если появится */
-    iframe.goog-te-menu-frame {
-      display: none !important;
-    }
-    
-    /* Улучшаем отображение переведённого текста */
-    .translated-ltr {
-      font-smoothing: antialiased;
-      -webkit-font-smoothing: antialiased;
-    }
-    
-    /* Не переводить валюты, цены и тикеры активов */
-    .notranslate {
-      font-family: inherit !important;
-    }
-  `;
-  document.head.appendChild(style);
-  
   // Функция для добавления класса notranslate к элементам с валютами и тикерами
   function markNoTranslateElements() {
     try {
-      // Находим все элементы с классами, содержащими ключевые слова
-      const classSelectors = [
-        '[class*="symbol"]',
-        '[class*="ticker"]',
-        '[class*="crypto"]',
-        '[class*="stock"]',
-        '[class*="asset"]',
-        '[class*="price"]',
-        '[class*="value"]',
-        '[class*="amount"]',
-        '[class*="balance"]',
-        '[class*="currency"]',
-        '[class*="fav-symbol"]',
-        '[class*="fav-name"]',
-        '[class*="fav-price"]'
+      // ================================================================
+      // ПРАВИЛО: переводим ЛЕЙБЛЫ, НЕ переводим ДАННЫЕ.
+      //
+      // ЧТО НЕ ПЕРЕВОДИТЬ (notranslate):
+      //   - Цены, суммы, проценты ($8.1K, +5.0%, ₽611 933)
+      //   - Тикеры крипто/акций (BTC, ETH, AAPL, TSLA)
+      //   - Имя пользователя (userName — это имя, не слово интерфейса)
+      //   - Числовые счётчики (portfolioCount, cryptoCount и т.д.)
+      //   - Данные графиков (SVG, canvas — их портит перевод)
+      //   - Торговые пары (BTC/USDT)
+      //
+      // ЧТО ПЕРЕВОДИТЬ:
+      //   - Лейблы навигации ("Дашборд", "Аналитика", "Настройки")
+      //   - Лейблы секций ("Общая стоимость", "Доходность", "Акции")
+      //   - Кнопки действий ("Добавить", "Сохранить", "Удалить")
+      //   - Сообщения об ошибках и уведомления
+      //   - Подсказки и описания
+      // ================================================================
+
+      // 1. Точечные ID-селекторы — финансовые данные дашборда
+      const dataIds = [
+        'totalValue', 'totalChange', 'miniChartBadge', 'miniLow', 'miniHigh',
+        'miniChart', 'portfolioCount', 'totalReturn', 'cryptoCount', 'stocksCount',
+        'userName',
+        'totalVolume', 'totalInvested', 'totalReceived',
+        'totalBuys', 'totalSells', 'totalTransactions',
+        'analyticsTotalValue', 'analyticsPnL', 'analyticsROI',
+        'analyticsAssets', 'analyticsSharpe', 'analyticsDiversification',
+        'favTotalValue'
       ];
-      
-      classSelectors.forEach(selector => {
+      dataIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && !el.classList.contains('notranslate')) {
+          el.classList.add('notranslate');
+          el.setAttribute('translate', 'no');
+        }
+      });
+
+      // 2. Точечные селекторы по классам для динамических карточек криптовалют/акций
+      //    Берём только контейнеры с ДАННЫМИ (цена, изменение, тикер),
+      //    а не родительские блоки, которые содержат переводимые лейблы.
+      const dataClassSelectors = [
+        // Тикеры и символы
+        '.crypto-symbol', '.stock-symbol', '.asset-symbol',
+        '.coin-symbol', '.ticker-symbol', '.fav-symbol',
+        // Цены
+        '.crypto-price', '.stock-price', '.asset-price',
+        '.current-price', '.price-value', '.coin-price',
+        '.fav-price', '.fav-change',
+        // Проценты изменения
+        '.price-change', '.change-percent', '.crypto-change',
+        '.stock-change', '.asset-change',
+        // Общие числовые значения в карточках транзакций/позиций
+        '.tx-amount', '.tx-price', '.position-value',
+        '.holding-value', '.holding-amount', '.pnl-value',
+        // Статусы ордеров (buy/sell — не переводить, это термины)
+        '.order-type', '.trade-type', '.tx-type'
+      ];
+      dataClassSelectors.forEach(selector => {
         try {
           document.querySelectorAll(selector).forEach(el => {
             if (!el.classList.contains('notranslate')) {
@@ -331,76 +420,81 @@
               el.setAttribute('translate', 'no');
             }
           });
-        } catch (e) {
-          // Игнорируем ошибки
-        }
+        } catch (e) {}
       });
-      
-      // Обрабатываем все элементы, проверяя содержимое
-      document.querySelectorAll('span, div, td, th, p, h1, h2, h3, h4, h5, h6, button, a, strong').forEach(el => {
-        // Получаем только прямой текст (без вложенных элементов)
-        let text = '';
-        for (let node of el.childNodes) {
-          if (node.nodeType === Node.TEXT_NODE) {
-            text += node.textContent;
-          }
-        }
-        text = text.trim();
-        
+
+      // 3. Тексты — тикеры (2-6 заглавных) и финансовые числа
+      //    Обрабатываем только листовые текстовые узлы чтобы не заблокировать
+      //    родителей с переводимыми лейблами
+      document.querySelectorAll('span, div, td, th, strong, b').forEach(el => {
+        if (el.classList.contains('notranslate')) return;
+        // Пропускаем если у элемента больше 0 дочерних узлов-элементов
+        // (сложный контейнер — не трогаем, чтобы не заблокировать лейблы)
+        if (el.children.length > 0) return;
+
+        const text = el.textContent.trim();
         if (!text) return;
-        
-        // 1. Проверяем на символы валют в начале
-        if (text.match(/^[$€£¥₽₴₸₩₪₹฿]\s*[\d,\.]+/)) {
+
+        // Символы валюты (одиночные): $, €, ₽, £, ¥
+        if (/^[$€£¥₽₴₸₩₪₹฿]$/.test(text)) {
           el.classList.add('notranslate');
           el.setAttribute('translate', 'no');
           return;
         }
-        
-        // 2. Тикеры криптовалют и акций (2-6 заглавных букв)
-        if (text.length >= 2 && text.length <= 6 && 
-            text === text.toUpperCase() && 
-            /^[A-Z0-9]+$/.test(text)) {
-          // Исключаем обычные слова
-          const commonWords = ['OK', 'YES', 'NO', 'NEW', 'OLD', 'ADD', 'ALL', 'ANY', 'SET', 'GET', 'PUT', 'DEL', 'API', 'GO', 'STOP', 'SAVE', 'EDIT', 'VIEW', 'OPEN'];
-          if (!commonWords.includes(text)) {
+
+        // Финансовые числа: $1,234 | ₽611 933 | +5.0% | -2.3K
+        if (/^[+\-]?[$€£¥₽₴₸₩₪₹฿]?\s*[\d\s,\.]+[KMBkмб%]?$/.test(text) &&
+            /\d/.test(text)) {
+          el.classList.add('notranslate');
+          el.setAttribute('translate', 'no');
+          return;
+        }
+
+        // Тикеры: 2-6 заглавных латинских + цифр, без пробелов
+        if (/^[A-Z][A-Z0-9]{1,5}$/.test(text)) {
+          const skipWords = new Set([
+            'OK','IS','IN','ON','TO','DO','GO','UP','AT','BY','IF',
+            'OR','NO','YES','NEW','OLD','ALL','ANY','SET','GET','API',
+            'ID','TV','UI','UX','PC','iOS','NaN','INF'
+          ]);
+          if (!skipWords.has(text)) {
             el.classList.add('notranslate');
             el.setAttribute('translate', 'no');
-            console.log('Protected ticker:', text);
-            return;
           }
-        }
-        
-        // 3. Известные тикеры криптовалют (прямое сравнение)
-        const knownCryptoTickers = ['BTC', 'ETH', 'USDT', 'BNB', 'XRP', 'ADA', 'DOGE', 'SOL', 'DOT', 'MATIC', 'SHIB', 'AVAX', 'UNI', 'LINK', 'LTC', 'ATOM', 'ETC', 'XLM', 'ALGO', 'FIL', 'TRX', 'XMR', 'VET'];
-        const knownStockTickers = [
-          'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX', 
-          'PYPL', 'ADBE', 'CRM', 'INTC', 'AMD', 'ORCL', 'IBM', 'CSCO',
-          'QCOM', 'TXN', 'AVGO', 'SHOP', 'SQ', 'SNAP', 'UBER', 'LYFT',
-          'ABNB', 'COIN', 'RBLX', 'PINS', 'SPOT', 'ZM', 'DOCU', 'TWLO',
-          'PLTR', 'SNOW', 'NET', 'DDOG', 'MDB', 'CRWD', 'ZS', 'OKTA'
-        ];
-        
-        if (knownCryptoTickers.includes(text) || knownStockTickers.includes(text)) {
-          el.classList.add('notranslate');
-          el.setAttribute('translate', 'no');
           return;
         }
-        
-        // 4. Если текст содержит название + тикер (например "Bitcoin BTC")
-        if (text.match(/\b[A-Z]{2,6}\b$/)) {
+
+        // Торговые пары: BTC/USDT, AAPL/USD
+        if (/^[A-Z]{2,6}\/[A-Z]{2,6}$/.test(text)) {
           el.classList.add('notranslate');
           el.setAttribute('translate', 'no');
         }
       });
+
+      // 4. Защищаем placeholder у input-полей с translate="no" от перезаписи GT
+      //    Google Translate может изменить placeholder даже у input.notranslate,
+      //    поэтому запоминаем оригинальное значение и восстанавливаем его.
+      document.querySelectorAll('input[translate="no"]').forEach(input => {
+        const orig = input.getAttribute('placeholder');
+        if (!orig) return;
+        if (!input.dataset.placeholderOrig) {
+          input.dataset.placeholderOrig = orig;
+        }
+        // Восстанавливаем если GT успел перезаписать
+        if (input.placeholder !== input.dataset.placeholderOrig) {
+          input.placeholder = input.dataset.placeholderOrig;
+        }
+      });
+
     } catch (e) {
-      console.error('markNoTranslateElements error:', e);
+
     }
   }
   
   // Запускаем при загрузке
   function initNoTranslate() {
     // Запускаем СРАЗУ, не дожидаясь
-    console.log('Marking non-translatable elements...');
+
     markNoTranslateElements();
     
     // Повторяем через короткие интервалы в начале
@@ -427,7 +521,7 @@
         updateTimeout = setTimeout(() => {
           markNoTranslateElements();
           updateTimeout = null;
-        }, 200); // Быстрее реагируем на новые элементы
+        }, 0); // Мгновенно, до того как GT успеет перевести
       }
     });
     
@@ -445,18 +539,14 @@
     document.addEventListener('DOMContentLoaded', () => {
       loadGoogleTranslate();
       initNoTranslate();
-      // Скрываем элементы Google сразу и через 1 секунду после загрузки
-      setTimeout(hideGoogleElements, 100);
+      // Скрываем контейнер Google после загрузки
       setTimeout(hideGoogleElements, 1000);
-      setTimeout(hideGoogleElements, 3000);
     });
   } else {
     loadGoogleTranslate();
     initNoTranslate();
-    // Скрываем элементы Google сразу и через 1 секунду после загрузки
-    setTimeout(hideGoogleElements, 100);
+    // Скрываем контейнер Google после загрузки
     setTimeout(hideGoogleElements, 1000);
-    setTimeout(hideGoogleElements, 3000);
   }
   
 })();

@@ -1,22 +1,22 @@
 ﻿// init-improvements.js
 
 import { initMarketSearch } from '../features/market/market-search.js';
-import { initTransactionFilters, populatePortfolioFilter } from '../features/transactions/transaction-filters.js';
+import { initTransactionFilters } from '../features/transactions/transaction-filters.js';
 
 export function initImprovements() {
-    console.log('Initializing improvements...');
-    
     initMarketSearch();
     initTransactionFilters();
     initTransactionStats();
     initQuickFilters();
     initAssetSearch();
     initCurrencyChangeHandler();
-    
-    console.log('Improvements initialized successfully');
 }
 
 function initTransactionStats() {
+    setTimeout(() => {
+        updateTransactionStats();
+    }, 100);
+    
     const observer = new MutationObserver(() => {
         updateTransactionStats();
     });
@@ -29,7 +29,9 @@ function initTransactionStats() {
 
 function updateTransactionStats() {
   const tbody = document.getElementById('transactionsTableBody');
-  if (!tbody) return;
+  if (!tbody) {
+    return;
+  }
   
   const rows = tbody.querySelectorAll('tr:not(.loading-row):not(.no-data)');
   
@@ -42,50 +44,70 @@ function updateTransactionStats() {
   rows.forEach(row => {
     if (row.style.display === 'none') return;
     
-    const typeCell = row.cells[1];
-    const sumCell = row.cells[5];
-    let isBuy = false;
+    const cells = row.cells;
+    if (!cells || cells.length < 6) return;
+    
+    const typeCell = cells[1];
+    const sumCell = cells[5];
     
     if (typeCell && sumCell) {
-      isBuy = typeCell.textContent.includes('Покупка');
+      // Используем data-type атрибут из строки (устойчиво к переводу)
+      const dataType = row.getAttribute('data-type');
+      let isBuy = false;
+      
+      if (dataType) {
+        isBuy = dataType === 'BUY';
+      } else {
+        // Фолбэк: проверяем класс транзакции
+        const typeSpan = typeCell.querySelector('.transaction-type');
+        if (typeSpan) {
+          isBuy = typeSpan.classList.contains('buy');
+        }
+      }
+      
       if (isBuy) {
         buyCount++;
       } else {
         sellCount++;
       }
       
-      const sumText = sumCell.textContent.replace(/[^\d.,-]/g, '').replace(/,/g, '');
-            const sum = parseFloat(sumText) || 0;
-            totalVolume += sum;
-            if (isBuy) investedSum += sum; else receivedSum += sum;
-        }
-    });
-    
-    // Обновляем UI
-    const totalBuysEl = document.getElementById('totalBuys');
-    const totalSellsEl = document.getElementById('totalSells');
-    const totalTransactionsEl = document.getElementById('totalTransactions');
-    const totalVolumeEl = document.getElementById('totalVolume');
-    const totalInvestedEl = document.getElementById('totalInvested');
-    const totalReceivedEl = document.getElementById('totalReceived');
-    
-    const currencySymbol = (window.currency && window.currency.getCurrencySymbol) ? window.currency.getCurrencySymbol() : '$';
+      // Извлекаем число
+      let sumText = sumCell.textContent || '';
+      sumText = sumText.replace(/[^\d.,-]/g, '').replace(/,/g, '');
+      const sum = parseFloat(sumText) || 0;
+      totalVolume += Math.abs(sum);
+      if (isBuy) investedSum += Math.abs(sum); else receivedSum += Math.abs(sum);
+    }
+  });
+  
+  // Обновляем UI
+  const totalBuysEl = document.getElementById('totalBuys');
+  const totalSellsEl = document.getElementById('totalSells');
+  const totalTransactionsEl = document.getElementById('totalTransactions');
+  const totalVolumeEl = document.getElementById('totalVolume');
+  const totalInvestedEl = document.getElementById('totalInvested');
+  const totalReceivedEl = document.getElementById('totalReceived');
+  
+  const _tSym  = (window.currency && window.currency.getCurrencySymbol) ? window.currency.getCurrencySymbol() : '$';
+  const _tConv = (window.currency && window.currency.convertToSelectedCurrency) ? window.currency.convertToSelectedCurrency : v => v;
 
-    if (totalBuysEl) totalBuysEl.textContent = buyCount;
-    if (totalSellsEl) totalSellsEl.textContent = sellCount;
-    if (totalTransactionsEl) totalTransactionsEl.textContent = rows.length;
-    if (totalVolumeEl) totalVolumeEl.textContent = `${currencySymbol}${totalVolume.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-    if (totalInvestedEl) totalInvestedEl.textContent = `${currencySymbol}${investedSum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-    if (totalReceivedEl) totalReceivedEl.textContent = `${currencySymbol}${receivedSum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+  if (totalBuysEl) totalBuysEl.textContent = buyCount;
+  if (totalSellsEl) totalSellsEl.textContent = sellCount;
+  if (totalTransactionsEl) totalTransactionsEl.textContent = rows.length;
+  if (totalVolumeEl) totalVolumeEl.textContent = `${_tSym}${_tConv(totalVolume).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+  if (totalInvestedEl) totalInvestedEl.textContent = `${_tSym}${_tConv(investedSum).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+  if (totalReceivedEl) totalReceivedEl.textContent = `${_tSym}${_tConv(receivedSum).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
-    // Обновляем элементы, которые внизу ссылаются на верхние значения (data-ref)
-    document.querySelectorAll('[data-ref]').forEach(el => {
-        const ref = el.getAttribute('data-ref');
-        if (!ref) return;
-        const source = document.getElementById(ref);
-        if (source) el.textContent = source.textContent;
-    });
+  // Обновляем элементы, которые внизу ссылаются на верхние значения (data-ref)
+  document.querySelectorAll('[data-ref]').forEach(el => {
+    const ref = el.getAttribute('data-ref');
+    const source = document.getElementById(ref);
+    if (source) el.textContent = source.textContent;
+  });
 }
+
+// Экспортируем функцию глобально
+window.updateTransactionStats = updateTransactionStats;
 
 /**
  * Инициализирует быстрые фильтры
@@ -192,8 +214,6 @@ export { updateTransactionStats };
  * Инициализирует централизованный обработчик смены валюты
  */
 export function initCurrencyChangeHandler() {
-    console.log('💱 Initializing currency change handler...');
-    
     let updateTimeout = null;
     
     const updateAllElements = () => {
@@ -202,8 +222,6 @@ export function initCurrencyChangeHandler() {
         }
         
         updateTimeout = setTimeout(() => {
-            console.log('💱 Updating all UI elements with new currency...');
-            
             try {
                 // 1. Обновляем дашборд если на странице
                 if (typeof window.loadDashboardData === 'function') {
@@ -233,17 +251,17 @@ export function initCurrencyChangeHandler() {
                 
                 // 6. Обновляем избранное
                 if (typeof window.renderFavorites === 'function' && typeof window.getFavorites === 'function') {
-                    window.getFavorites().then(favs => window.renderFavorites(favs)).catch(e => console.warn('Error updating favorites:', e));
+                    window.getFavorites().then(favs => window.renderFavorites(favs)).catch(e => {
+                        // Error updating favorites
+                    });
                 }
                 
                 // 7. Обновляем аналитику если видна
                 if (typeof window.renderAnalytics === 'function') {
                     window.renderAnalytics();
                 }
-                
-                console.log('✅ All UI elements updated with new currency');
             } catch (e) {
-                console.error('Error updating UI elements:', e);
+                // Error updating UI elements
             }
             
             updateTimeout = null;

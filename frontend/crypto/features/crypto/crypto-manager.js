@@ -10,15 +10,50 @@ class CryptoConfigManager {
 
   // Загрузка конфигурации из JSON
   async loadConfig() {
-    if (this.config) return this.config;
+    if (this.config) {
+
+      return this.config;
+    }
+    
+
     
     try {
-      const response = await fetch('./config/crypto-config.json');
+      // Пробуем разные пути
+      const possiblePaths = [
+        './config/crypto-config.json',
+        '../config/crypto-config.json',
+        'config/crypto-config.json',
+        '/config/crypto-config.json'
+      ];
+      
+      let response = null;
+      let successPath = null;
+      
+      for (const path of possiblePaths) {
+        try {
+
+          response = await fetch(path);
+          if (response.ok) {
+            successPath = path;
+
+            break;
+          } else {
+
+          }
+        } catch (err) {
+
+        }
+      }
+      
+      if (!response || !response.ok) {
+        throw new Error(`Не удалось загрузить конфигурацию ни из одного пути. Попробовано: ${possiblePaths.join(', ')}`);
+      }
+      
       this.config = await response.json();
-      console.log('Конфигурация криптовалют загружена');
+
       return this.config;
     } catch (error) {
-      console.error('Ошибка загрузки конфигурации:', error);
+
       throw error;
     }
   }
@@ -26,7 +61,7 @@ class CryptoConfigManager {
   // Получить все активы определенных tier'ов
   getAssetsByTiers(tiers = ['tier1', 'tier2']) {
     if (!this.config) {
-      console.error('Конфигурация не загружена');
+
       return [];
     }
 
@@ -63,9 +98,11 @@ class CryptoConfigManager {
   // Получить топ N активов по рангу
   getTopAssets(count = 20) {
     const allAssets = this.getAllAssets();
-    return allAssets
-      .sort((a, b) => a.rank - b.rank)
-      .slice(0, count);
+
+    const sorted = allAssets.sort((a, b) => a.rank - b.rank);
+    const topAssets = sorted.slice(0, count);
+
+    return topAssets;
   }
 
   // Получить информацию о категориях
@@ -80,20 +117,25 @@ class CryptoConfigManager {
 
   // Пакетная загрузка данных с учетом rate limits
   async batchLoadPrices(assets, apiBaseUrl = 'https://api.binance.com/api/v3/ticker/24hr') {
-    // Загружаем все параллельно без батчей для максимальной скорости
+
+    
     const results = [];
     
+
     const allResults = await Promise.allSettled(assets.map(asset => this.loadAssetPrice(asset, apiBaseUrl)));
+    
+
     
     // Обрабатываем результаты
     allResults.forEach((result, index) => {
       if (result.status === 'fulfilled' && result.value) {
         results.push(result.value);
       } else {
-        console.warn(`Не удалось загрузить ${assets[index].symbol}`);
+
       }
     });
     
+
     return results;
   }
 
@@ -106,11 +148,13 @@ class CryptoConfigManager {
     
     // Проверяем кэш
     if (cached && Date.now() - cached.timestamp < cacheTime) {
+
       return cached.data;
     }
     
     try {
       const url = `${apiBaseUrl}?symbol=${asset.pair}`;
+
       const response = await fetch(url);
       
       if (!response.ok) {
@@ -155,11 +199,60 @@ class CryptoConfigManager {
       
       return result;
     } catch (error) {
-      console.error(`Ошибка загрузки ${asset.symbol}:`, error);
+
+      // Если загрузка из Binance не удалась из-за CORS/сети — попробуем CoinGecko как fallback
+      try {
+
+        // Импортируем helper из core/data.js который уже умеет маппить символы и кешировать
+        const { getPricesForSymbols } = await import('../../core/data.js');
+        const cg = await getPricesForSymbols([asset.symbol], { useCoinGecko: true });
+        const cgPrice = cg && cg[asset.symbol];
+        if (cgPrice && Number.isFinite(cgPrice)) {
+          const price = Number(cgPrice);
+          let formattedPrice;
+          if (price < 0.000001) {
+            formattedPrice = price.toFixed(8);
+          } else if (price < 0.0001) {
+            formattedPrice = price.toFixed(6);
+          } else if (price < 0.01) {
+            formattedPrice = price.toFixed(4);
+          } else if (price < 1) {
+            formattedPrice = price.toFixed(3);
+          } else {
+            formattedPrice = price.toFixed(2);
+          }
+
+          const fallbackResult = {
+            ...asset,
+            price: formattedPrice,
+            change: '0.00',
+            changePercent: '0.00',
+            volume: this.formatVolume(0),
+            high: '0.00',
+            low: '0.00',
+            trades: 0,
+            isReal: false,
+            source: 'coingecko',
+            timestamp: Date.now()
+          };
+
+          this.cache.set(cacheKey, {
+            data: fallbackResult,
+            timestamp: Date.now()
+          });
+
+          // Покажем пользователю уведомление о fallback (если доступно)
+          try { if (window.showNotification) window.showNotification(`Binance недоступен — используем CoinGecko для ${asset.symbol}`, 'warning'); } catch (e) { /* ignore */ }
+
+          return fallbackResult;
+        }
+      } catch (e) {
+
+      }
       
       // Возвращаем кэшированные данные даже если устарели
       if (cached) {
-        console.log(`Использую устаревший кэш для ${asset.symbol}`);
+
         return cached.data;
       }
       
@@ -183,7 +276,7 @@ class CryptoConfigManager {
   // Очистка кэша
   clearCache() {
     this.cache.clear();
-    console.log('Кэш очищен');
+
   }
 
   // Очистка устаревшего кэша
@@ -201,7 +294,7 @@ class CryptoConfigManager {
     });
     
     if (cleaned > 0) {
-      console.log(`Очищено ${cleaned} устаревших записей кэша`);
+
     }
   }
 
@@ -298,12 +391,12 @@ class CryptoConfigManager {
   // Добавить новый актив (runtime)
   addAsset(tier, asset) {
     if (!this.config || !this.config.cryptoAssets[tier]) {
-      console.error('Невалидный tier');
+
       return false;
     }
     
     this.config.cryptoAssets[tier].assets.push(asset);
-    console.log(`Добавлен ${asset.symbol} в ${tier}`);
+
     return true;
   }
 
@@ -315,7 +408,7 @@ class CryptoConfigManager {
       const index = this.config.cryptoAssets[tier].assets.findIndex(a => a.symbol === symbol);
       if (index !== -1) {
         this.config.cryptoAssets[tier].assets.splice(index, 1);
-        console.log(`Удален ${symbol} из ${tier}`);
+
       }
     });
     
@@ -324,6 +417,11 @@ class CryptoConfigManager {
 }
 
 // Создаем глобальный инстанс
+
+if (window.location.protocol === 'file:') {
+
+}
+
 window.cryptoManager = new CryptoConfigManager();
 
 // Экспортируем для использования в других модулях

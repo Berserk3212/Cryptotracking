@@ -1,186 +1,343 @@
-// Supabase Configuration
-const supabaseUrl = 'https://yvliktxpfglofdgvxrcl.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2bGlrdHhwZmdsb2ZkZ3Z4cmNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDcyOTcsImV4cCI6MjA3NjcyMzI5N30.gJWKm8rZYDu-x4vdKIA4HJ8PZo_JcqBTpttseJCpDJU';
+const { createApp, ref, reactive, computed, onMounted } = Vue;
 
-// Initialize Supabase
-const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+createApp({
+  setup() {
+    // Состояние формы
+    const form = reactive({
+      password: '',
+      confirm: ''
+    });
 
-document.addEventListener('DOMContentLoaded', function() {
-  // DOM Elements
-  const resetForm = document.getElementById('resetForm');
-  const newPasswordInput = document.getElementById('newPassword');
-  const confirmPasswordInput = document.getElementById('confirmPassword');
-  const passwordToggle = document.getElementById('passwordToggle');
-  const btnResetPassword = document.getElementById('btnResetPassword');
-  const resetMessage = document.getElementById('resetMessage');
-  const passwordStrength = document.getElementById('passwordStrength');
+    const errors = reactive({
+      password: '',
+      confirm: ''
+    });
 
-  // Check if this is a valid password reset request
-  const urlParams = new URLSearchParams(window.location.hash.substring(1));
-  const type = urlParams.get('type');
-  const accessToken = urlParams.get('access_token');
+    const showPassword = ref(false);
+    const showConfirm = ref(false);
+    const loading = ref(false);
+    const theme = ref('dark');
+    const invalidLink = ref(false);
+    const resetSuccess = ref(false);
 
-  if (type !== 'recovery' || !accessToken) {
-    showMessage('Недействительная ссылка для сброса пароля', 'error');
-    setTimeout(() => {
-      window.location.href = 'login.html';
-    }, 3000);
-    return;
-  }
+    const toast = reactive({
+      show: false,
+      type: 'success',
+      title: '',
+      message: '',
+      icon: 'fas fa-check',
+      id: 0
+    });
 
-  // Set Supabase session from URL token
-  supabase.auth.setSession({
-    access_token: accessToken,
-    refresh_token: urlParams.get('refresh_token') || ''
-  }).then(({ error }) => {
-    if (error) {
-      showMessage('Ссылка для сброса пароля недействительна или устарела', 'error');
-      setTimeout(() => {
-        window.location.href = 'login.html';
-      }, 3000);
-    }
-  });
+    // Supabase клиент
+    const supabase = window.supabase.createClient(
+      'https://yvliktxpfglofdgvxrcl.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2bGlrdHhwZmdsb2ZkZ3Z4cmNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDcyOTcsImV4cCI6MjA3NjcyMzI5N30.gJWKm8rZYDu-x4vdKIA4HJ8PZo_JcqBTpttseJCpDJU'
+    );
 
-  // Password Toggle
-  passwordToggle.addEventListener('click', function() {
-    const isPassword = newPasswordInput.type === 'password';
-    newPasswordInput.type = isPassword ? 'text' : 'password';
-    this.querySelector('i').className = isPassword ? 'fas fa-eye-slash' : 'fas fa-eye';
-    this.setAttribute('aria-label', isPassword ? 'Скрыть пароль' : 'Показать пароль');
-  });
+    // Расчёт сложности пароля
+    const passwordStrength = computed(() => {
+      const pwd = form.password;
+      if (!pwd) return 0;
 
-  // Password Strength Check
-  newPasswordInput.addEventListener('input', function() {
-    checkPasswordStrength(this.value);
-    validatePasswords();
-  });
+      let strength = 0;
+      if (pwd.length >= 6) strength++;
+      if (pwd.length >= 8) strength++;
+      if (/[A-Z]/.test(pwd)) strength++;
+      if (/[0-9]/.test(pwd)) strength++;
+      if (/[^A-Za-z0-9]/.test(pwd)) strength++;
 
-  confirmPasswordInput.addEventListener('input', validatePasswords);
+      return strength;
+    });
 
-  // Form Submission
-  resetForm.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
+    const strengthPercent = computed(() => {
+      return (passwordStrength.value / 5) * 100;
+    });
 
-    await resetPassword();
-  });
+    const strengthColor = computed(() => {
+      const s = passwordStrength.value;
+      if (s <= 1) return '#ef4444';
+      if (s <= 2) return '#f97316';
+      if (s <= 3) return '#eab308';
+      if (s <= 4) return '#22c55e';
+      return '#10b981';
+    });
 
-  // Password Strength Calculation
-  function checkPasswordStrength(password) {
-    if (!password) {
-      passwordStrength.classList.remove('visible', 'weak', 'medium', 'strong');
-      return;
-    }
+    const strengthText = computed(() => {
+      const s = passwordStrength.value;
+      if (s <= 1) return 'Очень слабый';
+      if (s <= 2) return 'Слабый';
+      if (s <= 3) return 'Средний';
+      if (s <= 4) return 'Хороший';
+      return 'Надёжный';
+    });
 
-    passwordStrength.classList.add('visible');
+    const canSubmit = computed(() => {
+      return form.password.length >= 6 &&
+             form.confirm.length > 0 &&
+             form.password === form.confirm &&
+             !errors.password &&
+             !errors.confirm;
+    });
 
-    let strength = 0;
-    if (password.length >= 6) strength++;
-    if (password.length >= 8) strength++;
-    if (/[A-Z]/.test(password)) strength++;
-    if (/[0-9]/.test(password)) strength++;
-    if (/[^A-Za-z0-9]/.test(password)) strength++;
+    // Валидация полей
+    const validators = {
+      password: (value) => {
+        if (!value) return 'Введите новый пароль';
+        if (value.length < 6) return 'Пароль должен содержать минимум 6 символов';
+        return '';
+      },
+      confirm: (value) => {
+        if (!value) return 'Подтвердите пароль';
+        if (value !== form.password) return 'Пароли не совпадают';
+        return '';
+      }
+    };
 
-    passwordStrength.classList.remove('weak', 'medium', 'strong');
-    
-    if (strength <= 2) {
-      passwordStrength.classList.add('weak');
-      passwordStrength.querySelector('.strength-text').textContent = 'Слабый пароль';
-    } else if (strength <= 4) {
-      passwordStrength.classList.add('medium');
-      passwordStrength.querySelector('.strength-text').textContent = 'Средний пароль';
-    } else {
-      passwordStrength.classList.add('strong');
-      passwordStrength.querySelector('.strength-text').textContent = 'Надежный пароль';
-    }
-  }
+    const validateField = (field) => {
+      const value = form[field];
+      errors[field] = validators[field](value);
+      return !errors[field];
+    };
 
-  // Form Validation
-  function validateForm() {
-    const newPassword = newPasswordInput.value;
-    const confirmPassword = confirmPasswordInput.value;
+    const clearError = (field) => {
+      if (errors[field]) {
+        errors[field] = '';
+      }
+    };
 
-    if (!newPassword || newPassword.length < 6) {
-      showMessage('Пароль должен содержать минимум 6 символов', 'error');
-      newPasswordInput.focus();
-      return false;
-    }
+    const onPasswordInput = () => {
+      clearError('password');
+      // Перепроверяем подтверждение, если оно заполнено
+      if (form.confirm) {
+        validateField('confirm');
+      }
+    };
 
-    if (newPassword !== confirmPassword) {
-      showMessage('Пароли не совпадают', 'error');
-      confirmPasswordInput.focus();
-      return false;
-    }
+    // Уведомления
+    const showToast = (type, title, message, duration = 4000) => {
+      const icons = {
+        success: 'fas fa-check',
+        error: 'fas fa-times',
+        warning: 'fas fa-exclamation-triangle',
+        info: 'fas fa-info-circle'
+      };
 
-    return true;
-  }
-
-  function validatePasswords() {
-    const newPassword = newPasswordInput.value;
-    const confirmPassword = confirmPasswordInput.value;
-    
-    btnResetPassword.disabled = !newPassword || !confirmPassword || newPassword !== confirmPassword;
-  }
-
-  // Password Reset Function
-  async function resetPassword() {
-    const newPassword = newPasswordInput.value;
-
-    // Show loading state
-    btnResetPassword.classList.add('loading');
-    btnResetPassword.disabled = true;
-
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
+      Object.assign(toast, {
+        type,
+        title,
+        message,
+        icon: icons[type] || 'fas fa-info-circle',
+        show: true,
+        id: Date.now()
       });
 
-      if (error) throw error;
-
-      showMessage('Пароль успешно изменен! Перенаправление на страницу входа...', 'success');
-      
-      // Clear form
-      resetForm.reset();
-      passwordStrength.classList.remove('visible');
-
-      // Redirect to login
       setTimeout(() => {
-        window.location.href = 'login.html';
-      }, 2000);
+        toast.show = false;
+      }, duration);
+    };
 
-    } catch (error) {
-      console.error('Password reset error:', error);
-      
-      let errorMessage = 'Ошибка при смене пароля';
-      if (error.message.includes('Password should be at least 6 characters')) {
-        errorMessage = 'Пароль должен содержать минимум 6 символов';
-      } else if (error.message.includes('Auth session missing')) {
-        errorMessage = 'Ссылка для сброса пароля устарела';
+    // Переключение темы
+    const toggleTheme = () => {
+      const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+      theme.value = newTheme;
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+
+      const themeBtn = document.querySelector('.theme-toggle');
+      if (themeBtn) {
+        themeBtn.style.transform = 'scale(1.1)';
+        setTimeout(() => {
+          themeBtn.style.transform = '';
+        }, 300);
       }
 
-      showMessage(errorMessage, 'error');
-    } finally {
-      btnResetPassword.classList.remove('loading');
-      validatePasswords();
-    }
-  }
+      showToast('info', 'Тема изменена',
+        newTheme === 'dark'
+          ? 'Тёмная тема активирована'
+          : 'Светлая тема активирована'
+      );
+    };
 
-  // Message Display
-  function showMessage(message, type = 'info') {
-    resetMessage.textContent = message;
-    resetMessage.className = `reset-message visible ${type}`;
-    
-    // Auto-hide info messages
-    if (type === 'info') {
+    // Инициализация темы
+    const initializeTheme = () => {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme) {
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        theme.value = savedTheme;
+      } else {
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+        theme.value = currentTheme;
+        localStorage.setItem('theme', currentTheme);
+      }
+    };
+
+    // Сброс пароля
+    const handleReset = async () => {
+      // Валидируем оба поля
+      const passwordValid = validateField('password');
+      const confirmValid = validateField('confirm');
+
+      if (!passwordValid || !confirmValid) {
+        showToast('error', 'Ошибка', 'Пожалуйста, проверьте введённые данные');
+
+        document.querySelectorAll('.form-field.error').forEach(field => {
+          field.style.animation = 'errorShake 0.5s ease';
+          setTimeout(() => {
+            field.style.animation = '';
+          }, 500);
+        });
+        return;
+      }
+
+      loading.value = true;
+
+      const submitBtn = document.querySelector('.submit-btn');
+      if (submitBtn) {
+        submitBtn.style.transform = 'scale(0.98)';
+      }
+
+      try {
+        const { error } = await supabase.auth.updateUser({
+          password: form.password
+        });
+
+        if (error) throw error;
+
+        showToast('success', 'Пароль изменён', 'Ваш пароль успешно обновлён!');
+
+        resetSuccess.value = true;
+
+        // Перенаправление на страницу входа
+        setTimeout(() => {
+          window.location.href = 'login.html';
+        }, 2500);
+
+      } catch (error) {
+        console.error('Password reset error:', error);
+
+        let message = 'Ошибка при смене пароля';
+        if (error.message.includes('Password should be at least 6 characters')) {
+          message = 'Пароль должен содержать минимум 6 символов';
+        } else if (error.message.includes('Auth session missing')) {
+          message = 'Ссылка для сброса пароля устарела. Запросите новую.';
+          invalidLink.value = true;
+        } else if (error.message.includes('same_password')) {
+          message = 'Новый пароль не может совпадать со старым';
+        }
+
+        showToast('error', 'Ошибка', message);
+
+        const formEl = document.querySelector('.login-form');
+        if (formEl) {
+          formEl.style.animation = 'errorShake 0.5s ease';
+          setTimeout(() => {
+            formEl.style.animation = '';
+          }, 500);
+        }
+
+      } finally {
+        loading.value = false;
+        if (submitBtn) {
+          submitBtn.style.transform = '';
+        }
+      }
+    };
+
+    // Инициализация
+    onMounted(async () => {
+      // Инициализируем тему
+      initializeTheme();
+
+      // Проверяем URL-хеш на наличие токена восстановления
+      const hash = window.location.hash.substring(1);
+      const urlParams = new URLSearchParams(hash);
+      const type = urlParams.get('type');
+      const accessToken = urlParams.get('access_token');
+      const refreshToken = urlParams.get('refresh_token') || '';
+
+      if (type !== 'recovery' || !accessToken) {
+        invalidLink.value = true;
+        showToast('error', 'Ошибка', 'Недействительная ссылка для сброса пароля');
+        return;
+      }
+
+      // Устанавливаем сессию Supabase из токена
+      try {
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken
+        });
+
+        if (error) {
+          console.error('Session error:', error);
+          invalidLink.value = true;
+          showToast('error', 'Ошибка', 'Ссылка для сброса пароля устарела или недействительна');
+          return;
+        }
+
+        // Убираем хеш из URL для чистоты
+        window.history.replaceState({}, '', window.location.pathname);
+
+        showToast('info', 'Сброс пароля', 'Введите новый пароль для вашего аккаунта');
+
+      } catch (err) {
+        console.error('Session setup error:', err);
+        invalidLink.value = true;
+        showToast('error', 'Ошибка', 'Не удалось обработать ссылку для сброса');
+      }
+
+      // Анимации полей ввода
+      document.querySelectorAll('.input-container input').forEach(input => {
+        input.addEventListener('focus', function () {
+          this.parentElement.style.transform = 'translateY(-3px)';
+          this.parentElement.style.boxShadow = 'var(--shadow-xl)';
+        });
+
+        input.addEventListener('blur', function () {
+          this.parentElement.style.transform = '';
+          this.parentElement.style.boxShadow = '';
+        });
+      });
+
+      // Анимация появления карточки
+      const card = document.querySelector('.login-card');
+      if (card) {
+        card.style.animation = 'cardAppear 1s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      }
+
+      // Автофокус на первое поле
       setTimeout(() => {
-        resetMessage.classList.remove('visible');
-      }, 5000);
-    }
-  }
+        const passwordInput = document.getElementById('newPassword');
+        if (passwordInput && !invalidLink.value) {
+          passwordInput.focus();
+        }
+      }, 800);
 
-  // Initialize form validation
-  validatePasswords();
-});
+      console.log('Страница сброса пароля инициализирована');
+    });
+
+    return {
+      form,
+      errors,
+      showPassword,
+      showConfirm,
+      loading,
+      theme,
+      toast,
+      invalidLink,
+      resetSuccess,
+      strengthPercent,
+      strengthColor,
+      strengthText,
+      canSubmit,
+      validateField,
+      clearError,
+      onPasswordInput,
+      toggleTheme,
+      handleReset
+    };
+  }
+}).mount('#app');

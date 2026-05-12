@@ -1,11 +1,10 @@
 /**
- * Vue.js Application for Crypto Detail Modal
- * Enhanced animations and professional UI
+ * Vue.js приложение для модального окна деталей криптовалюты
  */
 
 const { createApp } = Vue;
 
-// Initialize Vue app after DOM is loaded
+// Инициализация Vue-приложения после загрузки DOM
 document.addEventListener('DOMContentLoaded', function() {
   const cryptoModalApp = createApp({
     data() {
@@ -68,7 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
         this.isAnimating = true;
         this.loadCryptoData(cryptoSymbol);
         
-        // Allow animation to complete
+        // Ждём завершения анимации
         setTimeout(() => {
           this.isAnimating = false;
         }, 400);
@@ -85,7 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
       },
       
       loadCryptoData(symbol) {
-        // Get data from window.CRYPTO_INFO if available
+        // Берём данные из window.CRYPTO_INFO если доступны
         if (window.CRYPTO_INFO && window.CRYPTO_INFO[symbol]) {
           const crypto = window.CRYPTO_INFO[symbol];
           this.cryptoData = {
@@ -106,7 +105,7 @@ document.addEventListener('DOMContentLoaded', function() {
           };
         }
         
-        // Call original function to load chart
+        // Вызываем оригинальную функцию для загрузки графика
         if (window.showCryptoDetail) {
           window.showCryptoDetail(symbol);
         }
@@ -163,34 +162,28 @@ document.addEventListener('DOMContentLoaded', function() {
     },
     
     mounted() {
-      // Expose show method globally
-      window.showVueCryptoModal = (symbol) => {
-        this.show(symbol);
-      };
-      
-      // Listen for close events
-      window.addEventListener('closeVueCryptoModal', () => {
-        this.hide();
-      });
+      // Делаем метод show доступным глобально
+      window.showVueCryptoModal = (symbol) => this.show(symbol);
+      // Подписываемся на событие закрытия
+      window.addEventListener('closeVueCryptoModal', () => this.hide());
     }
   });
   
-  // Mount Vue app to the modal
+  // Монтируем Vue-приложение к модалке
   const modalElement = document.getElementById('cryptoDetailModal');
   if (modalElement) {
+    if (window._cryptoModalVueApp) {
+      try { window._cryptoModalVueApp.unmount(); } catch (e) {}
+    }
     cryptoModalApp.mount('#cryptoDetailModal');
+    window._cryptoModalVueApp = cryptoModalApp;
   }
 });
 
-/* Setup dock & resize for crypto and stock detail modals (delegated handlers) */
+/* Настройка dock/undock для модалок крипто и акций — делегированные обработчики */
 document.addEventListener('DOMContentLoaded', () => {
   const contentArea = document.querySelector('.content');
-  if (!contentArea) {
-    console.warn('[dock] No content area found');
-    return;
-  }
-
-  console.log('[dock] initializing delegated handlers');
+  if (!contentArea) return;
 
   const storeOriginal = (modal) => {
     if (!modal._originalParent) {
@@ -199,13 +192,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Delegated click handler for dock buttons
+  // Делегированный обработчик клика по кнопкам dock
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('.modal-dock-btn');
     if (!btn) return;
     
     const modal = btn.closest('.modal');
     if (!modal) return;
+
+    // Очищаем возможные DOM-артефакты от предыдущих операций
+    if (window.cleanupStockChartDom) {
+      try { window.cleanupStockChartDom(); } catch (_) {}
+    }
     
     const content = modal.querySelector('.modal-content') || modal.querySelector('.modal-container');
     storeOriginal(modal);
@@ -232,38 +230,121 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // Создаем wrapper-секцию с красивым layout
       const sectionWrapper = document.createElement('section');
-      sectionWrapper.className = 'section active modal-as-section';
+      sectionWrapper.className = 'section active modal-as-section notranslate';
       sectionWrapper.id = modal.id + '-section';
+      sectionWrapper.setAttribute('translate', 'no');
       
       // Клонируем и адаптируем контент модалки
       const dockedContainer = document.createElement('div');
-      dockedContainer.className = 'docked-container';
+      dockedContainer.className = 'docked-container notranslate';
+      dockedContainer.setAttribute('translate', 'no');
       
       // Хэдер с кнопкой возврата
       const header = modal.querySelector('.modal-header');
       const headerClone = header.cloneNode(true);
+      headerClone.setAttribute('translate', 'no');
       dockedContainer.appendChild(headerClone);
       
-      // Контент body - ПЕРЕНОСИМ canvas вместо клонирования
+      // Контент body - ПЕРЕНОСИМ canvas/контейнеры вместо чистого клонирования
       const body = modal.querySelector('.crypto-detail-body');
       const bodyClone = body.cloneNode(true);
-      bodyClone.className = 'docked-body';
-      
-      // Находим оригинальный canvas и переносим его в клон
+      bodyClone.className = 'docked-body notranslate';
+      bodyClone.setAttribute('translate', 'no');
+
+      // Переносим оригинальные DOM-узлы вместо клонирования — обработчики сохраняются
+      const modalOriginalPriceContainer = modal.querySelector('#stockPriceChartContainer');
+      const modalOriginalVolumeContainer = modal.querySelector('#stockVolumeChartContainer');
+      const modalOriginalPriceTooltip = modal.querySelector('#stockPriceChartTooltip');
+      const modalOriginalPriceLoader = modal.querySelector('#stockPriceChartLoader');
+      const modalOriginalVolumeLoader = modal.querySelector('#stockVolumeChartLoader');
+      const modalOriginalChartLegend = modal.querySelector('#stockChartLegend');
+
+      // Плейсхолдеры в клоне — будут заменены оригиналами
+      const pricePlaceholder = bodyClone.querySelector('#stockPriceChartContainer');
+      const volumePlaceholder = bodyClone.querySelector('#stockVolumeChartContainer');
+      const tooltipPlaceholder = bodyClone.querySelector('#stockPriceChartTooltip');
+      const priceLoaderPlaceholder = bodyClone.querySelector('#stockPriceChartLoader');
+      const volumeLoaderPlaceholder = bodyClone.querySelector('#stockVolumeChartLoader');
+      const legendPlaceholder = bodyClone.querySelector('#stockChartLegend');
+
+      // Заменяем плейсхолдеры на оригинальные узлы, сохраняем ссылки для undock
+      if (modalOriginalPriceContainer) {
+        modal._originalPriceContainer = modalOriginalPriceContainer;
+        modal._originalPriceContainerParent = modalOriginalPriceContainer.parentNode;
+        if (pricePlaceholder && pricePlaceholder.parentNode) {
+          pricePlaceholder.parentNode.replaceChild(modalOriginalPriceContainer, pricePlaceholder);
+          modal._dockedPriceContainer = modalOriginalPriceContainer;
+        }
+      }
+
+      if (modalOriginalVolumeContainer) {
+        modal._originalVolumeContainer = modalOriginalVolumeContainer;
+        modal._originalVolumeContainerParent = modalOriginalVolumeContainer.parentNode;
+        if (volumePlaceholder && volumePlaceholder.parentNode) {
+          volumePlaceholder.parentNode.replaceChild(modalOriginalVolumeContainer, volumePlaceholder);
+          modal._dockedVolumeContainer = modalOriginalVolumeContainer;
+        }
+      }
+
+      // Перемещаем толтип, лоадеры, легенду
+      if (modalOriginalPriceTooltip && tooltipPlaceholder && tooltipPlaceholder.parentNode) {
+        tooltipPlaceholder.parentNode.replaceChild(modalOriginalPriceTooltip, tooltipPlaceholder);
+      }
+      if (modalOriginalPriceLoader && priceLoaderPlaceholder && priceLoaderPlaceholder.parentNode) {
+        priceLoaderPlaceholder.parentNode.replaceChild(modalOriginalPriceLoader, priceLoaderPlaceholder);
+      }
+      if (modalOriginalVolumeLoader && volumeLoaderPlaceholder && volumeLoaderPlaceholder.parentNode) {
+        volumeLoaderPlaceholder.parentNode.replaceChild(modalOriginalVolumeLoader, volumeLoaderPlaceholder);
+      }
+      if (modalOriginalChartLegend && legendPlaceholder && legendPlaceholder.parentNode) {
+        legendPlaceholder.parentNode.replaceChild(modalOriginalChartLegend, legendPlaceholder);
+      }
+
+      // Перемещаем панель инструментов рисования — обработчики должны сохраниться
+      const modalOriginalDrawingToolbar = modal.querySelector('#stockDrawingToolbar');
+      const toolbarPlaceholder = bodyClone.querySelector('#stockDrawingToolbar');
+      if (modalOriginalDrawingToolbar && toolbarPlaceholder && toolbarPlaceholder.parentNode) {
+        modal._originalDrawingToolbarParent = modalOriginalDrawingToolbar.parentNode;
+        toolbarPlaceholder.parentNode.replaceChild(modalOriginalDrawingToolbar, toolbarPlaceholder);
+      }
+
+      // Удаляем возможные застревшие placeholder с суффиксом -docked
+      setTimeout(() => {
+        const leftoverDocked = document.querySelectorAll('[id$="-docked"]');
+        leftoverDocked.forEach(el => {
+          if (el.id !== 'stockPriceChartContainer-docked' &&
+              el.id !== 'stockVolumeChartContainer-docked' &&
+              el.id !== 'stockPriceChartTooltip-docked' &&
+              el.id !== 'stockPriceChartLoader-docked' &&
+              el.id !== 'stockVolumeChartLoader-docked') {
+            if (el.parentNode && !el.parentNode.closest('.modal-as-section')) {
+              el.remove();
+            }
+          }
+        });
+      }, 100);
+
+      // Переносим оригинальный canvas для Chart.js крипто-графиков
       const originalCanvas = body.querySelector('canvas');
       const clonedCanvas = bodyClone.querySelector('canvas');
       if (originalCanvas && clonedCanvas) {
-        // Заменяем клонированный canvas на оригинальный
-        clonedCanvas.parentNode.replaceChild(originalCanvas.cloneNode(false), clonedCanvas);
-        // Сохраняем ссылку на оригинал для восстановления
         modal._originalCanvas = originalCanvas;
         modal._originalCanvasParent = originalCanvas.parentNode;
-        // Переносим оригинальный canvas в docked версию
-        const newCanvasContainer = bodyClone.querySelector('canvas').parentNode;
-        newCanvasContainer.replaceChild(originalCanvas, bodyClone.querySelector('canvas'));
+        clonedCanvas.parentNode.replaceChild(originalCanvas, clonedCanvas);
       }
-      
+
+      // Примечание: контейнеры акций уже перенесены выше (modalOriginal* блок)
+
       dockedContainer.appendChild(bodyClone);
+
+      // Если это модалка акций — кнопки действий вне .crypto-detail-body, клонируем их тоже
+      const actionsFooter = modal.querySelector('.stock-actions-footer');
+      if (actionsFooter) {
+        const actionsClone = actionsFooter.cloneNode(true);
+        actionsClone.setAttribute('translate', 'no');
+        actionsClone.classList.add('notranslate');
+        dockedContainer.appendChild(actionsClone);
+      }
       
       sectionWrapper.appendChild(dockedContainer);
       contentArea.appendChild(sectionWrapper);
@@ -303,77 +384,57 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Для графиков акций (Lightweight Charts)
         if (modal.id === 'stockDetailModal') {
-          // Проверяем наличие контейнеров в docked версии
-          const priceContainer = bodyClone.querySelector('#stockPriceChartContainer');
-          const volumeContainer = bodyClone.querySelector('#stockVolumeChartContainer');
-          
-          if (!priceContainer || !volumeContainer) {
-            console.error('Контейнеры графиков не найдены в docked версии');
-            return;
-          }
-          
-          console.log('Контейнеры найдены, пересоздаём графики...');
-          
-          // Пересоздаём графики в docked режиме
-          if (window.stockPriceChart && window.stockPriceChart.remove) {
-            window.stockPriceChart.remove();
-            window.stockPriceChart = null;
-          }
-          if (window.stockVolumeChart && window.stockVolumeChart.remove) {
-            window.stockVolumeChart.remove();
-            window.stockVolumeChart = null;
-          }
-          
-          // Перезагружаем графики с задержкой для корректного рендера
-          if (window.currentStockDetail && window.currentStockDetail.symbol && typeof window.loadStockChart === 'function') {
+          // Используем перенесённые оригинальные контейнеры или fallback на placeholders в клоне
+          const priceContainer = modal._dockedPriceContainer || bodyClone.querySelector('#stockPriceChartContainer-docked') || bodyClone.querySelector('#stockPriceChartContainer');
+          const volumeContainer = modal._dockedVolumeContainer || bodyClone.querySelector('#stockVolumeChartContainer-docked') || bodyClone.querySelector('#stockVolumeChartContainer');
+
+          if (!priceContainer || !volumeContainer) return;
+
+          // Удаляем старые инстансы графиков
+          try {
+            if (window.stockPriceChart?.remove) { window.stockPriceChart.remove(); window.stockPriceChart = null; }
+            if (window.stockVolumeChart?.remove) { window.stockVolumeChart.remove(); window.stockVolumeChart = null; }
+          } catch (_) {}
+
+          if (window.currentStockDetail?.symbol && typeof window.loadStockChart === 'function') {
             const currentPeriod = modal.querySelector('.period-btn.active')?.getAttribute('data-period') || '30';
-            console.log(`Загружаем график для ${window.currentStockDetail.symbol}, период: ${currentPeriod}`);
-            
             setTimeout(() => {
-              window.loadStockChart(window.currentStockDetail.symbol, currentPeriod).catch(err => {
-                console.error('Ошибка загрузки графика:', err);
-              });
+              window.loadStockChart(window.currentStockDetail.symbol, currentPeriod, priceContainer, volumeContainer).catch(() => {});
             }, 300);
-          } else {
-            console.error('loadStockChart не найдена или нет данных акции');
           }
         }
         
         // Для графиков криптовалют (TradingView Lightweight Charts)
         if (modal.id === 'cryptoDetailModal' && window.currentCryptoSymbol) {
-          console.log('Recreating crypto chart for docked mode');
-          const chartContainer = bodyClone.querySelector('#cryptoDetailPriceChart');
-          
-          if (chartContainer) {
-            // Удаляем старый график полностью
-            if (window.tvChart) {
-              try {
-                window.tvChart.remove();
-                console.log('Old chart removed');
-              } catch (e) {
-                console.warn('Chart removal warning:', e);
-              }
-              window.tvChart = null;
-              window.lineSeries = null;
-              window.candlestickSeries = null;
-              window.volumeSeries = null;
-            }
-            
-            // Пересоздаем график после небольшой задержки для рендера контейнера
-            setTimeout(() => {
-              if (window.currentCryptoSymbol && typeof window.loadCryptoDetailCharts === 'function') {
-                const currentInterval = modal.querySelector('.period-btn.active')?.getAttribute('data-period') || '1w';
-                console.log(`Recreating chart for ${window.currentCryptoSymbol}, interval: ${currentInterval}`);
-                window.loadCryptoDetailCharts(window.currentCryptoSymbol, currentInterval).catch(err => {
-                  console.error('Error recreating chart:', err);
-                });
-              }
-            }, 200);
+          // Перемещаем оригинальный #chartAreaWrapper в docked-клон, чтобы document.getElementById
+          // находил видимый элемент (не скрытую копию модалки) после modal.style.display='none'.
+          // #cryptoDrawingToolbar и #cryptoDetailPriceChart находятся внутри #chartAreaWrapper
+          // и перемещаются вместе с ним.
+          const originalChartWrapper = modal.querySelector('#chartAreaWrapper');
+          const cloneChartWrapper = bodyClone.querySelector('#chartAreaWrapper');
+          if (originalChartWrapper && cloneChartWrapper && cloneChartWrapper.parentNode) {
+            modal._originalChartWrapper = originalChartWrapper;
+            modal._originalChartWrapperParent = originalChartWrapper.parentNode;
+            cloneChartWrapper.parentNode.replaceChild(originalChartWrapper, cloneChartWrapper);
           }
+
+          // Удаляем старый инстанс графика
+          if (window.tvChart) {
+            try { window.tvChart.remove(); } catch (_) {}
+            window.tvChart = null;
+            window.lineSeries = null;
+            window.candlestickSeries = null;
+            window.volumeSeries = null;
+          }
+          
+          setTimeout(() => {
+            if (window.currentCryptoSymbol && typeof window.loadCryptoDetailCharts === 'function') {
+              const currentInterval = modal.querySelector('.period-btn.active')?.getAttribute('data-period') || '1w';
+              window.loadCryptoDetailCharts(window.currentCryptoSymbol, currentInterval).catch(() => {});
+            }
+          }, 200);
         }
       }, 150);
-      
-      console.log('[dock] docked to content area', modal.id);
       
     } else {
       // === UNDOCK MODE: Возвращаем в модальное окно ===
@@ -382,21 +443,81 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.title = 'Прикрепить';
       
       modal.classList.remove('docked');
+
+      // Очищаем застревшие placeholders перед восстановлением DOM модалки
+      if (window.cleanupStockChartDom) {
+        try { window.cleanupStockChartDom(); } catch (_) {}
+      }
       
       // Возвращаем canvas обратно в модалку
       const sectionWrapper = document.getElementById(modal.id + '-section');
+
+      // Удаляем старые инстансы графиков перед undock
+      try {
+        if (window.stockPriceChart?.remove) { window.stockPriceChart.remove(); window.stockPriceChart = null; }
+        if (window.stockVolumeChart?.remove) { window.stockVolumeChart.remove(); window.stockVolumeChart = null; }
+      } catch (_) {}
+
       if (sectionWrapper && modal._originalCanvas && modal._originalCanvasParent) {
         const dockedCanvas = sectionWrapper.querySelector('canvas');
         if (dockedCanvas) {
           modal._originalCanvasParent.appendChild(dockedCanvas);
         }
       }
+
+      // Возвращаем stock containers обратно в модалку (если мы перемещали их)
+      try {
+        if (sectionWrapper && modal._originalPriceContainerParent) {
+          const dockedPrice = sectionWrapper.querySelector('#stockPriceChartContainer') || sectionWrapper.querySelector('#stockPriceChartContainer-docked');
+          if (dockedPrice) modal._originalPriceContainerParent.appendChild(dockedPrice);
+        }
+      } catch (_) {}
+
+      try {
+        if (sectionWrapper && modal._originalVolumeContainerParent) {
+          const dockedVolume = sectionWrapper.querySelector('#stockVolumeChartContainer') || sectionWrapper.querySelector('#stockVolumeChartContainer-docked');
+          if (dockedVolume) modal._originalVolumeContainerParent.appendChild(dockedVolume);
+        }
+      } catch (_) {}
+
+      try {
+        if (sectionWrapper && modal._originalDrawingToolbarParent) {
+          const dockedToolbar = sectionWrapper.querySelector('#stockDrawingToolbar');
+          if (dockedToolbar) modal._originalDrawingToolbarParent.appendChild(dockedToolbar);
+          delete modal._originalDrawingToolbarParent;
+        }
+      } catch (_) {}
+
+      // Удаляем возможные оставшиеся клонированные placeholder'ы с суффиксом -docked
+      try {
+        const leftoverPrice = document.getElementById('stockPriceChartContainer-docked');
+        if (leftoverPrice && leftoverPrice.parentNode) leftoverPrice.parentNode.removeChild(leftoverPrice);
+        const leftoverVolume = document.getElementById('stockVolumeChartContainer-docked');
+        if (leftoverVolume && leftoverVolume.parentNode) leftoverVolume.parentNode.removeChild(leftoverVolume);
+      } catch (e) { /* ignore */ }
       
       // Удаляем wrapper-секцию
       if (sectionWrapper) {
         contentArea.removeChild(sectionWrapper);
       }
       
+      // Убираем временные ссылки на docked-контейнеры, если были
+      try {
+        delete modal._dockedPriceContainer;
+        delete modal._dockedVolumeContainer;
+      } catch (e) { /* ignore */ }
+      
+      // Возвращаем #chartAreaWrapper в оригинальную позицию перед показом модалки
+      if (modal.id === 'cryptoDetailModal') {
+        try {
+          if (modal._originalChartWrapper && modal._originalChartWrapperParent) {
+            modal._originalChartWrapperParent.appendChild(modal._originalChartWrapper);
+            delete modal._originalChartWrapper;
+            delete modal._originalChartWrapperParent;
+          }
+        } catch (_) {}
+      }
+
       // Показываем модалку обратно
       modal.style.display = '';
       
@@ -409,33 +530,51 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Для TradingView Lightweight Charts (криптовалюты)
         if (modal.id === 'cryptoDetailModal' && window.currentCryptoSymbol) {
-          console.log('Recreating crypto chart for undocked mode');
-          
           // Удаляем старый график
           if (window.tvChart) {
-            try {
-              window.tvChart.remove();
-              console.log('Old docked chart removed');
-            } catch (e) {
-              console.warn('Chart removal warning:', e);
-            }
+            try { window.tvChart.remove(); } catch (_) {}
             window.tvChart = null;
             window.lineSeries = null;
             window.candlestickSeries = null;
             window.volumeSeries = null;
           }
           
-          // Пересоздаем график в модальном окне
-          setTimeout(() => {
+          // Пересоздаём график в модальном окне — ждём пока контейнер получит реальные размеры
+          (function waitAndRecreate() {
             const chartContainer = modal.querySelector('#cryptoDetailPriceChart');
-            if (chartContainer && window.currentCryptoSymbol && typeof window.loadCryptoDetailCharts === 'function') {
-              const currentInterval = modal.querySelector('.period-btn.active')?.getAttribute('data-period') || '1w';
-              console.log(`Recreating chart in modal for ${window.currentCryptoSymbol}, interval: ${currentInterval}`);
-              window.loadCryptoDetailCharts(window.currentCryptoSymbol, currentInterval).catch(err => {
-                console.error('Error recreating chart in modal:', err);
-              });
+            if (!chartContainer || !window.currentCryptoSymbol || typeof window.loadCryptoDetailCharts !== 'function') return;
+
+            let attempts = 0;
+            const maxAttempts = 30; // до 3 секунд (30 × 100ms)
+            let fired = false; // флаг: загрузка уже запущена, больше не запускать
+
+            function tryCreate() {
+              if (fired) return; // предотвращаем двойной запуск
+              attempts++;
+              // Убеждаемся что модалка видима и контейнер имеет размеры
+              const modalVisible = modal.offsetParent !== null || window.getComputedStyle(modal).display !== 'none';
+              const hasSize = chartContainer.clientWidth > 0 && chartContainer.clientHeight > 0;
+
+              if (modalVisible && hasSize) {
+                fired = true;
+                const currentInterval = modal.querySelector('.period-btn.active')?.getAttribute('data-period') || '1w';
+                window.loadCryptoDetailCharts(window.currentCryptoSymbol, currentInterval).catch(() => {});
+                return;
+              }
+
+              if (attempts < maxAttempts) {
+                setTimeout(() => requestAnimationFrame(tryCreate), 100);
+              } else {
+                fired = true;
+                // Контейнер так и не получил размеры — загружаем всё равно
+                const currentInterval = modal.querySelector('.period-btn.active')?.getAttribute('data-period') || '1w';
+                window.loadCryptoDetailCharts(window.currentCryptoSymbol, currentInterval).catch(() => {});
+              }
             }
-          }, 350);
+
+            // Первый RAF даёт браузеру время применить display:block от modal.style.display = ''
+            requestAnimationFrame(() => requestAnimationFrame(tryCreate));
+          })();
         }
         
         // Для графиков акций - ПЕРЕЗАГРУЖАЕМ
@@ -451,14 +590,12 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           
           // Перезагружаем с текущим периодом
-          if (window.currentStockDetail && window.currentStockDetail.symbol && typeof window.loadStockChart === 'function') {
+          if (window.currentStockDetail?.symbol && typeof window.loadStockChart === 'function') {
             const currentPeriod = modal.querySelector('.period-btn.active')?.getAttribute('data-period') || '30';
-            console.log(` Возврат в модалку: загружаем график ${window.currentStockDetail.symbol}, период: ${currentPeriod}`);
-            
             setTimeout(() => {
-              window.loadStockChart(window.currentStockDetail.symbol, currentPeriod).catch(err => {
-                console.error('Ошибка загрузки графика при undock:', err);
-              });
+              const priceContainer = modal.querySelector('#stockPriceChartContainer') || document.getElementById('stockPriceChartContainer');
+              const volumeContainer = modal.querySelector('#stockVolumeChartContainer') || document.getElementById('stockVolumeChartContainer');
+              window.loadStockChart(window.currentStockDetail.symbol, currentPeriod, priceContainer, volumeContainer).catch(() => {});
             }, 200);
           }
         }
@@ -484,7 +621,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
       
-      console.log('[dock] undocked from content area', modal.id);
     }
   });
 
@@ -513,36 +649,32 @@ document.addEventListener('DOMContentLoaded', () => {
     // Обработчики кнопок периодов для акций в docked режиме
     if (originalModal.id === 'stockDetailModal') {
       const periodButtons = wrapper.querySelectorAll('.period-btn');
-      console.log(` Инициализация ${periodButtons.length} кнопок периодов в docked режиме`);
-      
+
       periodButtons.forEach(btn => {
         btn.addEventListener('click', async function(e) {
           e.preventDefault();
           e.stopPropagation();
-          
+
           const days = this.getAttribute('data-period');
-          console.log(`Переключение периода: ${days}`);
-          
+
           // Обновляем активную кнопку
           periodButtons.forEach(b => b.classList.remove('active'));
           this.classList.add('active');
           
           if (window.currentStockDetail && window.currentStockDetail.symbol && typeof window.loadStockChart === 'function') {
             try {
-              await window.loadStockChart(window.currentStockDetail.symbol, days);
-              console.log('График обновлён');
-            } catch (err) {
-              console.error('Ошибка обновления графика:', err);
-            }
-          } else {
-            console.error('Не удалось переключить период - нет данных');
+              // Ищем price container внутри docked wrapper (который может иметь суффикс -docked)
+              const priceContainer = wrapper.querySelector('#stockPriceChartContainer-docked') || wrapper.querySelector('#stockPriceChartContainer') || wrapper.querySelector('[id*="stockPriceChartContainer"]');
+              const volumeContainer = wrapper.querySelector('#stockVolumeChartContainer-docked') || wrapper.querySelector('#stockVolumeChartContainer') || wrapper.querySelector('[id*="stockVolumeChartContainer"]');
+              await window.loadStockChart(window.currentStockDetail.symbol, days, priceContainer, volumeContainer);
+            } catch (_) {}
           }
         });
       });
     }
   }
 
-  // Delegated resize: mousedown / touchstart on .modal-resize-handle
+  // Делегированное изменение размера: mousedown / touchstart на .modal-resize-handle
   let isResizing = false;
   let curModal = null;
   let curContent = null;
@@ -622,5 +754,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
 });
 
-console.log('Crypto Modal Vue app loaded');
+
 

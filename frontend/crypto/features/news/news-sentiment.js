@@ -31,7 +31,6 @@
   ]
 };
 
-
 const analyzeSentiment = (text) => {
   if (!text) {
     return { sentiment: 'neutral', score: 0, confidence: 0 };
@@ -146,7 +145,7 @@ const extractAssetMentions = (text) => {
   }
   
   // Популярные акции
-  const stocks = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'META', 'AMD', 'NFLX', 'DIS', 'COIN', 'PYPL', 'SQ', 'SHOP', 'UBER'];
+  const stocks = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'META', 'AMD', 'NFLX', 'DIS', 'COIN', 'PYPL', 'XYZ', 'SHOP', 'UBER'];
   
   // Добавляем все акции из STOCK_INFO если доступен
   if (window.STOCK_INFO && typeof window.STOCK_INFO === 'object') {
@@ -185,7 +184,7 @@ const extractAssetMentions = (text) => {
     'NETFLIX': 'NFLX',
     'DISNEY': 'DIS',
     'PAYPAL': 'PYPL',
-    'SQUARE': 'SQ',
+    'SQUARE': 'XYZ',
     'SHOPIFY': 'SHOP',
     'UBER': 'UBER'
   };
@@ -214,12 +213,12 @@ const filterNewsByUserAssets = async (news) => {
     const favorites = await getFavorites() || [];
     
     if (favorites.length === 0) {
-      console.log('[filterNewsByUserAssets] Нет избранных активов - показываем все новости');
+
       return news; // Если нет избранного, показываем все новости
     }
     
     const userSymbols = favorites.map(f => String(f.symbol || '').toUpperCase());
-    console.log('[filterNewsByUserAssets] Избранные активы пользователя:', userSymbols);
+
     
     // Фильтруем новости, которые упоминают активы пользователя
     const filtered = news.filter(item => {
@@ -248,21 +247,21 @@ const filterNewsByUserAssets = async (news) => {
         
         item.mentionedAssets = relevantMentions;
         
-        console.log(`[filterNewsByUserAssets] Новость релевантна: "${item.title.substring(0, 50)}..." упоминает [${relevantMentions.join(', ')}]`);
+
       }
       
       return hasUserAsset || hasDirectMention;
     });
     
-    console.log(`[filterNewsByUserAssets] Результат: ${filtered.length} из ${news.length} новостей релевантны портфелю (${userSymbols.join(', ')})`);
+
     
     if (filtered.length === 0) {
-      console.warn('[filterNewsByUserAssets] Не найдено новостей по активам пользователя. Возможно новости не содержат упоминаний этих символов.');
+
     }
     
     return filtered;
   } catch (error) {
-    console.error('[filterNewsByUserAssets] Ошибка фильтрации:', error);
+
     return news;
   }
 };

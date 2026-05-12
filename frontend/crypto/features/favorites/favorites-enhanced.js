@@ -22,7 +22,7 @@ async function loadFavoritesEnhancedData() {
   try {
     const supabase = await getSupabaseClient();
     if (!supabase) {
-      console.warn('Supabase не инициализирован');
+
       return;
     }
 
@@ -35,7 +35,7 @@ async function loadFavoritesEnhancedData() {
       .eq('user_id', user.id);
 
     if (error) {
-      console.error('Ошибка загрузки данных избранного:', error);
+
       return;
     }
 
@@ -53,9 +53,8 @@ async function loadFavoritesEnhancedData() {
       });
     }
 
-    console.log('Данные избранного загружены:', Object.keys(favoritesData.enhancedData).length, 'активов');
   } catch (e) {
-    console.error('Ошибка загрузки данных избранного:', e);
+
   }
 }
 
@@ -103,7 +102,7 @@ async function saveFavoriteEnhancedData(symbol, data) {
     }
 
     if (result.error) {
-      console.error('Ошибка сохранения данных:', result.error);
+
       showNotification('Ошибка сохранения данных', 'error');
       return false;
     }
@@ -113,7 +112,7 @@ async function saveFavoriteEnhancedData(symbol, data) {
     
     return true;
   } catch (e) {
-    console.error('Ошибка сохранения данных избранного:', e);
+
     showNotification('Ошибка сохранения данных', 'error');
     return false;
   }
@@ -134,13 +133,13 @@ async function deleteFavoriteEnhancedData(symbol) {
       .eq('id', existingData.id);
 
     if (error) {
-      console.error('Ошибка удаления данных:', error);
+
       return;
     }
 
     delete favoritesData.enhancedData[symbol];
   } catch (e) {
-    console.error('Ошибка удаления данных избранного:', e);
+
   }
 }
 
@@ -321,7 +320,7 @@ async function removeFavoriteAsset(symbol) {
       updateStats();
     }
   } catch (error) {
-    console.error('Ошибка удаления из избранного:', error);
+
     showNotification('Ошибка при удалении актива', 'error');
   }
 }
@@ -500,7 +499,7 @@ function showTargetPriceModal(symbol) {
           await createPriceAlert(symbol, price, direction, assetType, data.note || '');
           showNotification(`Целевая цена и алерт для ${symbol} установлены: $${price}`, 'success');
         } catch (alertError) {
-          console.warn('Не удалось создать price alert:', alertError);
+
           showNotification(`Целевая цена для ${symbol} установлена: $${price}`, 'success');
         }
         enhanceFavoriteCards();
@@ -558,12 +557,12 @@ function showCategoryModal(symbol) {
                 <label style="display: flex; align-items: center; gap: 10px; padding: 12px; 
                               border: 2px solid ${isChecked ? '#3b82f6' : '#e2e8f0'}; 
                               border-radius: 10px; cursor: pointer; transition: all 0.2s; 
-                              background: ${isChecked ? 'rgba(59, 130, 246, 0.05)' : 'white'};" 
+                              background: ${isChecked ? '#3b82f6' : 'white'};" 
                        class="category-option">
                   <input type="checkbox" name="category" value="${cat}" 
                          ${isChecked ? 'checked' : ''}
                          style="width: 18px; height: 18px; accent-color: #3b82f6;">
-                  <span style="font-size: 14px; font-weight: 500;">${cat}</span>
+                  <span style="font-size: 14px; font-weight: 500; color: ${isChecked ? '#ffffff' : '#1e293b'};">${cat}</span>
                 </label>
               `;
             }).join('')}
@@ -612,12 +611,15 @@ function showCategoryModal(symbol) {
   modal.querySelectorAll('.category-option').forEach(label => {
     const checkbox = label.querySelector('input[type="checkbox"]');
     checkbox.onchange = () => {
+      const span = label.querySelector('span');
       if (checkbox.checked) {
         label.style.borderColor = '#3b82f6';
-        label.style.background = 'rgba(59, 130, 246, 0.05)';
+        label.style.background = '#3b82f6';
+        if (span) span.style.color = '#ffffff';
       } else {
         label.style.borderColor = '#e2e8f0';
         label.style.background = 'white';
+        if (span) span.style.color = '#1e293b';
       }
       updatePreview();
     };
@@ -647,21 +649,24 @@ function showCategoryModal(symbol) {
       const grid = modal.querySelector('.category-grid');
       const label = document.createElement('label');
       label.className = 'category-option';
-      label.style.cssText = 'display: flex; align-items: center; gap: 10px; padding: 12px; border: 2px solid #3b82f6; border-radius: 10px; cursor: pointer; transition: all 0.2s; background: rgba(59, 130, 246, 0.05);';
+      label.style.cssText = 'display: flex; align-items: center; gap: 10px; padding: 12px; border: 2px solid #3b82f6; border-radius: 10px; cursor: pointer; transition: all 0.2s; background: #3b82f6;';
       label.innerHTML = `
         <input type="checkbox" name="category" value="${customCat}" checked style="width: 18px; height: 18px; accent-color: #3b82f6;">
-        <span style="font-size: 14px; font-weight: 500;">${customCat}</span>
+        <span style="font-size: 14px; font-weight: 500; color: #ffffff;">${customCat}</span>
       `;
       grid.appendChild(label);
       
       const checkbox = label.querySelector('input');
       checkbox.onchange = () => {
+        const span = label.querySelector('span');
         if (checkbox.checked) {
           label.style.borderColor = '#3b82f6';
-          label.style.background = 'rgba(59, 130, 246, 0.05)';
+          label.style.background = '#3b82f6';
+          if (span) span.style.color = '#ffffff';
         } else {
           label.style.borderColor = '#e2e8f0';
           label.style.background = 'white';
+          if (span) span.style.color = '#1e293b';
         }
         updatePreview();
       };
@@ -811,7 +816,7 @@ async function compareSelectedAssets() {
               }
             }
           } catch (e) {
-            console.warn(`Не удалось загрузить цену для ${symbol}:`, e);
+
           }
         }
       }
@@ -867,7 +872,7 @@ async function compareSelectedAssets() {
       exportComparisonData(comparisonData);
     };
   } catch (error) {
-    console.error('Ошибка загрузки данных для сравнения:', error);
+
     modal.querySelector('#comparisonTableBody').innerHTML = `
       <tr>
         <td colspan="${symbols.length + 1}" style="text-align: center; padding: 40px; color: #ef4444;">
@@ -913,7 +918,7 @@ function exportComparisonData(comparisonData) {
     
     showNotification('Данные экспортированы', 'success');
   } catch (error) {
-    console.error('Ошибка экспорта данных сравнения:', error);
+
     showNotification('Ошибка при экспорте', 'error');
   }
 }
@@ -953,7 +958,7 @@ async function deleteSelectedAssets() {
       toggleSelectMode();
     }
   } catch (error) {
-    console.error('Ошибка массового удаления:', error);
+
     showNotification('Ошибка при удалении активов', 'error');
   }
 }
@@ -986,7 +991,7 @@ async function updateStats() {
       statsBar.style.display = 'none';
     }
   } catch (error) {
-    console.error('Ошибка обновления статистики:', error);
+
   }
 }
 
@@ -1012,7 +1017,7 @@ async function exportFavoritesData() {
               }
             }
           } catch (e) {
-            console.warn(`Не удалось загрузить цену для ${fav.symbol}:`, e);
+
           }
         }
       }
@@ -1046,7 +1051,7 @@ async function exportFavoritesData() {
     
     showNotification('Данные избранного экспортированы', 'success');
   } catch (error) {
-    console.error('Ошибка экспорта данных:', error);
+
     showNotification('Ошибка при экспорте данных', 'error');
   }
 }
@@ -1250,7 +1255,7 @@ export async function initFavoritesEnhanced() {
   enhanceFavoriteCards();
   updateStats();
   
-  console.log('✅ Расширенный функционал избранного инициализирован');
+
 }
 
 // Вспомогательная функция для уведомлений
@@ -1258,7 +1263,7 @@ function showNotification(message, type = 'info') {
   if (window.showNotification) {
     window.showNotification(message, type);
   } else {
-    console.log(`[${type.toUpperCase()}] ${message}`);
+
   }
 }
 
@@ -1283,7 +1288,7 @@ async function checkTargetPrices() {
       }
     }
   } catch (error) {
-    console.error('Ошибка проверки целевых цен:', error);
+
   }
 }
 

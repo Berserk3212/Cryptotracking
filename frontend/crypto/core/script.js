@@ -1,6 +1,6 @@
 // script.js — ВСЁ РАБОТАЕТ
 import { initApp, showSection, loadPortfolios, loadTransactions, initAnalytics } from '../ui/ui.js';
-import { initData, deletePortfolio, getTransactions, getPricesForSymbols, getTransactionsSync } from './data.js';
+import { initData, deletePortfolio, deleteTransaction as deleteTransactionFromDB, getTransactions, getPricesForSymbols, getTransactionsSync } from './data.js';
 import { updateUserUI } from './profile.js';
 import { initDashboard as initDashboardWidgets, loadDashboardData } from '../features/dashboard/dashboard.js';
 import { loadAppSettings, getSetting } from './settings-service.js';
@@ -105,14 +105,27 @@ Object.assign(window.app, {
     }
   },
   deletePortfolio: async (id) => {
-    if (!confirm('Удалить портфель и все транзакции?')) return;
-    try {
-      await deletePortfolio(id);
-      await loadPortfolios();
-      await loadTransactions();
-    } catch (err) {
-      alert('Ошибка: ' + err.message);
+    const doDelete = async () => {
+      try {
+        await deletePortfolio(id);
+        await loadPortfolios();
+        await loadTransactions();
+      } catch (err) {
+        alert('Ошибка: ' + err.message);
+      }
+    };
+    if (window.showConfirmModal) {
+      window.showConfirmModal(
+        'Удалить портфель?',
+        'Все транзакции этого портфеля будут безвозвратно удалены. Это действие нельзя отменить.',
+        doDelete
+      );
+    } else {
+      if (confirm('Удалить портфель и все транзакции?')) doDelete();
     }
+  },
+  deleteTransaction: async (id) => {
+    return deleteTransactionFromDB(id);
   },
   closeModal: (id) => {
     const modal = document.getElementById(id);

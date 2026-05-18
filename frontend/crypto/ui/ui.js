@@ -324,6 +324,9 @@ const setupCryptoDropdown = () => {
     document.body.appendChild(dropdown);
   }
 
+  // Блокируем initCryptoSearch из api.js чтобы не было дублирующих конкурирующих обработчиков
+  window.__cryptoSearchInitDone = true;
+
   // Функция позиционирования дропдауна под полем ввода
   const positionDropdown = () => {
     const rect = searchInput.getBoundingClientRect();
@@ -363,6 +366,7 @@ const setupCryptoDropdown = () => {
   document.addEventListener('click', function(e) {
     if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
       dropdown.classList.remove('active');
+      dropdown.style.display = '';
     }
   });
 
@@ -442,24 +446,26 @@ const renderCryptoDropdown = (searchTerm = '') => {
     const name = String(rawName).replace(/;+$/g, '').replace(/;/g, '').trim();
     
     // Определяем цвет и иконку в зависимости от типа актива
-    let info, iconUrl;
+    let info, iconUrl, iconFallback;
     if (asset.assetType === 'stock') {
       info = window.STOCK_INFO?.[symbol] || { color: '#3B82F6' };
       iconUrl = `https://img.logo.dev/${symbol.toLowerCase()}.com?token=pk_X-jjCWIKT_SRetd3NwvHUg&size=80&format=png`;
+      iconFallback = `https://assets.parqet.com/logos/symbol/${symbol}`;
     } else {
       info = window.CRYPTO_INFO?.[symbol] || window.CRYPTO_INFO?.[asset.symbol] || { icon: null, color: '#F7931A' };
-      iconUrl = typeof getCryptoIcon !== 'undefined' ? getCryptoIcon(asset.symbol) : '';
+      iconUrl = `https://assets.coincap.io/assets/icons/${(asset.symbol || symbol).toLowerCase()}@2x.png`;
+      iconFallback = `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/icon/${(asset.symbol || symbol).toLowerCase()}.png`;
     }
     
     const currencySymbol = getCurrencySymbol();
     const convertedPrice = convertToSelectedCurrency(asset.price);
     const typeLabel = asset.type || 'Актив';
-    // Use data-src so the global icon loader controls concurrency
+    const sym0 = symbol.charAt(0) || '';
     return `
       <div class="tools-crypto-item" data-symbol="${symbol}" data-price="${asset.price}" data-name="${name}" data-type="${asset.assetType}" style="display:flex;align-items:center;gap:.75rem;padding:.5rem .75rem;border-radius:8px;cursor:pointer;">
-        <div class="tools-crypto-icon" style="background: linear-gradient(135deg, ${info.color}, ${info.color}dd); width:36px; height:36px; border-radius:8px; display:flex;align-items:center;justify-content:center; position:relative; flex:0 0 36px;">
-          <img data-src="${iconUrl}" alt="${symbol}" style="width:100%;height:100%;object-fit:contain;display:block;" />
-          <div class="tools-crypto-icon-fallback" style="position:absolute; inset:0; display:flex;align-items:center;justify-content:center; font-weight:700; color:rgba(255, 255, 255, 0.95);">${symbol.charAt(0) || ''}</div>
+        <div class="tools-crypto-icon" style="width:36px; height:36px; border-radius:50%; background:${info.color}; display:flex;align-items:center;justify-content:center; position:relative; flex:0 0 36px; overflow:hidden;">
+          <img src="${iconUrl}" alt="${symbol}" style="width:100%;height:100%;object-fit:contain;border-radius:50%;display:block;" onerror="if(!this.dataset.fb1){this.dataset.fb1='1';this.src='${iconFallback}';}else{this.style.display='none';this.nextElementSibling.style.display='flex';}" />
+          <div class="tools-crypto-icon-fallback" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;font-weight:700;color:rgba(255,255,255,0.95);">${sym0}</div>
         </div>
         <div class="tools-crypto-info" style="flex:1; min-width:0;">
           <div class="tools-crypto-name" style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${name}</div>
@@ -476,10 +482,6 @@ const renderCryptoDropdown = (searchTerm = '') => {
   // First quick chunk (render minimal set for instant feedback)
   const firstChunk = items.slice(0, 10);
   container.innerHTML = firstChunk.map(makeItemHtml).join('');
-  // Trigger icon loader for the first chunk
-  if (window._iconLoader && typeof window._iconLoader.processContainer === 'function') {
-    window._iconLoader.processContainer(container);
-  }
 
   // Attach click handlers for items present
   const attachClickHandlers = (root) => {
@@ -501,11 +503,6 @@ const renderCryptoDropdown = (searchTerm = '') => {
       const chunk = items.slice(index, index + chunkSize);
       if (chunk.length === 0) return;
       container.insertAdjacentHTML('beforeend', chunk.map(makeItemHtml).join(''));
-      if (window._iconLoader && typeof window._iconLoader.processContainer === 'function') {
-        // process only the newly added nodes to reduce work
-        const addedNodes = Array.from(container.children).slice(index, index + chunk.length);
-        window._iconLoader.processContainer(addedNodes.length ? addedNodes[0].parentElement || container : container);
-      }
       attachClickHandlers(container);
       index += chunkSize;
       if (index < items.length) {
@@ -625,8 +622,11 @@ const selectCrypto = (symbol, name, price) => {
   // Очищаем поле поиска
   if (searchInput) searchInput.value = '';
   
-  // Скрываем dropdown
-  if (dropdown) dropdown.classList.remove('active');
+  // Скрываем dropdown — сбрасываем и класс и inline-стиль (на случай конкурирующего механизма)
+  if (dropdown) {
+    dropdown.classList.remove('active');
+    dropdown.style.display = '';
+  }
   
   // Показываем выбранную криптовалюту/акцию
   if (selectedCrypto) {
@@ -905,8 +905,14 @@ export const loadPortfolios = async () => {
             setup() {
               const portfolios = ref(items || []);
               const remove = async (id) => {
-                if (!confirm('Удалить портфель и все транзакции?')) return;
-                try { await deletePortfolio(id); portfolios.value = portfolios.value.filter(p => p.id !== id); populatePortfolioSelect(); } catch (_) { alert('Не удалось удалить портфель'); }
+                const doDelete = async () => {
+                  try { await deletePortfolio(id); portfolios.value = portfolios.value.filter(p => p.id !== id); populatePortfolioSelect(); } catch (_) { alert('Не удалось удалить портфель'); }
+                };
+                if (window.showConfirmModal) {
+                  window.showConfirmModal('Удалить портфель?', 'Все транзакции этого портфеля будут безвозвратно удалены. Это действие нельзя отменить.', doDelete);
+                } else {
+                  if (confirm('Удалить портфель и все транзакции?')) doDelete();
+                }
               };
               const openTransaction = (portfolioId) => {
                 if (window.app && window.app.showTransactionModal) window.app.showTransactionModal('BUY', portfolioId);
@@ -917,13 +923,13 @@ export const loadPortfolios = async () => {
                 <transition-group name="portfolio-list" tag="div" class="portfolios-list">
                   <div class="portfolio-card" v-for="p in portfolios" :key="p.id">
                     <div class="portfolio-header">
-                      <h3>{{ p.name }}</h3>
-                      <span class="portfolio-badge" :class="p.risk_level.toLowerCase()">{{ getRisk(p.risk_level) }}</span>
+                      <h3 translate="no">{{ p.name }}</h3>
+                      <span class="portfolio-badge notranslate" translate="no" :class="p.risk_level.toLowerCase()">{{ getRisk(p.risk_level) }}</span>
                     </div>
-                    <p class="portfolio-description">{{ p.description || '' }}</p>
+                    <p class="portfolio-description" translate="no">{{ p.description || '' }}</p>
                     <div class="portfolio-info">
-                      <div><i class="fas fa-coins"></i> {{ p.currency || 'USD' }}</div>
-                      <div><i class="fas fa-calendar"></i> {{ new Date(p.created_at).toLocaleDateString('ru-RU') }}</div>
+                      <div><i class="fas fa-coins"></i> <span translate="no">{{ p.currency || 'USD' }}</span></div>
+                      <div><i class="fas fa-calendar"></i> <span translate="no">{{ new Date(p.created_at).toLocaleDateString('ru-RU') }}</span></div>
                     </div>
 
                     <div class="portfolio-sparkline" aria-hidden="true"></div>
@@ -956,13 +962,13 @@ export const loadPortfolios = async () => {
       grid.innerHTML = portfolios.map(p => `
         <div class="portfolio-card">
           <div class="portfolio-header">
-            <h3>${escapeHtml(p.name)}</h3>
-            <span class="portfolio-badge ${p.risk_level.toLowerCase()}">${getRisk(p.risk_level)}</span>
+            <h3 translate="no">${escapeHtml(p.name)}</h3>
+            <span class="portfolio-badge notranslate ${p.risk_level.toLowerCase()}" translate="no">${getRisk(p.risk_level)}</span>
           </div>
-          <p class="portfolio-description">${escapeHtml(p.description) || ''}</p>
+          <p class="portfolio-description" translate="no">${escapeHtml(p.description) || ''}</p>
           <div class="portfolio-info">
-            <div><i class="fas fa-coins"></i> ${p.currency || 'USD'}</div>
-            <div><i class="fas fa-calendar"></i> ${new Date(p.created_at).toLocaleDateString('ru-RU')}</div>
+            <div><i class="fas fa-coins"></i> <span translate="no">${p.currency || 'USD'}</span></div>
+            <div><i class="fas fa-calendar"></i> <span translate="no">${new Date(p.created_at).toLocaleDateString('ru-RU')}</span></div>
           </div>
           <div class="portfolio-actions">
             <button class="btn btn-primary" onclick="app.showTransactionModal('BUY', '${p.id}')"><i class="fas fa-plus-circle"></i> Транзакция</button>
@@ -2398,7 +2404,10 @@ const updateMetrics = (returns, transactions) => {
     }
 
     const roiEl = document.getElementById('analyticsROI');
-    if (roiEl) roiEl.textContent = (roi >= 0 ? '+' : '') + roi + '%';
+    if (roiEl) {
+      roiEl.textContent = (roi >= 0 ? '+' : '') + roi + '%';
+      roiEl.className = 'stat-value ' + (roi >= 0 ? 'positive' : 'negative');
+    }
 
     const assetsEl = document.getElementById('analyticsAssets');
     if (assetsEl) assetsEl.textContent = assetCount;
@@ -5478,7 +5487,27 @@ const renderTradingViewChart = async (klines, symbol) => {
     if (container && window.chartResizeObserver) {
       window.chartResizeObserver.observe(container);
     }
-    
+
+    // Принудительный resize после создания графика на мобильных.
+    // watchModalOpen в mobile-charts-fix.js стреляет в 100/300/600ms после открытия модалки,
+    // но в этот момент window.tvChart ещё null (API-запрос ещё летит).
+    // Поэтому форсируем resize здесь — сразу после того как чарт создан и данные загружены.
+    if (window.innerWidth <= 768) {
+      [0, 100, 300, 600].forEach(delay => {
+        setTimeout(() => {
+          if (!window.tvChart) return;
+          const w = container.clientWidth;
+          const h = container.clientHeight;
+          if (w > 50 && h > 50) {
+            try {
+              window.tvChart.resize(w, h);
+              window.tvChart.timeScale().fitContent();
+            } catch (e) {}
+          }
+        }, delay);
+      });
+    }
+
   } catch (error) {
 
     showNotification('Ошибка создания графика: ' + error.message, 'error');

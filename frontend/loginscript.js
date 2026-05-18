@@ -222,7 +222,7 @@
 
           try {
             const { error } = await supabase.auth.resetPasswordForEmail(form.email.trim(), {
-              redirectTo: window.location.origin + '/reset-password.html'
+              redirectTo: window.location.origin + '/frontend/reset-password.html'
             });
 
             if (error) throw error;
@@ -266,7 +266,7 @@
             const { data, error } = await supabase.auth.signInWithOAuth({
               provider: provider,
               options: {
-                redirectTo: window.location.origin + '/index.html'
+                redirectTo: window.location.origin + '/frontend/index.html'
               }
             });
 

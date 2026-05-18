@@ -209,7 +209,7 @@
             top: 0.08,   // достаточный отступ чтобы верхний лейбл не клипился
             bottom: 0.08,
           },
-          minimumWidth: 75, // 75px — хватает для 6-значных цен (94,000 – 140,000)
+          minimumWidth: 56, // 56px на мобильных — достаточно для 6-значных цен
           borderVisible: false,
           textColor: '#d1d5db',
         },
@@ -266,7 +266,7 @@
               },
               rightPriceScale: {
                 textColor: '#d1d5db',
-                minimumWidth: 75,
+                minimumWidth: 56,
               },
               timeScale: {
                 textColor: '#d1d5db',
@@ -381,8 +381,8 @@
     // MutationObserver смотрит на class 'active'
     const mo = new MutationObserver(() => {
       if (modal.classList.contains('active')) {
-        // Несколько попыток с нарастающей задержкой
-        [100, 300, 600].forEach(delay => {
+        // Несколько попыток с нарастающей задержкой (включая позднее — на случай медленного API)
+        [100, 300, 600, 1000, 1500].forEach(delay => {
           setTimeout(forceChartResize, delay);
         });
       }

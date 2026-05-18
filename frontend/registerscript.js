@@ -254,7 +254,7 @@ createApp({
             data: {
               full_name: safeName
             },
-            emailRedirectTo: window.location.origin + '/login.html'
+            emailRedirectTo: window.location.origin + '/frontend/login.html'
           }
         });
 

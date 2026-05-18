@@ -443,40 +443,80 @@ const removeNoResultsFromGrid = (grid) => {
     }
 }
 
+// ==================== CONFIRM MODAL ====================
+
+const showConfirmModal = (title, message, onConfirm) => {
+    const existing = document.getElementById('_confirmModal');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = '_confirmModal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:99999;';
+
+    overlay.innerHTML = `
+        <div style="background:#1a2035;border:1px solid #2d3748;border-radius:16px;padding:32px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.6);text-align:center;animation:_cmSlide 0.2s ease;">
+            <div style="width:56px;height:56px;border-radius:50%;background:rgba(239,68,68,0.12);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+                <i class="fas fa-trash-alt" style="font-size:22px;color:#ef4444;"></i>
+            </div>
+            <h3 style="color:#f1f5f9;font-size:1.15rem;font-weight:700;margin:0 0 10px;">${title}</h3>
+            <p style="color:#94a3b8;font-size:0.875rem;margin:0 0 24px;line-height:1.6;">${message}</p>
+            <div style="display:flex;gap:12px;justify-content:center;">
+                <button id="_cmCancel" style="padding:10px 24px;border-radius:8px;border:1px solid #374151;background:transparent;color:#9ca3af;cursor:pointer;font-size:0.875rem;font-weight:500;">Отмена</button>
+                <button id="_cmOk" style="padding:10px 24px;border-radius:8px;border:none;background:#ef4444;color:#fff;cursor:pointer;font-size:0.875rem;font-weight:600;">Удалить</button>
+            </div>
+        </div>
+        <style>
+            @keyframes _cmSlide{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+            #_cmCancel:hover{background:#374151!important;color:#f1f5f9!important;}
+            #_cmOk:hover{background:#dc2626!important;}
+        </style>
+    `;
+
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+
+    overlay.querySelector('#_cmCancel').addEventListener('click', close);
+    overlay.querySelector('#_cmOk').addEventListener('click', () => { close(); onConfirm(); });
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); }, { once: true });
+};
+
+window.showConfirmModal = showConfirmModal;
+
 // ==================== DELETE TRANSACTION FUNCTIONALITY ====================
-// Обработка удаления транзакций
 
 document.addEventListener('click', function(e) {
-    // Проверяем клик по кнопке удаления транзакции
-    if (e.target.classList.contains('delete-transaction-btn') || 
+    if (e.target.classList.contains('delete-transaction-btn') ||
         e.target.closest('.delete-transaction-btn')) {
-        
-        const btn = e.target.classList.contains('delete-transaction-btn') ? 
-                    e.target : e.target.closest('.delete-transaction-btn');
-        
+
+        const btn = e.target.classList.contains('delete-transaction-btn')
+            ? e.target : e.target.closest('.delete-transaction-btn');
+
         const transactionId = btn.dataset.transactionId;
-        
-        if (transactionId && confirm('Вы уверены, что хотите удалить эту транзакцию?')) {
-            deleteTransaction(transactionId, btn);
-        }
+        if (!transactionId) return;
+
+        showConfirmModal(
+            'Удалить транзакцию?',
+            'Это действие нельзя отменить. Транзакция будет безвозвратно удалена из базы данных.',
+            () => deleteTransactionRow(transactionId, btn)
+        );
     }
 });
 
-const deleteTransaction = async (transactionId, button) => {
+const deleteTransactionRow = async (transactionId, button) => {
     try {
-        // Показываем загрузку
         button.disabled = true;
-        button.innerHTML = '<i class=\"fas fa-spinner fa-spin\"></i> Удаление...';
-        
-        // Импортируем функцию удаления из data.js
-        const { deleteTransaction: deleteTransactionFromDB } = await import('../../core/data.js');
-        
-        // Удаляем транзакцию
-        await deleteTransactionFromDB(transactionId);
-        
-        // Удаляем строку из таблицы
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        if (!window.app || !window.app.deleteTransaction) {
+            throw new Error('Функция удаления недоступна');
+        }
+
+        await window.app.deleteTransaction(transactionId);
+
         const row = button.closest('tr');
         if (row) {
+            row.style.transition = 'opacity 0.3s, transform 0.3s';
             row.style.opacity = '0';
             row.style.transform = 'translateX(-20px)';
             setTimeout(() => {
@@ -485,12 +525,10 @@ const deleteTransaction = async (transactionId, button) => {
                 showNotification('Транзакция успешно удалена', 'success');
             }, 300);
         }
-        
     } catch (error) {
-
-        showNotification('Ошибка при удалении транзакции: ' + error.message, 'error');
+        showNotification('Ошибка при удалении: ' + error.message, 'error');
         button.disabled = false;
-        button.innerHTML = '<i class=\"fas fa-trash\"></i> Удалить';
+        button.innerHTML = '<i class="fas fa-trash"></i>';
     }
 }
 

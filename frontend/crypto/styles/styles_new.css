@@ -10262,8 +10262,11 @@ tbody tr {
     pointer-events: none;   /* меняется на 'auto' при выборе инструмента */
 }
 
-/* ── Mobile: toolbar немного меньше ── */
+/* ── Mobile: toolbar скрыт в модалке (перекрывает ~42px чарта), доступен только на десктопе ── */
 @media (max-width: 768px) {
+    .crypto-detail-modal .chart-drawing-toolbar {
+        display: none !important;
+    }
     .chart-drawing-toolbar {
         left: 3px;
         padding: 4px 2px;

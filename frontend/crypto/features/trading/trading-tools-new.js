@@ -115,21 +115,51 @@ const app = Vue.createApp({
             this.showCryptoDropdown = '';
             this.cryptoSearchQuery = '';
             
+            // Всегда обновляем цену при выборе актива
             try {
-                const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${crypto.symbol}USDT`);
-                const data = await response.json();
-                const price = parseFloat(data.price).toFixed(2);
-                
-                if (!calc.form.entryPrice || calc.form.entryPrice === '') {
-                    calc.form.entryPrice = price;
+                if (crypto.type === 'stock') {
+                    const url = `https://finnhub.io/api/v1/quote?symbol=${crypto.symbol}&token=d49lflpr01qlaebhu1egd49lflpr01qlaebhu1f0`;
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    if (data && data.c && data.c > 0) {
+                        calc.form.entryPrice = parseFloat(data.c).toFixed(2);
+                    }
+                } else {
+                    const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${crypto.symbol}USDT`);
+                    const data = await response.json();
+                    if (data && data.price) {
+                        calc.form.entryPrice = parseFloat(data.price).toFixed(2);
+                    }
                 }
             } catch (error) {
 
             }
         },
         getCryptoIcon(symbol) {
-            const id = symbol.toLowerCase();
-            return `https://assets.coincap.io/assets/icons/${id}@2x.png`;
+            if (window.STOCK_INFO && window.STOCK_INFO[symbol]) {
+                return `https://assets.parqet.com/logos/symbol/${symbol}`;
+            }
+            return `https://assets.coincap.io/assets/icons/${symbol.toLowerCase()}@2x.png`;
+        },
+        handleIconError(event, symbol, isStock) {
+            const t = event.target;
+            const src = t.src || '';
+            if (isStock) {
+                if (src.includes('parqet')) {
+                    t.src = `https://img.logo.dev/${symbol.toLowerCase()}.com?token=pk_X-jjCWIKT_SRetd3NwvHUg&size=80&format=png`;
+                } else {
+                    t.src = `https://ui-avatars.com/api/?name=${symbol}&background=1e3a5f&color=60a5fa&bold=true`;
+                }
+            } else {
+                if (src.includes('coincap')) {
+                    t.src = `https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/32/icon/${symbol.toLowerCase()}.png`;
+                } else {
+                    t.src = `https://ui-avatars.com/api/?name=${symbol}&background=2563EB&color=fff&bold=true`;
+                }
+            }
+        },
+        isStockSymbol(symbol) {
+            return !!(symbol && window.STOCK_INFO && window.STOCK_INFO[symbol]);
         },
         formatCurrency(value) {
             if (value == null || isNaN(value)) return '$0.00';
@@ -285,7 +315,24 @@ const app = Vue.createApp({
                 alert('Пожалуйста, заполните все поля');
                 return;
             }
-            
+
+            if (stopLoss === entryPrice) {
+                alert('Стоп-лосс не может совпадать с ценой входа');
+                return;
+            }
+
+            // Определяем направление по стоп-лоссу
+            const isLong = stopLoss < entryPrice;
+
+            if (isLong && takeProfit <= entryPrice) {
+                alert('Для длинной позиции (стоп-лосс ниже цены входа) тейк-профит должен быть выше цены входа');
+                return;
+            }
+            if (!isLong && takeProfit >= entryPrice) {
+                alert('Для короткой позиции (стоп-лосс выше цены входа) тейк-профит должен быть ниже цены входа');
+                return;
+            }
+
             const risk = Math.abs(entryPrice - stopLoss);
             const reward = Math.abs(takeProfit - entryPrice);
             const ratio = reward / risk;
@@ -309,16 +356,15 @@ const app = Vue.createApp({
             };
         },
         loadCryptoList() {
+            const list = [];
+
             if (window.CRYPTO_INFO) {
-                this.cryptoList = Object.entries(window.CRYPTO_INFO)
-                    .map(([symbol, info]) => ({
-                        symbol,
-                        name: info.name,
-                        rank: info.rank || 999
-                    }))
-                    .sort((a, b) => a.rank - b.rank);
+                Object.entries(window.CRYPTO_INFO).forEach(([symbol, info]) => {
+                    list.push({ symbol, name: info.name, rank: info.rank || 999, type: 'crypto' });
+                });
+                list.sort((a, b) => a.rank - b.rank);
             } else {
-                this.cryptoList = [
+                [
                     { symbol: 'BTC', name: 'Bitcoin', rank: 1 },
                     { symbol: 'ETH', name: 'Ethereum', rank: 2 },
                     { symbol: 'BNB', name: 'BNB', rank: 3 },
@@ -331,9 +377,17 @@ const app = Vue.createApp({
                     { symbol: 'AVAX', name: 'Avalanche', rank: 10 },
                     { symbol: 'LINK', name: 'Chainlink', rank: 11 },
                     { symbol: 'LTC', name: 'Litecoin', rank: 12 }
-                ];
+                ].forEach(c => list.push({ ...c, type: 'crypto' }));
                 setTimeout(() => this.loadCryptoList(), 2000);
             }
+
+            if (window.STOCK_INFO) {
+                Object.entries(window.STOCK_INFO).forEach(([symbol, info]) => {
+                    list.push({ symbol, name: info.name, rank: 10000, type: 'stock' });
+                });
+            }
+
+            this.cryptoList = list;
         }
     },
     mounted() {
@@ -396,7 +450,7 @@ const app = Vue.createApp({
                             <div class="tools-form-group">
                                 <label class="tools-label">
                                     <i class="fas fa-coins"></i>
-                                    Криптовалюта
+                                    Актив
                                 </label>
                                 <div class="tools-crypto-selector">
                                     <div class="tools-crypto-display" @click="toggleCryptoDropdown(activeTab)">
@@ -405,12 +459,12 @@ const app = Vue.createApp({
                                             :src="getCryptoIcon(currentCalculator.form.crypto)" 
                                             :alt="currentCalculator.form.crypto"
                                             class="tools-crypto-icon"
-                                            @error="$event.target.src='https://ui-avatars.com/api/?name=' + currentCalculator.form.crypto + '&background=2563EB&color=fff'"
+                                            @error="handleIconError($event, currentCalculator.form.crypto, isStockSymbol(currentCalculator.form.crypto))"
                                         >
                                         <i v-else class="fas fa-coins tools-crypto-icon" style="font-size: 2rem; color: var(--primary);"></i>
                                         <div class="tools-crypto-info">
-                                            <div class="tools-crypto-name">{{ currentCalculator.form.cryptoName }}</div>
-                                            <div v-if="currentCalculator.form.crypto" class="tools-crypto-symbol">{{ currentCalculator.form.crypto }}</div>
+                                            <div class="tools-crypto-name notranslate" translate="no">{{ currentCalculator.form.cryptoName }}</div>
+                                            <div v-if="currentCalculator.form.crypto" class="tools-crypto-symbol notranslate" translate="no">{{ currentCalculator.form.crypto }}</div>
                                         </div>
                                         <i class="fas fa-chevron-down tools-crypto-arrow"></i>
                                     </div>
@@ -456,11 +510,14 @@ const app = Vue.createApp({
                                                     :src="getCryptoIcon(crypto.symbol)" 
                                                     :alt="crypto.symbol"
                                                     class="tools-crypto-icon"
-                                                    @error="$event.target.src='https://ui-avatars.com/api/?name=' + crypto.symbol + '&background=2563EB&color=fff'"
+                                                    @error="handleIconError($event, crypto.symbol, crypto.type === 'stock')"
                                                 >
                                                 <div class="tools-crypto-info">
-                                                    <div class="tools-crypto-name">{{ crypto.name }}</div>
-                                                    <div class="tools-crypto-symbol">{{ crypto.symbol }}</div>
+                                                    <div class="tools-crypto-name notranslate" translate="no">{{ crypto.name }}</div>
+                                                    <div class="tools-crypto-symbol notranslate" translate="no">
+                                                        {{ crypto.symbol }}
+                                                        <span v-if="crypto.type === 'stock'" style="margin-left:5px;font-size:0.7em;background:#1e3a5f;color:#60a5fa;padding:1px 5px;border-radius:4px;vertical-align:middle;">акция</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

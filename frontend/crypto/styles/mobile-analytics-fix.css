@@ -1,10 +1,9 @@
-/* ============================================
+/*
    ДОПОЛНИТЕЛЬНЫЕ ИСПРАВЛЕНИЯ ДЛЯ МОБИЛЬНЫХ
-   ============================================ */
+*/
 
 @media (max-width: 768px) {
   
-  /* === ИСПРАВЛЕНИЕ ПОИСКОВЫХ ПОЛЕЙ === */
   /* Иконка лупы не должна накладываться на текст */
   .search-bar input,
   input[type="search"],
@@ -18,7 +17,7 @@
     font-size: 1rem !important;
   }
   
-  /* === РЕКОМЕНДАЦИИ ПО ОПТИМИЗАЦИИ === */
+
   /* Каждая рекомендация - отдельная карточка, не сливаются */
   .recommendation-card {
     display: block !important;
@@ -66,7 +65,7 @@
     display: none !important; /* Прячем стрелку на мобильных */
   }
   
-  /* === КНОПКА ЗАКРЫТИЯ БОКОВЫХ ПАНЕЛЕЙ === */
+  /* КНОПКА ЗАКРЫТИЯ БОКОВЫХ ПАНЕЛЕЙ */
   /* Увеличиваем размер кнопок до 44px для удобства на мобильных */
   .modal-close,
   .sidebar-close,
@@ -108,7 +107,7 @@
     margin: 0 !important;
   }
   
-  /* === АНАЛИТИКА: STAT-CARDS === */
+  /* АНАЛИТИКА: STAT-CARDS */
   .analytics-summary,
   .stats-grid {
     grid-template-columns: 1fr !important; /* Одна колонка на мобильных */
@@ -273,7 +272,7 @@
     color: #ef4444;
   }
   
-  /* === РАЗДЕЛ РЕКОМЕНДАЦИЙ - одна под другой === */
+  /*  РАЗДЕЛ РЕКОМЕНДАЦИЙ - одна под другой  */
   #recommendationsBody {
     display: flex !important;
     flex-direction: column !important;
@@ -310,7 +309,7 @@
     width: 100% !important;
   }
   
-  /* === КНОПКИ ЭКСПОРТА === */
+  /* КНОПКИ ЭКСПОРТА */
   .section-actions {
     flex-direction: column !important;
     width: 100% !important;
@@ -468,7 +467,7 @@
   }
 }
 
-/* === ПЛАНШЕТЫ (768px - 1024px) === */
+/*  ПЛАНШЕТЫ (768px - 1024px)  */
 @media (min-width: 769px) and (max-width: 1024px) {
   .analytics-summary,
   .stats-grid {
@@ -489,7 +488,7 @@
   }
 }
 
-/* === ДЕСКТОП (>1024px) === */
+/*  ДЕСКТОП (>1024px) */
 @media (min-width: 1025px) {
   .asset-card-mobile,
   .stock-card-mobile {

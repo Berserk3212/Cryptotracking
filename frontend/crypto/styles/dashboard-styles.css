@@ -966,6 +966,7 @@
     text-overflow: ellipsis;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
 }
 
@@ -1064,9 +1065,9 @@
     background: #6366f1;
 }
 
-/* ============================================================================
-   EVENTS CALENDAR WIDGET
-   ============================================================================ */
+/* 
+EVENTS CALENDAR WIDGET
+*/
 
 .events-content h4 {
     margin: 0 0 1rem 0;
@@ -1307,9 +1308,9 @@
     text-transform: uppercase;
 }
 
-/* ============================================================================
+/* 
    RESPONSIVE
-   ============================================================================ */
+ */
 
 @media (max-width: 768px) {
     .dashboard-widgets-container {
@@ -1347,9 +1348,7 @@
     }
 }
 
-/* ============================================================================
-   LOADING STATES
-   ============================================================================ */
+/* LOADING STATES */
 
 .widget-body .loader-small {
     margin: 2rem auto;

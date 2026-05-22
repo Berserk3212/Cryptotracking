@@ -1,9 +1,9 @@
 /* notifications-styles.css */
 /* Стили для системы уведомлений */
 
-/* ===========================
+/*
    Notification Badge (Счетчик)
-   =========================== */
+ */
 
 .notification-badge {
   position: absolute;
@@ -44,9 +44,9 @@
   animation: notificationShake 0.5s ease-in-out;
 }
 
-/* ===========================
+/* 
    Notifications Panel (Панель)
-   =========================== */
+ */
 
 .notifications-panel {
   position: fixed;

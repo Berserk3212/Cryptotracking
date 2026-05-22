@@ -1,7 +1,7 @@
 ﻿(function() {
-  // ── In-memory cache (symbol → {dates, values}) ──────────────────────────
+  // Кэш в памяти (symbol → {dates, values})
   const cache = new Map();
-  // ── Pending resolvers: symbol → [resolve, ...] ──────────────────────────
+  // Ожидающие resolve: symbol → [resolve, ...]
   const pending = new Map();
   const queue = new Set();
   let running = false;
@@ -10,13 +10,13 @@
   const DEFAULT_OUTPUTSIZE = 60;
   const MAX_RETRIES = 3;
   const PARALLEL = 1;
-  // TwelveData free plan: 8 req/min → 1 req per ~7.5 s; we use 8 s gap
+  // TwelveData бесплатный план: 8 запросов/мин → 1 запрос раз в ~7.5 сек; используем 8 сек
   const REQUEST_GAP_MS = 8000;
-  // localStorage TTL: 24 hours
+  // TTL для localStorage: 24 часа
   const LS_TTL_MS = 24 * 60 * 60 * 1000;
   const LS_PREFIX = 'spkl_';
 
-  // ── localStorage helpers ─────────────────────────────────────────────────
+  // Утилиты для работы с localStorage
   function lsRead(symbol) {
     try {
       const raw = localStorage.getItem(LS_PREFIX + symbol);
@@ -28,10 +28,10 @@
   }
   function lsWrite(symbol, data) {
     try { localStorage.setItem(LS_PREFIX + symbol, JSON.stringify({ ts: Date.now(), d: data.dates, v: data.values })); }
-    catch (e) { /* quota exceeded — ok */ }
+    catch (e) { /* квота переполнена — не критично */ }
   }
 
-  // ── Populate memory cache from localStorage on init ──────────────────────
+  // Заполняем кэш памяти из localStorage при инициализации
   function seedFromStorage() {
     try {
       for (let i = 0; i < localStorage.length; i++) {
@@ -47,7 +47,7 @@
   }
   seedFromStorage();
 
-  // ── Resolve all pending promises for a symbol ────────────────────────────
+  // Резолвим все ожидающие промисы для символа
   function resolveSymbol(symbol) {
     const data = cache.get(symbol);
     const resolvers = pending.get(symbol) || [];
@@ -55,7 +55,7 @@
     resolvers.forEach(fn => fn(data));
   }
 
-  // ── Fetch one symbol from TwelveData ────────────────────────────────────
+  // Загружаем данные для одного символа с TwelveData
   async function fetchFor(symbol, apiKey, outputsize = DEFAULT_OUTPUTSIZE) {
     const url = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=1day&outputsize=${outputsize}&format=JSON&apikey=${apiKey}`;
     try {
@@ -83,7 +83,7 @@
     return null;
   }
 
-  // ── Queue processor ──────────────────────────────────────────────────────
+  // Обработчик очереди запросов
   async function processQueue(apiKey) {
     if (running) return;
     running = true;
@@ -92,7 +92,7 @@
       queue.clear();
 
       for (let idx = 0; idx < items.length; idx++) {
-        // Wait out any rate-limit pause
+        // Ждём окончания паузы при превышении лимита
         const now = Date.now();
         if (pauseUntil > now) {
           const waitMs = pauseUntil - now + 500;
@@ -101,9 +101,9 @@
         }
 
         const sym = items[idx];
-        // Already resolved from localStorage seed or prior fetch
+        // Уже есть в кэше (из localStorage или предыдущей загрузки)
         if (cache.has(sym)) { resolveSymbol(sym); continue; }
-        // Hit rate limit during this batch — requeue remainder and stop
+        // Достигнут лимит — возвращаем остаток в очередь и останавливаемся
         if (pauseUntil > Date.now()) {
           for (let j = idx; j < items.length; j++) queue.add(items[j]);
           break;
@@ -119,19 +119,19 @@
           attempt++;
           backoff = Math.min(8000, backoff * 2);
         }
-        if (!cache.has(sym)) resolveSymbol(sym); // resolve with null so consumers don't hang
+        if (!cache.has(sym)) resolveSymbol(sym); // резолвим с null, чтобы потребители не зависали
 
-        // Respect TwelveData rate limit between successful fetches
+        // Соблюдаем лимит запросов TwelveData между успешными загрузками
         if (idx < items.length - 1) await new Promise(r => setTimeout(r, REQUEST_GAP_MS));
       }
     } finally {
       running = false;
-      // If new items were added while running, schedule another pass
+      // Если новые элементы добавились пока шла обработка — запускаем ещё раз
       if (queue.size > 0) setTimeout(() => processQueue(apiKey), 200);
     }
   }
 
-  // ── Public API ────────────────────────────────────────────────────────────
+  // Публичный интерфейс
   function request(symbol) {
     const apiKey = window.TWELVEDATA_API_KEY || '';
     if (cache.has(symbol)) return Promise.resolve(cache.get(symbol));

@@ -92,7 +92,7 @@ export async function safeFetch(url, opts = {}) {
             bc.removeEventListener('message', handler);
             resolve(d.payload || null);
           }
-        } catch (e) { /* ignore */ }
+        } catch (e) { /* пропускаем */ }
       };
       bc.addEventListener('message', handler);
     // Таймаут — чтобы не зависать вечно
@@ -102,11 +102,11 @@ export async function safeFetch(url, opts = {}) {
     try { bc.postMessage({ type: 'req_watch', url }); } catch (_) {}
   }
 
-  // If other tab already has result shortly, use it
+  // Если другая вкладка уже получила ответ — используем его
   if (bcWaiter) {
     const maybe = await bcWaiter;
     if (maybe !== null) {
-      // store and return
+      // сохраняем и возвращаем
       if (ttl > 0) await storage.set(cacheKey, { ts: Date.now(), data: maybe });
       return maybe;
     }
@@ -126,7 +126,7 @@ export async function safeFetch(url, opts = {}) {
 
       if (ttl > 0) await storage.set(cacheKey, { ts: Date.now(), data: json });
 
-      // announce result to other tabs
+      // передаём результат другим вкладкам
       if (bc) try { bc.postMessage({ type: 'req_result', url, payload: json }); } catch (e) {}
 
       return json;
@@ -139,7 +139,7 @@ export async function safeFetch(url, opts = {}) {
   return p;
 }
 
-// Convenience wrappers for CoinGecko endpoints
+// Вспомогательные функции для CoinGecko
 export function fetchCoinGeckoGlobal(ttl = DEFAULT_CG_TTL) {
   return safeFetch('https://api.coingecko.com/api/v3/global', { ttl });
 }
@@ -149,10 +149,10 @@ export function fetchCoinGeckoSimplePrice(idsParam, ttl = DEFAULT_PRICE_TTL) {
   return safeFetch(url, { ttl });
 }
 
-// Export storage utilities for manual cache invalidation
+// Утилиты для ручной инвалидации кэша
 export const requestsCache = {
   async clearPrefix(prefix = 'req_cache:') {
-    // localForage doesn't support listing keys reliably without config; attempt best-effort for localStorage
+    // localForage не поддерживает надёжное перечисление ключей — используем localStorage
     if (useLocalForage) {
 
       return;

@@ -49,7 +49,7 @@ if (typeof window !== 'undefined') {
           const reqs = window._earlyScheduleLoadRequests.slice();
           window._earlyScheduleLoadRequests = [];
 
-          // Call loadNews for the first buffered request to avoid multiple heavy parallel loads
+          // Вызываем loadNews для первого запроса из буфера, чтобы избежать параллельных загрузок
           const first = reqs[0];
           const category = first && first[0] ? first[0] : 'all';
           const force = first && typeof first[3] !== 'undefined' ? !!first[3] : false;
@@ -68,12 +68,12 @@ if (typeof window !== 'undefined') {
     }
   };
 
-  // Lightweight proxy - buffer early calls so they will be executed when real implementation is registered
+  // Легкий прокси — буферизуем ранние вызовы до регистрации реальной реализации
   window.loadNews = async (category = 'all', force = false) => {
     if (window._loadNewsReal) {
       return window._loadNewsReal(category, force);
     }
-    // Buffer the call so it runs later when the real implementation is available
+    // Буферизуем вызов, чтобы выполнить позже
     window._earlyLoadNewsCalls = window._earlyLoadNewsCalls || [];
     window._earlyLoadNewsCalls.push([category, force]);
 
@@ -94,7 +94,6 @@ async function safeFetchJson(url, options) {
 const BINANCE = 'https://api.binance.com/api/v3/ticker/24hr?symbol=';
 const BINANCE_KLINES = 'https://api.binance.com/api/v3/klines';
 
-// === ТВОЙ КЛЮЧ FINNHUB ===
 const FINNHUB_TOKEN = 'd49lflpr01qlaebhu1egd49lflpr01qlaebhu1f0';
 const FINNHUB = 'https://finnhub.io/api/v1/quote?symbol=';
 
@@ -545,17 +544,17 @@ export async function loadIndices() {
     // Передаём данные в Vue-компонент для более богатого рендеринга
     grid.innerHTML = '';
     window.indicesData = indicesData;
-    // Prefetch sparklines in background (batch + cache) to avoid fallback
+    // Предзагрузка спарклайнов в фоне (батч + кэш) для отрисовки без задержек
     if (window.sparklineService && typeof window.sparklineService.prefetch === 'function') {
       try {
         window.sparklineService.prefetch(indicesData.map((i) => i.symbol));
-      } catch (e) { /* ignore */ }
+      } catch (e) { /* игнорируем */ }
     }
-    // Start priority requests for visible cards (first row) so they render quickly
+    // Приоритетные запросы для видимых карточек (первая строка) для быстрой отрисовки
     if (window.sparklineService && typeof window.sparklineService.request === 'function') {
       try {
         indicesData.slice(0, 4).forEach((it) => window.sparklineService.request(it.symbol).catch(() => {}));
-      } catch (e) { /* ignore */ }
+      } catch (e) { /* игнорируем */ }
     }
     if (typeof window.mountIndexCards === 'function') {
       window.mountIndexCards(indicesData);
@@ -730,24 +729,24 @@ window.CRYPTO_INFO = {
   THETA: { name: 'Theta Network', icon: null, color: '#2AB8E6', rank: 51, marketCap: 1 },
   GRT: { name: 'The Graph', icon: null, color: '#6747ED', rank: 49, marketCap: 1 },
   INJ: { name: 'Injective', icon: null, color: '#00F2FE', rank: 36, marketCap: 2 },
-  // DeFi tokens
+  // DeFi-токены
   CRV: { name: 'Curve DAO', icon: null, color: '#FF0000', rank: 66, marketCap: 0.8 },
   MKR: { name: 'Maker', icon: null, color: '#1AAB9B', rank: 67, marketCap: 0.7 },
   COMP: { name: 'Compound', icon: null, color: '#00D395', rank: 68, marketCap: 0.6 },
   SNX: { name: 'Synthetix', icon: null, color: '#5FCDF9', rank: 70, marketCap: 0.5 },
   '1INCH': { name: '1inch', icon: null, color: '#D82122', rank: 75, marketCap: 0.4 },
-  // Gaming & NFT
+  // Игры и NFT
   IMX: { name: 'Immutable X', icon: null, color: '#0D0D0D', rank: 71, marketCap: 0.5 },
   GALA: { name: 'Gala', icon: null, color: '#000000', rank: 72, marketCap: 0.5 },
   ENJ: { name: 'Enjin Coin', icon: null, color: '#7866D5', rank: 73, marketCap: 0.4 },
   APE: { name: 'ApeCoin', icon: null, color: '#0050FF', rank: 69, marketCap: 0.6 },
   CHZ: { name: 'Chiliz', icon: null, color: '#CD0124', rank: 74, marketCap: 0.4 },
-  // Layer 2
+  // Layer 2 решения
   LRC: { name: 'Loopring', icon: null, color: '#1C60FF', rank: 76, marketCap: 0.3 },
   METIS: { name: 'Metis', icon: null, color: '#00DACC', rank: 78, marketCap: 0.3 },
-  // Memecoins
+  // Мемкоины
   FLOKI: { name: 'Floki Inu', icon: null, color: '#FF4500', rank: 80, marketCap: 0.3 },
-  // Infrastructure
+  // Инфраструктура
   ROSE: { name: 'Oasis Network', icon: null, color: '#0092F6', rank: 77, marketCap: 0.3 },
   KSM: { name: 'Kusama', icon: null, color: '#575353', rank: 79, marketCap: 0.3 },
   KAVA: { name: 'Kava', icon: null, color: '#FF433E', rank: 81, marketCap: 0.3 },
@@ -767,7 +766,7 @@ window.CRYPTO_INFO = {
   ENS: { name: 'Ethereum Name Service', icon: null, color: '#5298FF', rank: 96, marketCap: 0.1 },
   QNT: { name: 'Quant', icon: null, color: '#000000', rank: 97, marketCap: 0.1 },
   BLUR: { name: 'Blur', icon: null, color: '#FF8700', rank: 98, marketCap: 0.1 },
-  // Emerging projects (already added earlier)
+  // Новые проекты
   SUI: { name: 'Sui', icon: null, color: '#4DA2FF', rank: 29, marketCap: 3 },
   SEI: { name: 'Sei Network', icon: null, color: '#B91C1C', rank: 43, marketCap: 2 },
   TIA: { name: 'Celestia', icon: null, color: '#7B2BF9', rank: 47, marketCap: 1 },
@@ -849,7 +848,7 @@ export async function loadCryptoList() {
       }
     }));
 
-    // Sanitize symbols/names to remove stray semicolons and trim whitespace
+    // Очищаем тикеры/названия от ложных точек с запятой
     sortedData.forEach(it => {
       if (it.symbol) it.symbol = String(it.symbol).replace(/;/g, '').trim().toUpperCase();
       if (it.name) it.name = String(it.name).replace(/;/g, '').trim();
@@ -858,7 +857,7 @@ export async function loadCryptoList() {
     cryptoListCache = sortedData;
     window.cryptoList = sortedData;
     renderCryptoList(sortedData);
-    // Notify other modules that cryptoList is ready
+    // Уведомляем другие модули о готовности cryptoList
     try {
       document.dispatchEvent(new CustomEvent('cryptoListLoaded', { detail: { list: sortedData } }));
     } catch (e) {
@@ -1278,7 +1277,7 @@ window.addEventListener('currencyChanged', () => {
     renderCryptoList(window.cryptoList);
   }
   if (window.stocksList && window.stocksList.length) {
-    try { renderStocksList(window.stocksList); } catch (e) { /* ignore */ }
+    try { renderStocksList(window.stocksList); } catch (e) { /* игнорируем */ }
   }
 });
 
@@ -1352,9 +1351,9 @@ function initCustomSelect(displayId, dropdownId, onChange) {
     return;
   }
 
-  // Guard: only init once per element
+  // Инициализируем только один раз на элемент
   if (display.dataset.csInited === '1') {
-    // Just update callback reference if needed
+    // Обновляем обратный вызов если нужно
     display._csOnChange = onChange;
     return;
   }
@@ -1434,7 +1433,7 @@ document.addEventListener('click', () => {
   });
 });
 
-// Guard: only init once
+// Инициализация фильтров крипто — только один раз
 let _cryptoFiltersInited = false;
 function initCryptoFilters() {
   if (_cryptoFiltersInited) return;
@@ -1582,7 +1581,7 @@ export async function loadCryptoDetail(symbol, interval = '1d') {
     };
 
     window.currentCryptoDetail = { coin, chart: { prices: klineData } };
-    // DISABLED: renderCryptoDetail uses old Chart.js - now using window.showCryptoDetail from ui.js
+    // DISABLED: renderCryptoDetail использовал Chart.js — теперь используется window.showCryptoDetail из ui.js
     
   } catch (error) {
 
@@ -1631,9 +1630,9 @@ function getStockLogoUrl(symbol) {
   const sources = [
     // Finnhub API (основной источник с API ключом пользователя)
     `https://finnhub.io/api/logo?symbol=${symbol}`,
-    // Yahoo Finance (fallback 1)
+    // Yahoo Finance (запасной источник 1)
     `https://storage.googleapis.com/iexcloud-hl37opg/api/logos/${symbol}.png`,
-    // Alternative source (fallback 2) 
+    // Дополнительный источник (запасной 2) 
     `https://eodhistoricaldata.com/img/logos/US/${symbol.toLowerCase()}.png`
   ];
   
@@ -2263,13 +2262,13 @@ function filterNewsCards(query) {
   });
 }
 
-// --- SCHEDULED NEWS LOADER (proxy buffer + immediate fallback UI) ---
-// Lightweight proxy: buffer schedule requests until the robust implementation is available.
-// Additionally show an immediate loading state and render cached news (if any) so the UI is not blank.
+// --- Планировщик загрузки новостей (прокси-буфер + немедленный резервный UI) ---
+// Легкий прокси: буферизует запросы до появления реальной реализации.
+// Сразу показывает состояние загрузки и отдаёт кэшированные новости если есть.
 window._earlyScheduleLoadRequests = window._earlyScheduleLoadRequests || [];
 window._scheduleLoadWatcherActive = window._scheduleLoadWatcherActive || false;
 window.scheduleLoadNews = (category = 'all', maxRetries = 15, interval = 200, force = false) => {
-  // If real implementation is already present, delegate immediately.
+  // Если реальная реализация уже доступна — передаём немедленно.
   if (typeof window._realScheduleLoadNews === 'function') {
     return window._realScheduleLoadNews(category, maxRetries, interval, force);
   }
@@ -2279,7 +2278,7 @@ window.scheduleLoadNews = (category = 'all', maxRetries = 15, interval = 200, fo
   try {
     const container = document.getElementById('newsContainer');
     if (container) {
-      // Show immediate loading UI so user sees activity
+      // Показываем UI загрузки сразу
       container.innerHTML = `
         <div class="news-loading-state">
           <div class="loader-large"></div>
@@ -2289,10 +2288,10 @@ window.scheduleLoadNews = (category = 'all', maxRetries = 15, interval = 200, fo
       `;
     }
 
-    // If we have cached news, render it immediately as a fallback
+    // Если есть кэшированные новости — отрисовываем сразу
     if (window.newsCache && window.newsCache.data && window.newsCache.data.length) {
 
-      // renderNews may not be defined yet; guard against that
+      // renderNews может ещё не быть определена — проверяем
       if (typeof window.renderNews === 'function') {
         window.renderNews(window.newsCache.data, category);
         if (typeof window.updateNewsStats === 'function') window.updateNewsStats(window.newsCache.data.length);
@@ -2302,12 +2301,12 @@ window.scheduleLoadNews = (category = 'all', maxRetries = 15, interval = 200, fo
 
   }
 
-  // Start a short watcher to flush buffered schedule requests as soon as the real implementation appears.
+  // Запускаем наблюдатель, как только появится реальная реализация.
   if (!window._scheduleLoadWatcherActive) {
     window._scheduleLoadWatcherActive = true;
     (function startWatcher() {
       let attempts = 0;
-      const maxAttempts = 200; // ~30 seconds at 150ms interval
+      const maxAttempts = 200; // ~30 секунд при интервале 150ms
       const intervalMs = 150;
       const watcher = setInterval(() => {
         attempts++;
@@ -2331,7 +2330,7 @@ window.scheduleLoadNews = (category = 'all', maxRetries = 15, interval = 200, fo
           return;
         }
 
-        // Also accept direct readiness of loadNews (in case schedule loader isn't exposed yet)
+        // Проверяем также готовность loadNews (если schedule ещё не выставлен)
         if (window._loadNewsReady || (typeof window.loadNews === 'function' && window._loadNewsReal)) {
           clearInterval(watcher);
           window._scheduleLoadWatcherActive = false;
@@ -2341,7 +2340,7 @@ window.scheduleLoadNews = (category = 'all', maxRetries = 15, interval = 200, fo
             if (reqs.length)
             reqs.forEach(args => {
               try {
-                // If real schedule not present, call loadNews directly for each buffered request
+                // Если реальный schedule отсутствует — вызываем loadNews напрямую
                 if (typeof window._realScheduleLoadNews === 'function') {
                   window._realScheduleLoadNews(...args);
                 } else if (typeof window.loadNews === 'function') {
@@ -2380,7 +2379,7 @@ function ensureNewsFiltersInit() {
 window.initNewsFilters = initNewsFiltersDelegated;
 window.ensureNewsFiltersInit = ensureNewsFiltersInit;
 
-// --- HOOK: auto-init on DOMContentLoaded and section show ---
+
 document.addEventListener('DOMContentLoaded', ensureNewsFiltersInit);
 
 // === РЕНДЕР: График объема ===
@@ -2459,7 +2458,7 @@ function renderVolumeChart(coinSymbol, volume) {
   });
 }
 
-// === РЕНДЕР: График диапазона цен ===
+// РЕНДЕР: График диапазона цен
 function renderRangeChart(coinSymbol, currentPrice, high, low) {
   const ctx = document.getElementById('cryptoDetailRangeChart');
   if (!ctx) {
@@ -2588,7 +2587,7 @@ function renderRangeChart(coinSymbol, currentPrice, high, low) {
   });
 }
 
-// === ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ===
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 
 // Умное форматирование цены в зависимости от величины
 function formatPrice(price) {
@@ -2681,7 +2680,7 @@ function showNotification(msg, type = 'info') {
   setTimeout(() => n.remove(), 5000);
 }
 
-// === WATCHLIST ===
+// WATCHLIST
 export function addToWatchlist(coinId) {
   const watchlist = JSON.parse(localStorage.getItem('cryptoWatchlist') || '[]');
   if (!watchlist.includes(coinId)) {
@@ -2697,7 +2696,7 @@ export function getWatchlist() {
   return JSON.parse(localStorage.getItem('cryptoWatchlist') || '[]');
 }
 
-// === ГЛОБАЛЬНЫЕ ФУНКЦИИ ===
+// ГЛОБАЛЬНЫЕ ФУНКЦИИ
 window.app = window.app || {};
 
 window.app.refreshMarketData = async () => {
@@ -2735,16 +2734,13 @@ window.app.refreshMarketData = async () => {
   }
 };
 
-// DISABLED: These functions are now commented out
-// window.renderPriceChart = renderPriceChart;
-// window.renderCryptoDetail = renderCryptoDetail;
 
 // Функция для закрытия модального окна (с поддержкой panel-docked)
 window.closeModal = (modalId) => {
   const modal = document.getElementById(modalId);
   if (!modal) return;
 
-  // If modal is docked into detail panel, undock and restore section/grid
+  // Если модальное окно закреплено в панели — открепляем и восстанавливаем секцию
   if (modal.classList.contains('panel-docked')) {
     const section = modal.closest('.section');
     const grid = section?.querySelector('.crypto-grid');
@@ -2753,7 +2749,7 @@ window.closeModal = (modalId) => {
     if (grid) grid.style.display = '';
     section?.classList.remove('detail-open');
 
-    // Move modal back to original parent if possible
+    // Возвращаем модальное окно в исходный родитель
     if (modal._originalParent) {
       if (modal._originalNext && modal._originalNext.parentNode === modal._originalParent) {
         modal._originalParent.insertBefore(modal, modal._originalNext);
@@ -2773,7 +2769,7 @@ window.closeModal = (modalId) => {
 
   }
 
-  // Normal hide
+  // Обычное скрытие
   modal.classList.remove('active');
   setTimeout(() => {
     modal.style.display = 'none';
@@ -2785,7 +2781,7 @@ window.closeModal = (modalId) => {
 window.app = window.app || {};
 window.app.closeModal = window.closeModal;
 
-// ==================== STOCKS SECTION ====================
+// STOCKS SECTION
 
 const STOCK_SYMBOLS = [
   'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX', 
@@ -2838,9 +2834,7 @@ window.STOCK_INFO = {
   OKTA: { name: 'Okta Inc.', sector: 'Technology', exchange: 'NASDAQ', color: '#007DC1', marketCap: 15 }
 };
 
-// Мгновенно заполняем window.stocksRealData из localStorage (синхронно, без сети).
-// Это гарантирует, что акции с реальными ценами будут доступны в дропдауне транзакций
-// сразу при открытии страницы, если данные уже были загружены раньше и закешированы.
+
 (() => {
   const PREFIX = 'stock_';
   window.stocksRealData = window.stocksRealData || {};
@@ -3048,7 +3042,7 @@ function renderStocksList(stocks) {
 
 }
 
-// Guard: only init once
+// Инициализация фильтров акций — только один раз
 let _stocksFiltersInited = false;
 function initStocksFilters() {
   if (_stocksFiltersInited) return;
@@ -3193,7 +3187,7 @@ function filterStocks(searchTerm, sortBy, percentValue = 'all', minPrice = -Infi
   renderStocksList(filtered);
 }
 
-// === ИНИЦИАЛИЗАЦИЯ ОБРАБОТЧИКОВ КНОПОК ПЕРИОДА ДЛЯ АКЦИЙ ===
+// ИНИЦИАЛИЗАЦИЯ ОБРАБОТЧИКОВ КНОПОК ПЕРИОДА ДЛЯ АКЦИЙ
 function initializeStockPeriodButtons() {
 
   
@@ -3374,16 +3368,14 @@ window.app.showStockDetail = async (symbol) => {
 // Экспортируем глобально для использования в onclick карточек
 window.showStockDetail = window.app.showStockDetail;
 
-// === ALPHA VANTAGE API ===
+
 const ALPHA_VANTAGE_KEY = 'IIIR7NAADCVASK35';
 const ALPHA_VANTAGE_URL = 'https://www.alphavantage.co/query';
 
-/**
- * Загрузка данных из Yahoo Finance (бесплатный, без ключа API)
- */
+
 async function fetchYahooFinanceData(symbol, isAll, daysNum) {
   try {
-    // Yahoo Finance API v8
+    // Yahoo Finance API v8 — исторические данные
     const period1 = Math.floor((Date.now() - (isAll ? 365 * 3 : daysNum) * 24 * 60 * 60 * 1000) / 1000);
     const period2 = Math.floor(Date.now() / 1000);
     const interval = daysNum <= 1 ? '5m' : daysNum <= 7 ? '1h' : '1d';
@@ -3590,9 +3582,7 @@ async function fetchAlphaVantageData(symbol, isAll, daysNum) {
   }
 }
 
-/**
- * Загрузка данных из Finnhub (свечи)
- */
+
 async function fetchFinnhubCandles(symbol, isAll, daysNum) {
   try {
     const FINNHUB_API_KEY = 'd49lflpr01qlaebhu1egd49lflpr01qlaebhu1f0';
@@ -3646,7 +3636,6 @@ async function fetchFinnhubCandles(symbol, isAll, daysNum) {
   }
 }
 
-// Бесплатный CORS proxy для обхода ограничений
 const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
 const YAHOOFINANCE_API = 'https://query1.finance.yahoo.com/v10/finance/quoteSummary/';
 
@@ -3774,7 +3763,7 @@ async function loadStockChart(symbol, days = 30, priceContainerEl, volumeContain
           if (volumeLoader) volumeLoader.style.display = 'none';
           return;
         }
-      } catch (e) { /* ignore */ }
+      } catch (e) { /* игнорируем */ }
     }
     
     // Генерируем демо-данные для первого показа
@@ -4170,18 +4159,18 @@ async function drawStockChart(container, data, symbol) {
         hour12: true
       });
       
-      // Build tooltip HTML
+      
       let tooltipHTML = `<div class="chart-tooltip-time">${dateStr}</div>`;
       
-      // Show main series data only if visible
+      
       if (stockMainSeriesVisible && param.seriesData.size > 0) {
         const mainData = Array.from(param.seriesData.values())[0];
         
-        // Get original price value (not normalized percentage)
+        
         const originalData = originalStockData.find((d) => d.time === param.time);
         const value = originalData ? originalData.value : mainData.value;
         
-        // Calculate price change from previous point
+       
         const currentIndex = originalStockData.findIndex((d) => d.time === param.time);
         let priceChange = 0;
         if (currentIndex > 0 && originalData) {
@@ -4207,12 +4196,11 @@ async function drawStockChart(container, data, symbol) {
         `;
       }
       
-      // Add comparison data if available and visible
+      
       if (window.stockCompareSymbol && stockCompareSeriesVisible && originalCompareData && param.seriesData.size > 1) {
         const compareDataPoint = originalCompareData.find((d) => d.time === param.time);
         
         if (compareDataPoint) {
-          // Calculate price change from previous point
           const compareIndex = originalCompareData.findIndex((d) => d.time === param.time);
           let compareChange = 0;
           if (compareIndex > 0) {
@@ -4519,7 +4507,7 @@ window.addStockToWatchlist = () => {
   })();
 };
 
-// ==================== TRANSACTION STOCKS SUPPORT ====================
+// TRANSACTION STOCKS SUPPORT
 
 // Улучшаем функцию инициализации поиска криптовалют/акций
 window.initCryptoSearch = () => {
@@ -4767,22 +4755,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 2000);
 });
 
-// ==================== REAL NEWS SYSTEM (FINNHUB API) ====================
-/**
- * СИСТЕМА ФИНАНСОВЫХ НОВОСТЕЙ
- * 
- * Как работает загрузка новостей:
- * 1. API предоставляет реальные финансовые новости из проверенных источников
- * 2. Кэширование на 5 минут для оптимизации производительности
- * 3. Фильтрация по категориям: Все, Крипто, Форекс, Общие
- * 
- * Количество загружаемых новостей:
- * - Категория "Все": до 300 новостей (по 100 из каждой категории)
- * - Конкретная категория: до 100 новостей
- * 
- * API Limits: 60 запросов в минуту
- * Обновление: автоматически каждые 15 минут или по кнопке "Обновить"
- */
+// REAL NEWS SYSTEM (FINNHUB API)
+
 let newsCache = null;
 const NEWS_TTL = 900000; // 15 минут (экономия API лимитов)
 const NEWS_DEBOUNCE_DELAY = 500; // Задержка для предотвращения дублирующих запросов
@@ -4840,21 +4814,6 @@ const NEWS_CATEGORIES = {
 window.currentNewsData = [];
 
 // Функция загрузки новостей из Finnhub
-/**
- * Загружает финансовые новости из API
- * 
- * КОЛИЧЕСТВО НОВОСТЕЙ:
- * - Для категории 'all' (Все): загружается до 300 новостей (по 100 из каждой категории - crypto, general, forex)
- * - Для конкретной категории: загружается до 100 новостей из выбранной категории
- * 
- * КАК РАБОТАЕТ:
- * 1. Проверяется кэш - если данные свежие (менее 5 минут), показываются из кэша
- * 2. Если кэш устарел, делается запрос к API новостей
- * 3. Новости сортируются по дате (новые первыми)
- * 4. Результаты сохраняются в кэш для быстрого доступа
- * 
- * @param {string} category - Категория новостей: 'all', 'crypto', 'forex', 'general'
- */
 async function loadNews(category = 'all') {
 
     
@@ -5020,12 +4979,12 @@ async function _loadNewsInternal(category = 'all') {
     }
 }
 
-// Register the real loadNews implementation so the early proxy can delegate to it
+// Регистрируем реальную реализацию loadNews, чтобы ранний прокси мог передавать вызовы
 try {
   if (typeof window !== 'undefined' && typeof window._setLoadNews === 'function') {
     window._setLoadNews(loadNews);
   } else if (typeof window !== 'undefined') {
-    // Fallback to direct assignment in non-standard environments
+    // Запасной вариант: прямое присваивание в нестандартных средах
     window.loadNews = loadNews;
     if (!window.app) window.app = {};
     window.app.loadNews = loadNews;
@@ -5082,7 +5041,7 @@ async function fetchFinnhubNews(category = 'general') {
     }
 }
 
-// ==================== РЕНДЕРИНГ НОВОСТЕЙ ====================
+// РЕНДЕРИНГ НОВОСТЕЙ
 
 // Функция рендеринга новостей с двумя кнопками
 function renderNews(news, category = 'all', skipCategoryFilter = false) {
@@ -5120,7 +5079,7 @@ function renderNews(news, category = 'all', skipCategoryFilter = false) {
                 container.style.willChange = 'opacity, transform';
                 requestAnimationFrame(() => container.style.willChange = '');
               });
-            } catch (e) { /* ignore */ }
+            } catch (e) { /* игнорируем */ }
             observer.disconnect();
             container._renderNewsObserver = null;
             container._renderedWhileHidden = false;
@@ -5318,7 +5277,7 @@ function renderNews(news, category = 'all', skipCategoryFilter = false) {
 // Экспортируем renderNews глобально для использования в других модулях
 window.renderNews = renderNews;
 
-// ==================== ОТКРЫТИЕ МОДАЛКИ ====================
+// ОТКРЫТИЕ МОДАЛКИ
 
 // Функция открытия модалки по индексу
 window.openNewsByIndex = (index, event) => {
@@ -5462,7 +5421,7 @@ function openNewsModal(newsItem) {
     }
 }
 
-// ==================== ПЕРЕВОД НОВОСТИ ====================
+// ПЕРЕВОД НОВОСТИ
 
 async function translateNewsItem(newsItem) {
     const translateBtn = document.getElementById('translateNewsBtn');
@@ -5532,7 +5491,7 @@ async function translateNewsItem(newsItem) {
     }
 }
 
-// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+//ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 
 // Обновление статистики новостей
 function updateNewsStats(count) {
@@ -5847,7 +5806,7 @@ function scheduleLoadNews(category = 'all', maxRetries = 12, interval = 250) {
     const container = document.getElementById('newsContainer');
 
     if (container) {
-      // If real implementation is ready, call it; otherwise wait a bit.
+      // Если реальная реализация готова — вызываем
       if (window._loadNewsReady) {
 
         // Вызываем загрузку и снимаем блокировку после завершения
@@ -5888,7 +5847,7 @@ function scheduleLoadNews(category = 'all', maxRetries = 12, interval = 250) {
 // Публикуем на глобальном объекте для совместимости с другими модулями
 try {
   window.scheduleLoadNews = scheduleLoadNews;
-  // Expose a reference for the early proxy to delegate to and flush buffered calls
+  // Публикуем ссылку для прокси и сброса буферизованных вызовов
   window._realScheduleLoadNews = scheduleLoadNews;
   if (window._earlyScheduleLoadRequests && window._earlyScheduleLoadRequests.length) {
 

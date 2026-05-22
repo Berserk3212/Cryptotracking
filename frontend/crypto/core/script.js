@@ -1,4 +1,3 @@
-// script.js — ВСЁ РАБОТАЕТ
 import { initApp, showSection, loadPortfolios, loadTransactions, initAnalytics } from '../ui/ui.js';
 import { initData, deletePortfolio, deleteTransaction as deleteTransactionFromDB, getTransactions, getPricesForSymbols, getTransactionsSync } from './data.js';
 import { updateUserUI } from './profile.js';
@@ -137,7 +136,7 @@ Object.assign(window.app, {
 
           window.currentCryptoSymbol = null;
         }
-        // Destroy chart on close
+        // Уничтожаем график при закрытии
         if (window.tvChart) {
           try {
             window.tvChart.remove();
@@ -516,7 +515,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             window.currentCryptoSymbol = null;
           }
-          // Destroy chart on close
+          // Уничтожаем график при закрытии
           if (window.tvChart) {
             try {
               window.tvChart.remove();
@@ -544,7 +543,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             window.currentCryptoSymbol = null;
           }
-          // Destroy chart on backdrop close
+          // Уничтожаем график при закрытии через backdrop
           if (window.tvChart) {
             try {
               window.tvChart.remove();
@@ -679,7 +678,7 @@ function showGuestAlert() {
     return;
   }
   
-  // Fallback toast
+  // Запасной toast
   const existing = document.getElementById('guestToast');
   if (existing) existing.remove();
   

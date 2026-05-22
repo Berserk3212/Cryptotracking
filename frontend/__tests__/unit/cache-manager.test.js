@@ -1,7 +1,5 @@
-/**
- * Юнит-тесты для CacheManager - упрощенная версия
- * 10 ключевых тестов для кеширования
- */
+// Юнит-тесты для CacheManager - упрощенная версия
+
 
 describe('CacheManager', () => {
   let cacheManager;

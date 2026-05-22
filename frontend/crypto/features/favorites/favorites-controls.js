@@ -52,7 +52,7 @@ async function fetchFavoritesCoins() {
     try { await Promise.race([api.loadCryptoList(), new Promise(r => setTimeout(r, 4000))]); } catch (_) {}
   }
 
-  const favs = await getFavorites().catch(e => {
+  const favs = await getFavorites().catch(() => []);
   const cryptoList = window.cryptoList || [];
 
   // Определяем какие символы это акции
@@ -222,7 +222,7 @@ export async function initFavoritesControls() {
   const section = document.getElementById('favoritesSection');
   if (!section) return;
 
-  // Add controls container if not present
+  // Добавляем контейнер управления если его ещё нет
   let controlsWrap = document.getElementById('favoritesControlsWrap');
   const isFirstInit = !controlsWrap;
   if (isFirstInit) {
@@ -231,7 +231,7 @@ export async function initFavoritesControls() {
     controlsWrap.innerHTML = createControlsHTML();
     section.insertBefore(controlsWrap, document.getElementById('favoritesCryptoGrid'));
   } else if (typeof window._refreshFavoritesControls === 'function') {
-    // Already fully initialized — just refresh data and re-render, do NOT re-run setup
+    // Уже инициализирован — просто обновляем данные, не переинициализируем DOM
     await window._refreshFavoritesControls();
     return;
   }
@@ -248,7 +248,7 @@ export async function initFavoritesControls() {
   const importFavsBtn = document.getElementById('importFavsBtn');
   const importFile = document.getElementById('importFavsFile');
 
-  // State
+  // Состояние
   let allCoins = await fetchFavoritesCoins();
   let filtered = allCoins.slice();
 
@@ -279,7 +279,7 @@ export async function initFavoritesControls() {
       return true;
     });
 
-    // Sorting
+    // Сортировка
     const sort = sortSelect.value;
     if (sort === 'price_desc') filtered.sort((a,b)=>b.price-a.price);
     else if (sort === 'price_asc') filtered.sort((a,b)=>a.price-b.price);
@@ -297,12 +297,11 @@ export async function initFavoritesControls() {
       _noData: c._noData
     })));
 
-    // Update sparklines if needed (we currently rely on existing priceHistory)
+    // Обновляем спарклайны при необходимости (используем существующий priceHistory)
     api.renderCryptoCards(filtered, 'favoritesCryptoGrid');
   }
 
-  // Initial render
-  // Initial render: если сетка уже содержит карточки (например, недавно отрендерены
+  // Первый рендер: если сетка уже содержит карточки (например, недавно отрендерены
   // через renderFavoritesSection), не перезаписываем её немедленно — это предотвращает
   // мерцание/исчезновение контента при быстром последовательном рендеринге.
   const favGrid = document.getElementById('favoritesCryptoGrid');
@@ -314,7 +313,7 @@ export async function initFavoritesControls() {
     filtered = allCoins.slice();
   }
 
-  // Step button handlers for price inputs
+  // Кнопки шага для полей цены
   controlsWrap.querySelectorAll('.fc-step-up, .fc-step-down').forEach(btn => {
     const targetId = btn.dataset.target;
     const input = document.getElementById(targetId);
@@ -337,14 +336,14 @@ export async function initFavoritesControls() {
     btn.addEventListener('touchend', stopRepeat);
   });
 
-  // Enhance native selects into custom animated dropdowns for better UX
+  // Улучшаем нативные селекты в кастомные анимированные дропдауны
   const selectsToEnhance = ['favoritesSort','percentFilter','sparklineRange'];
   selectsToEnhance.forEach(id => {
     const s = document.getElementById(id);
     if (s) enhanceSelect(s);
   });
 
-  // Handlers
+  // Обработчики событий
   searchInput.addEventListener('input', () => { 
     clearBtn.style.display = searchInput.value ? 'inline-block' : 'none'; 
     applyFiltersAndRender(); 
@@ -359,7 +358,7 @@ export async function initFavoritesControls() {
   priceMax.addEventListener('change', applyFiltersAndRender);
   percentFilter.addEventListener('change', applyFiltersAndRender);
   sparkRange.addEventListener('change', (e)=>{
-    // For now we just re-render; advanced: fetch different priceHistory lengths
+    // Пока просто перерисовываем; в будущем — подгружать разные периоды priceHistory
     applyFiltersAndRender();
   });
 
@@ -407,8 +406,8 @@ export async function initFavoritesControls() {
     applyFiltersAndRender();
   }, 30000); // 30 seconds
 
-  // Expose a refresh function so subsequent calls to initFavoritesControls
-  // can just refresh data without re-running the whole DOM setup
+  // Публикуем функцию обновления, чтобы повторные вызовы initFavoritesControls
+  // только обновляли данные, не перестраивая DOM заново
   window._refreshFavoritesControls = async () => {
     await refreshData();
     applyFiltersAndRender();
@@ -432,7 +431,7 @@ export function cleanupFavoritesAutoRefresh() {
   }
 }
 
-// Auto-init not performed: initFavoritesControls is exported and called from `ui.js` when favorites shown.
+// Автоинициализация не выполняется: initFavoritesControls экспортируется и вызывается из ui.js при открытии избранного.
 
 export default { initFavoritesControls, cleanupFavoritesAutoRefresh };
 
@@ -450,7 +449,7 @@ function enhanceSelect(nativeSelect) {
   selected.className = 'custom-select-selected';
   selected.setAttribute('aria-haspopup', 'listbox');
   selected.setAttribute('aria-expanded', 'false');
-  // caret element for better visuals (uses CSS for rotation)
+  // Стрелка-каретка для визуального индикатора (поворачивается через CSS)
   const caret = document.createElement('span');
   caret.className = 'caret';
   selected.appendChild(caret);
@@ -460,7 +459,7 @@ function enhanceSelect(nativeSelect) {
   opts.setAttribute('role', 'listbox');
   opts.tabIndex = -1;
 
-  // Populate
+  // Наполняем список опций
   Array.from(nativeSelect.options).forEach((opt, idx) => {
     const li = document.createElement('li');
     li.className = 'custom-select-option';
@@ -481,13 +480,13 @@ function enhanceSelect(nativeSelect) {
     opts.appendChild(li);
   });
 
-  let live = null; // will hold aria-live element (assigned after wrapper insertion)
+  let live = null; // aria-live элемент (назначается после вставки wrapper)
 
-  // When opening, move the options list to document.body and position it fixed
+  // При открытии переносим список опций в document.body и позиционируем через fixed
   let repositionHandler = null;
   function repositionOptions() {
     const rect = wrapper.getBoundingClientRect();
-    // keep within viewport horizontally
+    // не выходим за пределы viewport по горизонтали
     const left = Math.max(8, rect.left);
     const top = rect.bottom + 8;
     opts.style.position = 'fixed';

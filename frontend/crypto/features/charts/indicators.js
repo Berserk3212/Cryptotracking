@@ -80,13 +80,13 @@ function calculateRSI(prices, period = 14) {
     rsi.push(100 - (100 / (1 + rs)));
   }
   
-  // Calculate RSI using Wilder's smoothing method (RMA)
+  // Расчёт RSI методом сглаживания Уайлдера (RMA)
   for (let i = period + 1; i < changes.length; i++) {
     const change = changes[i];
     const gain = change > 0 ? change : 0;
     const loss = change < 0 ? Math.abs(change) : 0;
     
-    // Wilder's smoothing: avgGain = (prevAvgGain * (period - 1) + currentGain) / period
+    // сглаживание Уайлдера: avgGain = (prevAvgGain * (period - 1) + currentGain) / period
     avgGain = (avgGain * (period - 1) + gain) / period;
     avgLoss = (avgLoss * (period - 1) + loss) / period;
     
@@ -102,18 +102,18 @@ function calculateRSI(prices, period = 14) {
 }
 
 /**
- * Calculate MACD (Moving Average Convergence Divergence)
- * @param {Array} prices - Array of closing prices
- * @param {Number} fastPeriod - Fast EMA period (default 12)
- * @param {Number} slowPeriod - Slow EMA period (default 26)
- * @param {Number} signalPeriod - Signal line period (default 9)
+ * Расчёт MACD (Moving Average Convergence Divergence)
+ * @param {Array} prices - Массив цен закрытия
+ * @param {Number} fastPeriod - Период быстрой EMA (по умолчанию 12)
+ * @param {Number} slowPeriod - Период медленной EMA (по умолчанию 26)
+ * @param {Number} signalPeriod - Период сигнальной линии (по умолчанию 9)
  * @returns {Object} - {macd, signal, histogram}
  */
 function calculateMACD(prices, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
   const fastEMA = calculateEMA(prices, fastPeriod);
   const slowEMA = calculateEMA(prices, slowPeriod);
   
-  // Calculate MACD line
+  // Вычисляем линию MACD
   const macdLine = [];
   for (let i = 0; i < prices.length; i++) {
     if (fastEMA[i] === null || slowEMA[i] === null) {
@@ -123,11 +123,11 @@ function calculateMACD(prices, fastPeriod = 12, slowPeriod = 26, signalPeriod = 
     }
   }
   
-  // Calculate signal line (EMA of MACD)
+  // Сигнальная линия — EMA от MACD
   const validMacd = macdLine.filter(v => v !== null);
   const signalEMA = calculateEMA(validMacd, signalPeriod);
   
-  // Align signal line with macd line
+  // Синхронизируем сигнальную линию с линией MACD
   const signal = [];
   let signalIndex = 0;
   for (let i = 0; i < macdLine.length; i++) {
@@ -139,7 +139,7 @@ function calculateMACD(prices, fastPeriod = 12, slowPeriod = 26, signalPeriod = 
     }
   }
   
-  // Calculate histogram
+  // Гистограмма
   const histogram = [];
   for (let i = 0; i < macdLine.length; i++) {
     if (macdLine[i] === null || signal[i] === null) {
@@ -153,10 +153,10 @@ function calculateMACD(prices, fastPeriod = 12, slowPeriod = 26, signalPeriod = 
 }
 
 /**
- * Calculate Bollinger Bands
- * @param {Array} prices - Array of closing prices
- * @param {Number} period - Period for MA (default 20)
- * @param {Number} stdDev - Standard deviation multiplier (default 2)
+ * Расчёт полос Боллинджера
+ * @param {Array} prices - Массив цен закрытия
+ * @param {Number} period - Период средней (по умолчанию 20)
+ * @param {Number} stdDev - Множитель стандартного отклонения (по умолчанию 2)
  * @returns {Object} - {upper, middle, lower}
  */
 function calculateBollingerBands(prices, period = 20, stdDev = 2) {
@@ -171,7 +171,7 @@ function calculateBollingerBands(prices, period = 20, stdDev = 2) {
       continue;
     }
     
-    // Calculate standard deviation
+    // Стандартное отклонение
     let sumSquares = 0;
     for (let j = 0; j < period; j++) {
       const diff = prices[i - j] - middle[i];
@@ -187,9 +187,9 @@ function calculateBollingerBands(prices, period = 20, stdDev = 2) {
 }
 
 /**
- * Render indicators chart
- * @param {Array} klines - OHLCV data from Binance
- * @param {String} symbol - Crypto symbol
+ * Отрисовка графика индикаторов
+ * @param {Array} klines - данные OHLCV от Binance
+ * @param {String} symbol - Тикер криптовалюты
  */
 window.renderIndicatorsChart = async function(klines, symbol) {
 
@@ -198,7 +198,7 @@ window.renderIndicatorsChart = async function(klines, symbol) {
     const outerContainer = document.getElementById('tradingViewChartContainer');
     if (!outerContainer) return;
     
-    // Hide legend and OHLC for indicators mode
+    // Скрываем легенду и OHLC-строку в режиме индикаторов
     const legend = document.getElementById('chartLegend');
     const ohlc = document.getElementById('chartOhlcDisplay');
     if (legend) legend.style.display = 'none';
@@ -208,14 +208,14 @@ window.renderIndicatorsChart = async function(klines, symbol) {
     const drawingToolbarInd = document.getElementById('cryptoDrawingToolbar');
     if (drawingToolbarInd) drawingToolbarInd.style.display = 'none';
     
-    // Get or create indicators container
+    // Получаем или создаём контейнер индикаторов
     let container = document.getElementById('cryptoDetailPriceChart');
     if (!container) return;
     
-    // Clear previous chart
+    // Очищаем предыдущий график
     container.innerHTML = '';
     
-    // Detect mobile for adaptive sizing — измеряем ДО применения indicators-mode
+    // Адаптивные размеры — измеряем ДО применения indicators-mode
     const isMobile = window.innerWidth <= 768;
     // clientWidth может быть 0 если контейнер ещё не отрендерен — берём offsetWidth как fallback
     const rawWidth = container.clientWidth || container.offsetWidth || container.parentElement?.clientWidth || 800;
@@ -223,14 +223,14 @@ window.renderIndicatorsChart = async function(klines, symbol) {
     const mainChartHeight = isMobile ? 220 : 300;
     const subChartHeight = isMobile ? 120 : 150;
 
-    // Add indicators mode class for styling
+    // Добавляем класс режима индикаторов для CSS
     outerContainer.classList.add('indicators-mode');
     
-    // Extract prices and timestamps
+    // Извлекаем цены и временные метки
     const closePrices = klines.map(k => parseFloat(k[4]));
     const timestamps = klines.map(k => Math.floor(k[0] / 1000));
     
-    // Calculate all indicators
+    // Рассчитываем все индикаторы
     const rsi = calculateRSI(closePrices, 14);
     const macd = calculateMACD(closePrices, 12, 26, 9);
     const ma50 = calculateSMA(closePrices, 50);
@@ -239,7 +239,7 @@ window.renderIndicatorsChart = async function(klines, symbol) {
     
 
     
-    // Create wrapper for better layout
+    // Обёртка для удобной раскладки
     const wrapper = document.createElement('div');
     wrapper.style.cssText = `display: flex; flex-direction: column; gap: ${isMobile ? '0.75rem' : '1.5rem'}; padding: ${isMobile ? '0.5rem' : '1rem'};`;
     container.appendChild(wrapper);
@@ -275,7 +275,7 @@ window.renderIndicatorsChart = async function(klines, symbol) {
       },
     });
     
-    // Price line
+    // График цены
     const priceData = timestamps.map((time, i) => ({
       time,
       value: closePrices[i]
@@ -316,7 +316,7 @@ window.renderIndicatorsChart = async function(klines, symbol) {
       ma200Series.setData(ma200Data);
     }
     
-    // Bollinger Bands
+    // Полосы Боллинджера
     const upperBandData = timestamps.map((time, i) => ({
       time,
       value: bollingerBands.upper[i]
@@ -347,7 +347,7 @@ window.renderIndicatorsChart = async function(klines, symbol) {
     
     mainChart.timeScale().fitContent();
     
-    // Add legend manually
+    // Вручную добавляем легенду
     const mainLegend = document.createElement('div');
     mainLegend.style.cssText = `display: flex; gap: ${isMobile ? '0.5rem' : '1rem'}; flex-wrap: wrap; margin-top: 0.375rem; font-size: ${isMobile ? '0.65rem' : '0.75rem'};`;
     mainLegend.innerHTML = `
@@ -398,7 +398,7 @@ window.renderIndicatorsChart = async function(klines, symbol) {
     });
     rsiSeries.setData(rsiData);
     
-    // Add overbought/oversold lines
+    // Линии перекупленности/перепроданности
     const rsiOverBought = rsiChart.addLineSeries({
       color: 'rgba(239, 68, 68, 0.5)',
       lineWidth: 1,
@@ -463,7 +463,7 @@ window.renderIndicatorsChart = async function(klines, symbol) {
       },
     });
     
-    // MACD Line
+    // Линия MACD
     const macdLineData = timestamps.map((time, i) => ({
       time,
       value: macd.macd[i]
@@ -475,7 +475,7 @@ window.renderIndicatorsChart = async function(klines, symbol) {
     });
     macdLineSeries.setData(macdLineData);
     
-    // Signal Line
+    // Сигнальная линия
     const signalData = timestamps.map((time, i) => ({
       time,
       value: macd.signal[i]
@@ -487,7 +487,7 @@ window.renderIndicatorsChart = async function(klines, symbol) {
     });
     signalSeries.setData(signalData);
     
-    // Histogram
+    // Гистограмма
     const histogramData = timestamps.map((time, i) => ({
       time,
       value: macd.histogram[i],
@@ -514,7 +514,7 @@ window.renderIndicatorsChart = async function(klines, symbol) {
     `;
     macdSection.appendChild(macdLegend);
     
-    // Synchronize time scales
+    // Синхронизация временных шкал
     mainChart.timeScale().subscribeVisibleTimeRangeChange((timeRange) => {
       rsiChart.timeScale().setVisibleRange(timeRange);
       macdChart.timeScale().setVisibleRange(timeRange);
@@ -536,9 +536,9 @@ window.renderIndicatorsChart = async function(klines, symbol) {
   }
 };
 
-// Helper functions for calculating specific indicators - MUST BE BEFORE calculateTechnicalIndicators
+// Вспомогательные функции для отдельных индикаторов
 
-// Calculate Stochastic Oscillator
+// Стохастический осциллятор (Stochastic)
 function calculateStochastic(highs, lows, closes, kPeriod = 9, dPeriod = 3) {
   const k = [];
   for (let i = kPeriod - 1; i < closes.length; i++) {
@@ -552,7 +552,7 @@ function calculateStochastic(highs, lows, closes, kPeriod = 9, dPeriod = 3) {
   return { k, d };
 }
 
-// Calculate Stochastic RSI
+// Стохастический RSI
 function calculateStochRSI(prices, rsiPeriod = 14, stochPeriod = 14) {
   const rsi = calculateRSI(prices, rsiPeriod);
   const validRsi = rsi.filter(v => v !== null);
@@ -568,7 +568,7 @@ function calculateStochRSI(prices, rsiPeriod = 14, stochPeriod = 14) {
   return stochRsi;
 }
 
-// Calculate ADX (Average Directional Index)
+// ADX (Average Directional Index — индекс направленности тренда)
 function calculateADX(highs, lows, closes, period = 14) {
   if (closes.length < period * 2) return null;
   
@@ -576,7 +576,7 @@ function calculateADX(highs, lows, closes, period = 14) {
   const plusDM = [];
   const minusDM = [];
   
-  // Calculate TR, +DM, -DM
+  // Вычисляем TR, +DM, -DM
   for (let i = 1; i < closes.length; i++) {
     const high = highs[i];
     const low = lows[i];
@@ -597,7 +597,7 @@ function calculateADX(highs, lows, closes, period = 14) {
     minusDM.push(downMove > upMove && downMove > 0 ? downMove : 0);
   }
   
-  // Wilder's smoothing (RMA)
+  // Сглаживание Уайлдера (RMA)
   let smoothedTR = tr.slice(0, period).reduce((a, b) => a + b, 0);
   let smoothedPlusDM = plusDM.slice(0, period).reduce((a, b) => a + b, 0);
   let smoothedMinusDM = minusDM.slice(0, period).reduce((a, b) => a + b, 0);
@@ -616,7 +616,7 @@ function calculateADX(highs, lows, closes, period = 14) {
     dx.push(dxValue);
   }
   
-  // Calculate ADX as RMA of DX
+  // ADX = RMA от DX
   if (dx.length < period) return null;
   
   let adx = dx.slice(0, period).reduce((a, b) => a + b, 0) / period;
@@ -628,7 +628,7 @@ function calculateADX(highs, lows, closes, period = 14) {
   return adx;
 }
 
-// Calculate Williams %R
+// Williams %R
 function calculateWilliamsR(highs, lows, closes, period = 14) {
   const values = [];
   for (let i = period - 1; i < closes.length; i++) {
@@ -640,14 +640,14 @@ function calculateWilliamsR(highs, lows, closes, period = 14) {
   return values;
 }
 
-// Calculate CCI (Commodity Channel Index)
+// CCI (Commodity Channel Index — индекс товарного канала)
 function calculateCCI(highs, lows, closes, period = 20) {
   const tp = closes.map((c, i) => (highs[i] + lows[i] + c) / 3);
   const sma = calculateSMA(tp, period);
   
   const cci = [];
   
-  // Fill initial values with null
+  // Заполняем начальные значения null
   for (let i = 0; i < period - 1; i++) {
     cci.push(null);
   }
@@ -669,7 +669,7 @@ function calculateCCI(highs, lows, closes, period = 20) {
   return cci;
 }
 
-// Calculate ATR (Average True Range)
+// ATR (Average True Range — средний истинный диапазон)
 function calculateATR(highs, lows, closes, period = 14) {
   if (closes.length < 2) return 0;
   
@@ -686,7 +686,7 @@ function calculateATR(highs, lows, closes, period = 14) {
   return atr.length > 0 ? atr[atr.length - 1] : 0;
 }
 
-// Calculate ROC (Rate of Change)
+// ROC (Rate of Change — скорость изменения)
 function calculateROC(closes, period = 12) {
   if (closes.length <= period) return 0;
   
@@ -695,9 +695,9 @@ function calculateROC(closes, period = 12) {
   return ((currentPrice - pastPrice) / pastPrice) * 100;
 }
 
-// Calculate Ultimate Oscillator
+// Ultimate Oscillator
 function calculateUltimateOscillator(highs, lows, closes) {
-  if (closes.length < 29) return 50; // Not enough data
+  if (closes.length < 29) return 50; // недостаточно данных
   
   const bp = [];
   const tr = [];
@@ -722,7 +722,7 @@ function calculateUltimateOscillator(highs, lows, closes) {
   return ((4 * avg7) + (2 * avg14) + avg28) / 7 * 100;
 }
 
-// Calculate Bull/Bear Power
+// Bull/Bear Power
 function calculateBullBearPower(highs, lows, closes, period = 13) {
   const ema = calculateEMA(closes, period);
   if (ema.length === 0) return { bull: 0, bear: 0, power: 0 };
@@ -732,7 +732,7 @@ function calculateBullBearPower(highs, lows, closes, period = 13) {
   return { bull: bullPower, bear: bearPower, power: bullPower + bearPower };
 }
 
-// Calculate Highs/Lows indicator
+// Показатель максимумов/минимумов
 function calculateHighsLows(highs, lows, period = 14) {
   if (highs.length < period) return 0;
   

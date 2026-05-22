@@ -15,7 +15,7 @@ createApp({
   setup() {
     const supabase = supabaseClient;
     
-    // ===== СОСТОЯНИЕ ФОРМЫ =====
+    //СОСТОЯНИЕ ФОРМЫ
     const form = reactive({
       name: '',
       email: '',
@@ -24,7 +24,7 @@ createApp({
       agreeTerms: false
     });
 
-    // ===== СОСТОЯНИЕ ОШИБОК =====
+    //СОСТОЯНИЕ ОШИБОК
     const errors = reactive({
       name: '',
       email: '',
@@ -32,22 +32,22 @@ createApp({
       confirmPassword: ''
     });
 
-    // ===== СОСТОЯНИЕ ВИДИМОСТИ ПАРОЛЕЙ =====
+    //СОСТОЯНИЕ ВИДИМОСТИ ПАРОЛЕЙ
     const showPassword = ref(false);
     const showConfirmPassword = ref(false);
 
-    // ===== СОСТОЯНИЕ ЗАГРУЗКИ =====
+    //СОСТОЯНИЕ ЗАГРУЗКИ
     const loading = ref(false);
 
-    // ===== СОСТОЯНИЕ ПОДТВЕРЖДЕНИЯ EMAIL =====
+    //СОСТОЯНИЕ ПОДТВЕРЖДЕНИЯ EMAIL
     const emailSent = ref(false);
     const registeredEmail = ref('');
     const resendCooldown = ref(0);
     
-    // ===== ТЕМА =====
+    // ТЕМА
     const currentTheme = ref(document.documentElement.getAttribute('data-theme') || 'dark');
 
-    // ===== СОСТОЯНИЕ ТОСТА =====
+    // СОСТОЯНИЕ ТОСТА
     const toast = reactive({
       show: false,
       message: '',
@@ -57,7 +57,7 @@ createApp({
       id: 0
     });
 
-    // ===== ВЫЧИСЛЯЕМЫЕ СВОЙСТВА =====
+    // ВЫЧИСЛЯЕМЫЕ СВОЙСТВА
     const isFormValid = computed(() => {
       return (
         form.name.trim() !== '' &&
@@ -69,7 +69,7 @@ createApp({
       );
     });
 
-    // ===== САНИТИЗАЦИЯ =====
+    // САНИТИЗАЦИЯ
     // Удаляем символы, опасные для XSS и SQL-инъекций
     const sanitize = (value) => {
       return value
@@ -79,7 +79,7 @@ createApp({
         .replace(/\/\*/g, '');          // SQL: блочные комментарии
     };
 
-    // ===== ВАЛИДАЦИЯ ПОЛЕЙ =====
+    // ВАЛИДАЦИЯ ПОЛЕЙ
     // RFC 5321/5322: local@domain.tld, без consecutive dots, допустимые символы
     const validateEmail = (email) => {
       const re = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z]{2,}$/;
@@ -214,7 +214,7 @@ createApp({
       }, 5000);
     };
 
-    // ===== ПЕРЕКЛЮЧЕНИЕ ВИДИМОСТИ ПАРОЛЯ =====
+    // ПЕРЕКЛЮЧЕНИЕ ВИДИМОСТИ ПАРОЛЯ
     const togglePasswordVisibility = () => {
       showPassword.value = !showPassword.value;
     };
@@ -313,7 +313,7 @@ createApp({
       }
     };
 
-    // ===== ПОВТОРНАЯ ОТПРАВКА ПИСЬМА =====
+    // ПОВТОРНАЯ ОТПРАВКА ПИСЬМА
     const resendConfirmation = async () => {
       if (resendCooldown.value > 0 || !registeredEmail.value) return;
       try {
@@ -334,7 +334,7 @@ createApp({
       }
     };
 
-    // ===== ПЕРЕКЛЮЧЕНИЕ ТЕМЫ =====
+    // ПЕРЕКЛЮЧЕНИЕ ТЕМЫ
     const initializeTheme = () => {
       const saved = localStorage.getItem('theme');
       if (saved) {
@@ -351,7 +351,7 @@ createApp({
       localStorage.setItem('theme', currentTheme.value);
     };
 
-    // ===== ЖИЗНЕННЫЙ ЦИКЛ =====
+    // ЖИЗНЕННЫЙ ЦИКЛ
     const onMounted = () => {
       initializeTheme();
 
@@ -383,7 +383,7 @@ createApp({
     // Вызываем onMounted сразу
     onMounted();
 
-    // ===== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ =====
+    // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
     const getFieldStatus = (fieldName) => {
       if (!form[fieldName]) return null;
       return errors[fieldName] ? 'error' : 'success';

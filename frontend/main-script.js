@@ -39,7 +39,6 @@ async function fetchSelectedCurrencyRate(currency) {
   } catch (e) { /* fallback */ }
   return getCurrencyRate();
 }
-// ────────────────────────────────────────────────────────────────────────────
 
 createApp({
   setup() {
@@ -216,16 +215,16 @@ createApp({
           img.style.objectFit = 'cover';
           img.style.borderRadius = '50%';
           img.onload = () => {
-            console.log('✅ Аватарка загружена успешно');
+            console.log('Аватарка загружена успешно');
             avatarContainer.innerHTML = '';
             avatarContainer.appendChild(img);
           };
           img.onerror = (err) => {
-            console.error('❌ Ошибка загрузки аватарки:', err);
+            console.error('Ошибка загрузки аватарки:', err);
             avatarContainer.innerHTML = '<i class="fas fa-user-circle"></i>';
           };
         } else if (avatarContainer) {
-          console.log('ℹ️ Аватарка не установлена');
+          console.log('Аватарка не установлена');
           avatarContainer.innerHTML = '<i class="fas fa-user-circle"></i>';
         }
         
@@ -668,9 +667,9 @@ createApp({
       }
     };
 
-    // =========================================================
+
     // НАСТРОЙКИ
-    // =========================================================
+
 
     // Открытие модала настроек
     const openSettingsModal = () => {
@@ -849,7 +848,7 @@ createApp({
         const authUser = await checkAuth();
         
         if (authUser) {
-          // ===== АВТОРИЗОВАННЫЙ РЕЖИМ =====
+          // АВТОРИЗОВАННЫЙ РЕЖИМ
           isAuthenticated.value = true;
 
           // Загрузка профиля

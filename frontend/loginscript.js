@@ -173,9 +173,9 @@
 
           } catch (err) {
             let message = 'Произошла ошибка при входе';
-            if (error.message === 'Invalid login credentials') {
+            if (err.message === 'Invalid login credentials') {
               message = 'Неверный email или пароль';
-            } else if (error.message.includes('Email not confirmed')) {
+            } else if (err.message && err.message.includes('Email not confirmed')) {
               message = 'Подтвердите ваш email перед входом';
             }
 

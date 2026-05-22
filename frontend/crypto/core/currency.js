@@ -67,7 +67,7 @@ export async function fetchCurrencyRate() {
     return 1;
   }
 
-  // Per-currency cache with 1-hour TTL for instant repeat lookups
+  // Кэш курса для каждой валюты — TTL 1 час, позволяет мгновенно отвечать при повторных запросах
   const cacheKey = `currency_rate_${selectedCurrency}`;
   const cacheTimeKey = `currency_rate_time_${selectedCurrency}`;
   const cachedRate = parseFloat(localStorage.getItem(cacheKey));
@@ -109,7 +109,7 @@ export async function fetchCurrencyRate() {
                 }
                 currencyRate = parsed;
                 localStorage.setItem(RATE_KEY, currencyRate.toString());
-                // Save per-currency cache
+                // Сохраняем кэш для конкретной валюты
                 localStorage.setItem(`currency_rate_${selectedCurrency}`, currencyRate.toString());
                 localStorage.setItem(`currency_rate_time_${selectedCurrency}`, Date.now().toString());
                 window.dispatchEvent(new CustomEvent('currencyRateUpdated', { detail: { currency: selectedCurrency, rate: currencyRate } }));

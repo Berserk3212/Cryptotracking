@@ -1,5 +1,5 @@
 ﻿(function() {
-  // --- Хелперы валюты (читаем из localStorage, как currency.js) ---
+  // Хелперы валюты (читаем из localStorage, как currency.js)
   function _idxCurrencySymbol() {
     const cur = localStorage.getItem('selectedCurrency') || 'USD';
     const map = { USD:'$', EUR:'€', RUB:'₽', GBP:'£', JPY:'¥', CNY:'¥', CAD:'$', AUD:'$', CHF:'Fr' };

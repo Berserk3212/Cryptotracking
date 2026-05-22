@@ -1,4 +1,4 @@
-﻿// news-modal-vue.js - Premium Vue.js Modal for News
+﻿// news-modal-vue.js - модальное окно новостей на Vue.js
 (function() {
     'use strict';
     
@@ -31,7 +31,7 @@
             open(newsItem) {
 
                 
-                // Prepare data
+                // Подготавливаем данные
                 this.title = newsItem.title || 'Без названия';
                 this.content = this.formatContent(newsItem.fullDescription || newsItem.description);
                 this.image = newsItem.image;
@@ -39,20 +39,20 @@
                 this.date = newsItem.formattedDate || 'Недавно';
                 this.link = newsItem.link;
                 
-                // Category styling
+                // Стиль категории
                 const categoryInfo = this.getCategoryInfo(newsItem.category);
                 this.categoryName = categoryInfo.name;
                 this.categoryIcon = categoryInfo.icon;
                 this.categoryColor = newsItem.color || categoryInfo.color;
                 
-                // Store original for translation
+                // Сохраняем оригинал для перевода
                 this.originalData = {
                     title: newsItem.title,
                     content: newsItem.fullDescription || newsItem.description
                 };
                 this.isTranslated = false;
                 
-                // Open modal
+                // Открываем модальное окно
                 this.isOpen = true;
                 document.body.style.overflow = 'hidden';
             },
@@ -63,14 +63,14 @@
             },
             
             handleBackdropClick(event) {
-                // Close only on direct backdrop click
+                // Закрываем только при клике непосредственно на backdrop
                 if (event.target.classList.contains('news-modal-premium-overlay')) {
                     this.close();
                 }
             },
             
             handleImageError(event) {
-                // Prevent infinite loop if placeholder itself fails
+                // Защита от бесконечного цикла, если сам placeholder тоже не загрузится
                 if (event.target.dataset.placeholderSet) {
                     event.target.style.display = 'none';
                     return;
@@ -83,12 +83,12 @@
                 if (this.isTranslating || !this.originalData) return;
                 
                 if (this.isTranslated) {
-                    // Restore original
+                    // Восстанавливаем оригинал
                     this.title = this.originalData.title;
                     this.content = this.formatContent(this.originalData.content);
                     this.isTranslated = false;
                 } else {
-                    // Translate
+                    // Переводим
                     this.isTranslating = true;
                     
                     try {
@@ -140,7 +140,7 @@
             formatContent(text) {
                 if (!text) return '<p>Содержимое недоступно</p>';
                 
-                // Split into paragraphs and format
+                // Разбиваем на абзацы и форматируем
                 const paragraphs = text.split('\n').filter(p => p.trim());
                 return paragraphs.map(p => `<p>${this.escapeHtml(p)}</p>`).join('');
             },
@@ -185,12 +185,12 @@
         mounted() {
 
             
-            // Global access
+            // Глобальный доступ
             window.openNewsModalVue = (newsItem) => {
                 this.open(newsItem);
             };
             
-            // ESC key handler
+            // Обработчик клавиши ESC
             const handleEsc = (e) => {
                 if (e.key === 'Escape' && this.isOpen) {
                     this.close();

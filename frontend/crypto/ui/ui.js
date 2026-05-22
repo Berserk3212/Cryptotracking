@@ -14,9 +14,9 @@ let charts = {};
 let analyticsCharts = {};
 let dashboardCharts = {};
 
-// Global chart state variables
+// Состояние графика
 let currentCryptoSymbol = null;
-let currentChartType = 'price'; // 'price' or 'tradingview'
+let currentChartType = 'price';
 let currentPeriod = '30d';
 let isLogScale = false;
 let compareSymbol = null;
@@ -24,7 +24,7 @@ let isPinModeActive = false;
 let globalPinnedMarker = null;
 let globalPinnedData = null;
 
-// Toggle pin mode
+// Режим закрепления
 window.togglePinMode = function() {
   isPinModeActive = !isPinModeActive;
   const pinBtn = document.getElementById('chartPinBtn');
@@ -34,7 +34,7 @@ window.togglePinMode = function() {
     showNotification('Режим закрепления активирован', 'success');
   } else {
     pinBtn.classList.remove('active');
-    // Remove pin marker when mode is disabled
+    // Удаляем маркер
     if (globalPinnedMarker && window.currentSeries) {
       try {
         window.currentSeries.removePriceLine(globalPinnedMarker);
@@ -48,7 +48,7 @@ window.togglePinMode = function() {
 
 // === УТИЛИТЫ ===
 
-// Smart price formatting based on magnitude
+// Форматирование цены
 const formatPrice = (price) => {
   const num = parseFloat(price);
   if (!num && num !== 0) return 'N/A';
@@ -439,7 +439,7 @@ const renderCryptoDropdown = (searchTerm = '') => {
   const container = dropdown.querySelector('.dropdown-results');
 
   const makeItemHtml = (asset) => {
-    // Sanitize incoming data (remove stray semicolons, trim)
+    // Очищаем данные
     const rawSymbol = asset.symbol || '';
     const rawName = asset.name || '';
     const symbol = String(rawSymbol).replace(/;+$/g, '').replace(/;/g, '').trim().toUpperCase();
@@ -479,14 +479,13 @@ const renderCryptoDropdown = (searchTerm = '') => {
     `;
   };
 
-  // First quick chunk (render minimal set for instant feedback)
+  // Первая порция
   const firstChunk = items.slice(0, 10);
   container.innerHTML = firstChunk.map(makeItemHtml).join('');
 
-  // Attach click handlers for items present
   const attachClickHandlers = (root) => {
     root.querySelectorAll('.tools-crypto-item').forEach(item => {
-      if (item.__bound) return; // avoid double-binding
+      if (item.__bound) return;
       item.__bound = true;
       item.addEventListener('click', function() {
         selectCrypto(this.dataset.symbol, this.dataset.name, this.dataset.price);
@@ -495,10 +494,10 @@ const renderCryptoDropdown = (searchTerm = '') => {
   };
   attachClickHandlers(container);
 
-  // If there are more items — render them in background in small chunks to avoid blocking UI
+  // Остаток рендерим по частям
   if (items.length > firstChunk.length) {
     let index = firstChunk.length;
-    const chunkSize = 25; // smaller chunks for smoother interactivity
+    const chunkSize = 25;
     const renderNext = () => {
       const chunk = items.slice(index, index + chunkSize);
       if (chunk.length === 0) return;
@@ -506,14 +505,12 @@ const renderCryptoDropdown = (searchTerm = '') => {
       attachClickHandlers(container);
       index += chunkSize;
       if (index < items.length) {
-        // schedule next chunk a bit later so UI stays responsive
         setTimeout(renderNext, 30);
       }
     };
     setTimeout(renderNext, 30);
   }
 
-  // Add a small counter showing how many are displayed
   const headerEl = dropdown.querySelector('.dropdown-header');
   if (headerEl) headerEl.textContent = `Показано ${Math.min(items.length, container.querySelectorAll('.tools-crypto-item').length)} из ${items.length}`;
 }
@@ -585,7 +582,7 @@ window.addEventListener('currencyChanged', () => {
       renderAssetsStats(txs);
     }
   } catch (e) {
-    // ignore if no sync function
+    // нет синхронных транзакций
   }
 });
 
@@ -850,7 +847,7 @@ const setupAnalyticsExport = () => {
 }
 
 export const showNotification = (msg, type = 'info') => {
-  window.showNotification = showNotification; // Keep global for backwards compatibility
+  window.showNotification = showNotification;
   const n = document.createElement('div');
   n.className = `notification ${type}`;
   n.innerHTML = `<div class="notification-content"><i class="fas fa-info-circle"></i><span>${msg}</span></div>`;
@@ -889,13 +886,13 @@ export const loadPortfolios = async () => {
       return;
     }
 
-    // Mount Vue component for portfolios if available (better animations + reactivity)
+    // Монтируем Vue-компонент портфелей
     grid.innerHTML = '<div id="vuePortfoliosRoot"></div>';
 
     const mountVuePortfolios = (items) => {
       try {
         if (typeof Vue !== 'undefined' && Vue && Vue.createApp) {
-          // Unmount previous portfolios Vue instance if any
+          // Анмаунт предыдущего экземпляра
           if (window._portfoliosVueApp) {
             try { window._portfoliosVueApp.unmount(); } catch (e) {}
             window._portfoliosVueApp = null;
@@ -944,7 +941,7 @@ export const loadPortfolios = async () => {
           });
           app.mount('#vuePortfoliosRoot');
           window._portfoliosVueApp = app;
-          // Apply default style variant (can be changed via `window.app.portfolioStyle`) and make root a grid
+          // Стиль по умолчанию
           try {
             const root = document.getElementById('vuePortfoliosRoot');
             const style = (window.app && window.app.portfolioStyle) ? window.app.portfolioStyle : 'tt-1';
@@ -958,7 +955,7 @@ export const loadPortfolios = async () => {
 
     const mounted = mountVuePortfolios(portfolios);
     if (!mounted) {
-      // Fallback to previous static rendering
+      // Статический рендер
       grid.innerHTML = portfolios.map(p => `
         <div class="portfolio-card">
           <div class="portfolio-header">
@@ -1055,7 +1052,7 @@ export const loadTransactions = async () => {
     `
     }).join('');
 
-    // Throttle lazy icon loading to avoid massive parallel requests (process this tbody)
+    // Ленивая загрузка иконок
     if (window._iconLoader?.processContainer) window._iconLoader.processContainer(tbody);
     
     // Инициализируем кастомные фильтры после загрузки транзакций
@@ -1077,7 +1074,7 @@ const populatePortfolioSelect = () => {
   const portfolios = getPortfoliosSync();
   select.innerHTML = portfolios.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
 
-  // Also populate visible transaction dropdown (portfolio-style) if present
+  // Пополняем dropdown портфелей
   try {
     const dropdown = document.getElementById('transactionPortfolioDropdown');
     const display = document.getElementById('transactionPortfolioDisplay');
@@ -1088,7 +1085,6 @@ const populatePortfolioSelect = () => {
         </div>
       `).join('');
 
-      // attach click handlers
       dropdown.querySelectorAll('.tools-crypto-item').forEach(item => {
         item.addEventListener('click', (e) => {
           const val = item.getAttribute('data-value');
@@ -1103,7 +1099,7 @@ const populatePortfolioSelect = () => {
   } catch (_) {}
 }
 
-// Setup visible transaction dropdowns (type + portfolio) toggles
+// Настройка выпадающих списков транзакции
 const setupTransactionDropdowns = () => {
   const setups = [
     {displayId: 'transactionTypeDisplay', dropdownId: 'transactionTypeDropdown', hiddenId: 'transactionType'},
@@ -1119,13 +1115,11 @@ const setupTransactionDropdowns = () => {
     display.addEventListener('click', (e) => {
       e.stopPropagation();
       const opened = dropdown.style.display === 'block';
-      // close others
       document.querySelectorAll('.tools-crypto-dropdown').forEach(d => { if (d !== dropdown) d.style.display = 'none'; });
       dropdown.style.display = opened ? 'none' : 'block';
       display.setAttribute('aria-expanded', String(!opened));
     });
 
-    // If dropdown items already exist, attach handlers; otherwise they'll be attached by populatePortfolioSelect for portfolio
     dropdown.querySelectorAll('.tools-crypto-item').forEach(item => {
       if (item.__tx_init) return;
       item.__tx_init = true;
@@ -1141,13 +1135,11 @@ const setupTransactionDropdowns = () => {
     });
   });
 
-  // close on outside click
   document.addEventListener('click', (e) => {
     document.querySelectorAll('#transactionTypeDropdown, #transactionPortfolioDropdown').forEach(d => { if (d) d.style.display = 'none'; });
     document.querySelectorAll('#transactionTypeDisplay, #transactionPortfolioDisplay').forEach(d => { if (d) d.setAttribute('aria-expanded', 'false'); });
   });
 
-  // escape closes
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') {
     document.querySelectorAll('#transactionTypeDropdown, #transactionPortfolioDropdown').forEach(d => { if (d) d.style.display = 'none'; });
   }});
@@ -1299,7 +1291,7 @@ const setupAnalyticsFilters = () => {
       const symbols = [...new Set(transactions.map(t => t.symbol))];
 
       // Загружаем актуальные рыночные цены (крипто + акции)
-      try { await getPricesForSymbols(symbols); } catch (e) { /* ignore */ }
+      try { await getPricesForSymbols(symbols); } catch (e) { /* игнорируем */ }
 
       // Для акций доподгружаем из Finnhub если нет в кэше
       const FINNHUB_TOKEN = 'd49lflpr01qlaebhu1egd49lflpr01qlaebhu1f0';
@@ -3165,7 +3157,7 @@ const showStrategyModal = () => {
         `);
         tbody.innerHTML = rows.join('');
 
-        // After rendering assets, lazy-load icons via icon loader (throttled + cached)
+        // Ленивая загрузка иконок активов
         if (window._iconLoader && typeof window._iconLoader.processContainer === 'function') {
           window._iconLoader.processContainer(tbody);
         }
@@ -3225,7 +3217,7 @@ const showStrategyModal = () => {
     }
   }
 
-  // Icon loader: throttled, cached image loader to reduce parallel requests and CORB noise
+  // Загрузчик иконок (очередь + кэш)
   (function(){
     const cache = new Map(); // url -> Promise
     const concurrency = 6;
@@ -3245,7 +3237,7 @@ const showStrategyModal = () => {
         const start = () => {
           running++;
           const img = new Image();
-          // Do not set crossOrigin by default to avoid CORS errors when not needed
+          // crossOrigin не выставляем — избегаем ошибок CORS
           img.onload = () => { running--; resolve(url); _next(); };
           img.onerror = () => { running--; reject(new Error('Failed to load ' + url)); _next(); };
           img.src = url;
@@ -3309,7 +3301,7 @@ const showStrategyModal = () => {
     };
   })();
 
-  // Watch DOM for newly added images with data-src and auto-process them (reduces missed cases)
+  // Наблюдаем за новыми img[data-src]
   if (typeof MutationObserver !== 'undefined') {
     const _mo = new MutationObserver(muts => {
       muts.forEach(m => {
@@ -3623,26 +3615,24 @@ const loadTopAssets = () => {
 
 // === ФОРМЫ ===
 // === ДЕТАЛЬНАЯ ИНФОРМАЦИЯ О КРИПТОВАЛЮТЕ ===
-// Moved to global scope at top of file
+// (определено в начале файла)
 let currentCryptoPeriod = '7';
 let cryptoDetailCharts = {};
 
-// Comparison state
+// Состояние сравнения
 let compareSeriesLine = null;
 let compareSeriesCandle = null;
 
-// Series visibility state
+// Видимость серий
 let mainSeriesVisible = true;
 let compareSeriesVisible = true;
 
-// Make chart instances global for cleanup
 window.tvChart = null;
 let candlestickSeries = null;
 let lineSeries = null;
 let volumeSeries = null;
 let currentCryptoInterval = '1w';
 
-// Make currentCryptoSymbol global
 window.currentCryptoSymbol = null;
 
 // Кеш данных для избежания rate limit
@@ -3666,7 +3656,7 @@ window.showCryptoDetail = async function(symbol) {
     return;
   }
   
-  // Полностью очищаем предыдущий график перед созданием нового
+  // Сбрасываем старый график
   if (window.tvChart) {
     try {
       window.tvChart.remove();
@@ -3680,20 +3670,20 @@ window.showCryptoDetail = async function(symbol) {
     volumeSeries = null;
   }
   
-  // Clear container and reset any inline styles LightweightCharts set during previous render
+  // Сбрасываем инлайн-стили контейнера
   const container = document.getElementById('cryptoDetailPriceChart');
   if (container) {
     container.innerHTML = '';
-    container.style.cssText = ''; // reset LWC-set inline position/width/height
+    container.style.cssText = '';
   }
-  // Force chart wrapper to refresh its flex-layout dimensions
+  // Обновляем flex-layout обёртки
   const chartWrapperEl = document.getElementById('chartAreaWrapper');
   if (chartWrapperEl) {
-    chartWrapperEl.style.cssText = ''; // clear any stale inline styles
-    void chartWrapperEl.offsetHeight;  // force reflow
+    chartWrapperEl.style.cssText = '';
+    void chartWrapperEl.offsetHeight;
   }
   
-  // Open modal FIRST, then create chart
+  // Сначала открываем модалку
   modal.style.display = '';
   modal.classList.add('active');
   
@@ -3702,7 +3692,7 @@ window.showCryptoDetail = async function(symbol) {
   await new Promise(resolve => setTimeout(resolve, 100));
 
   
-  // Show legend for main symbol
+  // Легенда
   const chartLegend = document.getElementById('chartLegend');
   if (chartLegend) {
     chartLegend.style.display = 'flex';
@@ -3736,13 +3726,13 @@ window.showCryptoDetail = async function(symbol) {
     
     const cryptoInfo = window.CRYPTO_INFO?.[symbol] || { name: symbol, icon: null, color: '#F7931A', rank: 'N/A', marketCap: 5 };
     
-    // Update header
+    // Заголовок
     document.getElementById('cryptoDetailName').textContent = cryptoInfo.name;
     document.getElementById('cryptoDetailSymbol').textContent = symbol;
     document.getElementById('cryptoDetailSymbolLabel').textContent = symbol;
     document.getElementById('cryptoDetailRank').textContent = 'Rank #' + (cryptoInfo.rank || 'N/A');
     
-    // Update icon
+    // Иконка
     const iconEl = document.getElementById('cryptoDetailIcon');
     if (iconEl) {
       iconEl.style.background = cryptoInfo.color;
@@ -3755,7 +3745,7 @@ window.showCryptoDetail = async function(symbol) {
       img.alt = symbol;
       img.style.cssText = 'width: 100%; height: 100%; object-fit: contain;';
       
-      // Fallback handler — multi-step: CryptoIcons CDN → ui-avatars
+      // Фоллбэк иконки
       img.onerror = function() {
         if (!this.dataset.cryptoFallback) {
           this.dataset.cryptoFallback = '1';
@@ -3773,7 +3763,7 @@ window.showCryptoDetail = async function(symbol) {
       iconEl.appendChild(img);
     }
     
-    // Update price section
+    // Цена
     const currencySymbol = getCurrencySymbol();
     const convertedPrice = convertToSelectedCurrency(price);
     document.getElementById('cryptoDetailPrice').textContent = currencySymbol + convertedPrice.toLocaleString('en-US', {
@@ -3785,16 +3775,16 @@ window.showCryptoDetail = async function(symbol) {
     changeEl.textContent = (change >= 0 ? '+' : '') + change.toFixed(2) + '%';
     changeEl.className = 'price-change ' + (change >= 0 ? 'price-positive' : 'price-negative');
     
-    // Update 24h high/low
+    // Макс/мин 24ч
     document.getElementById('cryptoDetailHigh24h').innerHTML = 
       `<i class="fas fa-arrow-up"></i> ${currencySymbol}${convertToSelectedCurrency(high).toFixed(2)}`;
     document.getElementById('cryptoDetailLow24h').innerHTML = 
       `<i class="fas fa-arrow-down"></i> ${currencySymbol}${convertToSelectedCurrency(low).toFixed(2)}`;
     
-    // Update OHLC display
+    // OHLC
     updateOHLCDisplay(open, high, low, price, change);
     
-    // Update community sentiment based on technical indicators
+    // Сентимент
     const sentimentData = await window.calculateSentimentFromIndicators(symbol, currentCryptoInterval);
     const bullishPercent = sentimentData.bullish;
     const bearishPercent = sentimentData.bearish;
@@ -3803,7 +3793,7 @@ window.showCryptoDetail = async function(symbol) {
     document.getElementById('sentimentBearish').style.width = bearishPercent + '%';
     document.getElementById('sentimentBearishValue').textContent = bearishPercent.toFixed(0) + '%';
     
-    // Update stats
+    // Статистика
     const marketCap = (cryptoInfo.marketCap || 5);
     const fdv = marketCap * 1.15;
     const volMarketCapRatio = (volume / (marketCap * 1e9) * 100);
@@ -3823,7 +3813,7 @@ window.showCryptoDetail = async function(symbol) {
     
     document.getElementById('cryptoDetailFDV').textContent = currencySymbol + convertToSelectedCurrency(fdv).toFixed(2) + 'B';
     
-    // Update additional stats
+    // Дополнительные показатели
     document.getElementById('statPriceChange1h').textContent = (change * 0.3).toFixed(2) + '%';
     document.getElementById('statPriceChange24h').textContent = (change >= 0 ? '+' : '') + change.toFixed(2) + '%';
     document.getElementById('statPriceChange7d').textContent = (change * 2.5).toFixed(2) + '%';
@@ -3896,7 +3886,7 @@ window.changeCryptoChartPeriod = async function(interval) {
   
   currentCryptoInterval = interval;
   
-  // Update button states
+  // Кнопки периода
   document.querySelectorAll('.period-btn').forEach(btn => {
     btn.classList.remove('active');
     if (btn.dataset.period === interval) {
@@ -3967,7 +3957,7 @@ window.switchChartType = function(type) {
     }
   });
   
-  // Reload chart with new type
+  // Перезагрузка графика
   window.loadCryptoDetailCharts(window.currentCryptoSymbol, currentCryptoInterval);
 };
 
@@ -3996,7 +3986,6 @@ const loadCryptoDetailCharts = async (symbol, interval) => {
   try {
 
     
-    // Reset visibility state when loading new charts
     mainSeriesVisible = true;
     compareSeriesVisible = true;
     
@@ -4008,7 +3997,7 @@ const loadCryptoDetailCharts = async (symbol, interval) => {
     // Если за время ожидания пришёл более новый запрос — выходим
     const stale = () => mySeq !== _chartLoadSeq;
     
-    // Map intervals to Binance API format
+    // Интервалы Binance API
     const intervalMap = {
       '1m': '1m',
       '5m': '5m',
@@ -4020,14 +4009,14 @@ const loadCryptoDetailCharts = async (symbol, interval) => {
       '1d': '1d',
       '1w': '1w',
       '1M': '1M',
-      '1Y': '1M',  // Use monthly for yearly view
+      '1Y': '1M',
       'all': '1w'
     };
     
     const binanceInterval = intervalMap[interval] || '1d';
     
-    // Calculate limit based on interval - increased for accurate indicator calculations
-    let limit = 500; // Default maximum
+    // Лимит свечей
+    let limit = 500;
     if (interval === '1m') limit = 500;
     else if (interval === '5m') limit = 500;
     else if (interval === '15m') limit = 500;
@@ -4035,7 +4024,7 @@ const loadCryptoDetailCharts = async (symbol, interval) => {
     else if (interval === '1h') limit = 500;
     else if (interval === '2h') limit = 500;
     else if (interval === '4h') limit = 500;
-    else if (interval === '1d') limit = 500; // Was 30 - need more for accurate indicators
+    else if (interval === '1d') limit = 500;
     else if (interval === '1w') limit = 500;
     else if (interval === '1M') limit = 500;
     else if (interval === '1Y') limit = 500;
@@ -4049,7 +4038,6 @@ const loadCryptoDetailCharts = async (symbol, interval) => {
       const klines = window.cryptoDataCache[cacheKey].data;
       
       if (stale()) return;
-      // Render chart based on current type
       if (currentChartType === 'tradingview') {
         renderTradingViewChart(klines, symbol);
       } else if (currentChartType === 'indicators') {
@@ -4087,7 +4075,6 @@ const loadCryptoDetailCharts = async (symbol, interval) => {
 
     
     if (stale()) return;
-    // Render chart based on current type
     if (currentChartType === 'tradingview') {
       renderTradingViewChart(klines, symbol);
     } else if (currentChartType === 'indicators') {
@@ -4104,7 +4091,7 @@ const loadCryptoDetailCharts = async (symbol, interval) => {
   }
 }
 
-// Helper function to fetch klines for comparison
+// Загрузка свечей для сравнения
 window.loadCryptoDetailCharts = loadCryptoDetailCharts;
 
 const fetchKlinesForComparison = async (symbol, interval) => {
@@ -4117,7 +4104,6 @@ const fetchKlinesForComparison = async (symbol, interval) => {
     
     const binanceInterval = intervalMap[interval] || '1d';
     
-    // Increased limit for accurate indicator calculations
     let limit = 500;
     if (interval === 'all') limit = 1000;
     
@@ -4135,7 +4121,7 @@ const fetchKlinesForComparison = async (symbol, interval) => {
 
 // Удалена универсальная функция createCryptoChart - используем только модальное окно с dock mode
 
-// Simple line chart for "Price" tab (like CoinMarketCap)
+// Линейный график цены
 const renderPriceLineChart = async (klines, symbol) => {
 
   
@@ -4145,8 +4131,7 @@ const renderPriceLineChart = async (klines, symbol) => {
     return;
   }
 
-  // In docked mode the original modal is hidden (display:none), so getElementById
-  // returns the hidden copy first. Prefer the visible twin (docked clone) if one exists.
+  // В docked-режиме берём видимый контейнер
   if (container.clientWidth === 0 && container.clientHeight === 0) {
     const twins = document.querySelectorAll('#cryptoDetailPriceChart');
     for (const twin of twins) {
@@ -4158,7 +4143,6 @@ const renderPriceLineChart = async (klines, symbol) => {
     }
   }
   
-  // Remove indicators mode class if present
   const chartContainer = document.getElementById('tradingViewChartContainer');
   if (chartContainer) {
     chartContainer.classList.remove('indicators-mode');
@@ -4178,12 +4162,12 @@ const renderPriceLineChart = async (klines, symbol) => {
     return;
   }
   
-  // Destroy existing chart
+  // Удаляем предыдущий график
   if (window.tvChart) {
     try {
 
       
-      // Disconnect ResizeObserver
+      // Отключаем ResizeObserver
       if (window.chartResizeObserver && container) {
         try {
           window.chartResizeObserver.unobserve(container);
@@ -4201,19 +4185,15 @@ const renderPriceLineChart = async (klines, symbol) => {
     }
   }
   
-  // Clear container
+  // Очищаем контейнер
   container.innerHTML = '';
   
-  // Убеждаемся что вся цепочка предков (включая модалку) видима,
-  // иначе clientWidth/clientHeight будут 0 сколько бы мы ни ждали.
-  // ВАЖНО: используем точный селектор .modal (не [class*="modal"]!) чтобы не поймать
-  // .modal-content, .modal-header и т.д., которые могут иметь display:none из-за
-  // родителя, даже когда сами по себе не hidden.
+  // Проверяем видимость
   const modalAncestor = container.closest('.modal, .modal-overlay-news, .modal-as-section');
   if (modalAncestor) {
     // В dock-режиме контейнер перенесён в .modal-as-section (видимый раздел) — не прерываем
     if (modalAncestor.classList.contains('modal-as-section')) {
-      // OK — chart container is in the visible docked section
+      // OK
     } else {
       const st = window.getComputedStyle(modalAncestor);
       if (st.display === 'none' || st.visibility === 'hidden') {
@@ -4226,29 +4206,24 @@ const renderPriceLineChart = async (klines, symbol) => {
   // Force layout recalculation — два RAF гарантируют что CSS применился
   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   
-  // Ensure parent has dimensions
+  // Размеры родительского элемента
   const parentContainer = container.closest('.chart-area-wrapper') || container.parentElement;
   if (parentContainer) {
     const isMobile = window.innerWidth < 768;
     const minHeight = isMobile ? 300 : 500;
-    // На мобильном chart-area-wrapper = position:absolute;inset:0 — clientHeight
-    // должна быть уже правильной (55vh). Форсируем только если реально 0.
-    void parentContainer.offsetHeight; // принудительный reflow перед проверкой
+    void parentContainer.offsetHeight;
     if (!parentContainer.clientHeight || parentContainer.clientHeight < 50) {
       // Только min-height, НЕ height — не ломаем position:absolute sizing
       parentContainer.style.minHeight = `${minHeight}px`;
 
     }
-    // Fix width: 0 that occurs when flex-basis:0% hasn't resolved yet
     if (!parentContainer.clientWidth) {
       parentContainer.style.width = '100%';
-      void parentContainer.offsetWidth;  // force synchronous reflow
-
+      void parentContainer.offsetWidth;
     }
   }
   
-  // Force minimum height/width on container itself
-  // NOTE: use setProperty with 'important' to override any CSS !important rules
+  // Минимальные размеры контейнера
   if (!container.clientHeight || container.clientHeight < 100) {
     const minHeight = window.innerWidth < 768 ? 300 : 500;
     container.style.setProperty('min-height', `${minHeight}px`, 'important');
@@ -4261,41 +4236,33 @@ const renderPriceLineChart = async (klines, symbol) => {
     void container.offsetWidth;
   }
 
-  // Wait for dimensions with smart retry logic
+  // Ожидаем появления размеров
   let retries = 0;
   const maxRetries = 15;
   while ((!container.clientWidth || !container.clientHeight) && retries < maxRetries) {
 
-    
-    // Progressive delay: faster retries initially, then slower
     const delay = retries < 5 ? 50 : (retries < 10 ? 100 : 200);
     await new Promise(resolve => setTimeout(resolve, delay));
-    
-    // Force reflow every few attempts
     if (retries % 3 === 0) {
-      void container.offsetHeight; // Force reflow
+      void container.offsetHeight;
       await new Promise(resolve => requestAnimationFrame(resolve));
     }
-    
     retries++;
   }
-  
-  // Final check with explicit fallback
-  if (!container.clientWidth || !container.clientHeight) {
 
+  // Финальная проверка
+  if (!container.clientWidth || !container.clientHeight) {
     
-    // Last resort: force absolute dimensions (setProperty overrides CSS !important)
+    // Принудительные размеры
     const fallbackHeight = window.innerWidth < 768 ? 300 : 500;
     container.style.setProperty('width', '100%', 'important');
     container.style.setProperty('height', `${fallbackHeight}px`, 'important');
     container.style.setProperty('min-height', `${fallbackHeight}px`, 'important');
     container.style.setProperty('position', 'relative', 'important');
     
-    // Wait one more time
     await new Promise(resolve => setTimeout(resolve, 200));
     
     if (!container.clientHeight) {
-      // Walk up DOM (but stop before body/html) to find a visible ancestor with real width
       const isMobileChart = window.innerWidth < 768;
       let rectWidth = 0;
       let ancestor = container.parentElement;
@@ -4307,16 +4274,13 @@ const renderPriceLineChart = async (klines, symbol) => {
         }
         ancestor = ancestor.parentElement;
       }
-      // Try modal content as last resort for width
       if (!rectWidth) {
         const mc = container.closest('.modal-content, .docked-body, .docked-container');
         if (mc) rectWidth = Math.round(mc.getBoundingClientRect().width);
       }
-      // Always use a fixed chart height — never derive from ancestor rect (could be page height)
       const rectHeight = isMobileChart ? 300 : 500;
       rectWidth = rectWidth || Math.round(window.innerWidth * (isMobileChart ? 0.95 : 0.8));
 
-      // Force explicit pixel dimensions so clientWidth/clientHeight become non-zero
       container.style.setProperty('width',      `${rectWidth}px`,  'important');
       container.style.setProperty('height',     `${rectHeight}px`, 'important');
       container.style.setProperty('min-height', `${rectHeight}px`, 'important');
@@ -4330,10 +4294,10 @@ const renderPriceLineChart = async (klines, symbol) => {
   
 
   
-  // Prepare line data (using close prices)
+  // Подготовка данных
   const lineData = klines.map(k => ({
     time: Math.floor(k[0] / 1000),
-    value: parseFloat(k[4]) // close price
+    value: parseFloat(k[4])
   })).sort((a, b) => a.time - b.time);
   
   // Сохраняем 24-часовое изменение в глобальной переменной
@@ -4348,7 +4312,7 @@ const renderPriceLineChart = async (klines, symbol) => {
   
 
   
-  // Load comparison data BEFORE creating chart if needed
+  // Данные для сравнения
   let originalCompareData = null;
   let compareFirstPrice = null;
   let compareLineData = null;
@@ -4395,7 +4359,7 @@ const renderPriceLineChart = async (klines, symbol) => {
     
 
     
-    // Get crypto color
+    // Цвет криптовалюты
     const cryptoInfo = window.CRYPTO_INFO?.[symbol] || { color: '#3b82f6' };
     
     window.tvChart = LightweightCharts.createChart(container, {
@@ -4436,11 +4400,11 @@ const renderPriceLineChart = async (klines, symbol) => {
     // Захватываем локальную ссылку — она не будет обнулена другими async-вызовами
     const localTvChart = window.tvChart;
     
-    // Check if we need percentage mode (when comparing)
+    // Процентный режим
     const usePercentageMode = compareSymbol !== null && originalCompareData !== null;
     
     if (usePercentageMode) {
-      // Synchronize data - use only common timestamps
+      // Синхронизация
       const mainTimes = new Set(lineData.map(d => d.time));
       const compareTimes = new Set(originalCompareData.map(d => d.time));
       const commonTimes = new Set([...mainTimes].filter(t => compareTimes.has(t)));
@@ -4449,16 +4413,14 @@ const renderPriceLineChart = async (klines, symbol) => {
       const syncedLineData = lineData.filter(d => commonTimes.has(d.time));
       const syncedCompareData = originalCompareData.filter(d => commonTimes.has(d.time));
       
-
-      
-      // In comparison mode, normalize data to percentage
+      // Нормализация
       const firstPrice = syncedLineData[0].value;
       const normalizedLineData = syncedLineData.map(d => ({
         time: d.time,
         value: ((d.value - firstPrice) / firstPrice) * 100
       }));
       
-      // Add line series for main symbol (percentage mode)
+      // Основная серия
       lineSeries = window.tvChart.addLineSeries({
         color: cryptoInfo.color,
         lineWidth: 2,
@@ -4469,15 +4431,15 @@ const renderPriceLineChart = async (klines, symbol) => {
       lineSeries.setData(normalizedLineData);
 
       
-      // Configure price scale for percentage
+      // Настройка шкалы цены
       window.tvChart.applyOptions({
         rightPriceScale: {
           borderColor: 'rgba(197, 203, 206, 0.4)',
-          mode: 0, // Normal mode
+          mode: 0,
         },
       });
       
-      // Add synced comparison line
+      // Серия сравнения
       if (syncedCompareData.length > 0) {
         const compareFirstPriceSync = syncedCompareData[0].value;
         const normalizedCompareData = syncedCompareData.map(d => ({
@@ -4498,7 +4460,7 @@ const renderPriceLineChart = async (klines, symbol) => {
 
       }
     } else {
-      // Normal mode - absolute prices
+      // Нормальный режим
       lineSeries = window.tvChart.addAreaSeries({
         lineColor: cryptoInfo.color,
         topColor: cryptoInfo.color + '80',
@@ -4515,8 +4477,8 @@ const renderPriceLineChart = async (klines, symbol) => {
       }
     }
     
-    // Update legend (always, regardless of comparison)
-    // Используем 24-часовое изменение из API вместо изменения за период графика
+    // Легенда
+    // Используем 24-часовое изменение из API
     let change24h = 0;
     try {
       const ticker24h = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}USDT`);
@@ -4575,7 +4537,7 @@ const renderPriceLineChart = async (klines, symbol) => {
 
     }
     
-    // Handle resize
+    // Обработка resize
     const resizeObserver = new ResizeObserver(entries => {
       if (window.tvChart && entries.length > 0) {
         const { width, height } = entries[0].contentRect;
@@ -4587,16 +4549,13 @@ const renderPriceLineChart = async (klines, symbol) => {
     
     resizeObserver.observe(container);
     
-    // Create tooltip element
     const tooltip = document.createElement('div');
     tooltip.className = 'chart-tooltip';
     container.appendChild(tooltip);
     
-    // Store original data for tooltip (absolute prices)
     const originalLineData = lineData;
     const firstPrice = lineData[0].value;
     
-    // Store current series globally
     window.currentSeries = lineSeries;
     // Инициализация инструментов разметки
     document.dispatchEvent(new CustomEvent('lwcChartReady', {
@@ -4608,43 +4567,35 @@ const renderPriceLineChart = async (klines, symbol) => {
       },
     }));
 
-    // Add click handler for pin marker (only works in pin mode)
+    // Обработчик закрепления
     const handlePinClick = (e) => {
       if (!isPinModeActive) return;
       
       const rect = container.getBoundingClientRect();
       const x = e.clientX - rect.left;
       
-      // Get time from click position
-      if (!(window.tvChart && typeof window.tvChart.timeScale === 'function')) return;
-      const timeScale = window.tvChart.timeScale();
-      const time = timeScale ? timeScale.coordinateToTime(x) : null;
+      const timeScale = window.tvChart && typeof window.tvChart.timeScale === 'function' ? window.tvChart.timeScale() : null;
+      if (!timeScale) return;
+      const time = timeScale.coordinateToTime(x);
       
       if (time) {
-        // Find closest data point
         const closestData = originalLineData.reduce((prev, curr) => {
           return Math.abs(curr.time - time) < Math.abs(prev.time - time) ? curr : prev;
         });
         
-        // Toggle pin
         if (globalPinnedData && Math.abs(globalPinnedData.time - closestData.time) < 3600) {
-          // Remove if clicking near the same pin
           if (globalPinnedMarker) {
             lineSeries.removePriceLine(globalPinnedMarker);
             globalPinnedMarker = null;
             globalPinnedData = null;
           }
         } else {
-          // Remove old marker if exists
           if (globalPinnedMarker) {
             try {
               lineSeries.removePriceLine(globalPinnedMarker);
-            } catch (e) {
-
-            }
+            } catch (e) {}
           }
           
-          // Create new pin marker
           globalPinnedData = closestData;
           globalPinnedMarker = lineSeries.createPriceLine({
             price: usePercentageMode ? ((closestData.value - firstPrice) / firstPrice) * 100 : closestData.value,
@@ -4654,8 +4605,6 @@ const renderPriceLineChart = async (klines, symbol) => {
             axisLabelVisible: true,
             title: '',
           });
-          
-
         }
       }
     };
@@ -4669,7 +4618,7 @@ const renderPriceLineChart = async (klines, symbol) => {
     }
     
     localTvChart.subscribeCrosshairMove(param => {
-      // If pin is locked, show pinned data in tooltip
+      // Пин
       if (isPinModeActive && globalPinnedData) {
         const date = new Date(globalPinnedData.time * 1000);
         const dateStr = date.toLocaleString('en-US', { 
@@ -4733,13 +4682,11 @@ const renderPriceLineChart = async (klines, symbol) => {
         tooltip.innerHTML = tooltipHTML;
         tooltip.style.display = 'block';
         
-        // Position pinned tooltip below OHLC display (left side, but lower)
         tooltip.style.left = '15px';
         tooltip.style.right = 'auto';
-        tooltip.style.top = '90px'; // Below OHLC display
+        tooltip.style.top = '90px';
         tooltip.style.bottom = 'auto';
         
-        // Update OHLC with pinned data
         updateOHLCDisplay(globalPinnedData.value, globalPinnedData.value, globalPinnedData.value, globalPinnedData.value, 0);
         
         return;
@@ -4756,11 +4703,9 @@ const renderPriceLineChart = async (klines, symbol) => {
         return;
       }
       
-      // Get original price value (not normalized percentage)
       const originalData = originalLineData.find(d => d.time === param.time);
       const value = originalData ? originalData.value : (usePercentageMode ? firstPrice * (1 + data.value / 100) : data.value);
       
-      // Update OHLC display
       updateOHLCDisplay(value, value, value, value, 0);
       
       // Рассчитываем процент изменения от предыдущей точки на графике
@@ -4771,7 +4716,6 @@ const renderPriceLineChart = async (klines, symbol) => {
         priceChange = ((value - prevValue) / prevValue) * 100;
       }
       
-      // Format date
       const date = new Date(param.time * 1000);
       const dateStr = date.toLocaleString('en-US', { 
         month: '2-digit', 
@@ -4783,10 +4727,8 @@ const renderPriceLineChart = async (klines, symbol) => {
         hour12: true
       });
       
-      // Build tooltip HTML
       let tooltipHTML = `<div class="chart-tooltip-time">${dateStr}</div>`;
       
-      // Show main series data only if visible
       if (mainSeriesVisible) {
         tooltipHTML += `
           <div class="chart-tooltip-row">
@@ -4804,11 +4746,9 @@ const renderPriceLineChart = async (klines, symbol) => {
         `;
       }
       
-      // Add comparison data if available and visible
       if (compareSymbol && compareSeriesLine && compareSeriesVisible && originalCompareData) {
         const compareData = param.seriesData.get(compareSeriesLine);
         if (compareData) {
-          // Get original compare price (not normalized percentage)
           const originalCompare = originalCompareData.find(d => d.time === param.time);
           const compareValue = originalCompare ? originalCompare.value : (usePercentageMode ? compareFirstPrice * (1 + compareData.value / 100) : compareData.value);
           
@@ -4853,14 +4793,12 @@ const renderPriceLineChart = async (klines, symbol) => {
       tooltip.innerHTML = tooltipHTML;
       tooltip.style.display = 'block';
       
-      // Position tooltip
       const chartRect = container.getBoundingClientRect();
       const tooltipRect = tooltip.getBoundingClientRect();
       
       let left = param.point.x + 15;
       let top = param.point.y + 15;
       
-      // Keep tooltip inside container
       if (left + tooltipRect.width > chartRect.width) {
         left = param.point.x - tooltipRect.width - 15;
       }
@@ -4868,40 +4806,27 @@ const renderPriceLineChart = async (klines, symbol) => {
         top = param.point.y - tooltipRect.height - 15;
       }
       
-      // Reset positioning styles (remove 'right' and 'bottom' if they were set for pinned tooltip)
       tooltip.style.left = left + 'px';
       tooltip.style.right = 'auto';
       tooltip.style.top = top + 'px';
       tooltip.style.bottom = 'auto';
     });
     
-    // Add ResizeObserver to handle container size changes
     if (!window.chartResizeObserver) {
       window.chartResizeObserver = new ResizeObserver(entries => {
         for (const entry of entries) {
           const { width, height } = entry.contentRect;
-          
-          // Only resize if dimensions are valid
           if (width > 100 && height > 100 && window.tvChart) {
             try {
               requestAnimationFrame(() => {
-                if (window.tvChart) {
-                  window.tvChart.applyOptions({ 
-                    width, 
-                    height 
-                  });
-
-                }
+                if (window.tvChart) window.tvChart.applyOptions({ width, height });
               });
-            } catch (e) {
-
-            }
+            } catch (e) {}
           }
         }
       });
     }
     
-    // Observe container
     if (container && window.chartResizeObserver) {
       window.chartResizeObserver.observe(container);
     }
@@ -4921,25 +4846,20 @@ const renderTradingViewChart = async (klines, symbol) => {
     return;
   }
 
-  // In docked mode the original modal is hidden — prefer visible twin
+  // В docked-режиме берём видимый контейнер
   if (container.clientWidth === 0 && container.clientHeight === 0) {
     const twins = document.querySelectorAll('#cryptoDetailPriceChart');
     for (const twin of twins) {
       if (twin !== container && (twin.clientWidth > 0 || twin.clientHeight > 0)) {
-
         container = twin;
         break;
       }
     }
   }
   
-  // Remove indicators mode class and restore OHLC
-  const chartContainer = document.getElementById('tradingViewChartContainer');
-  if (chartContainer) {
-    chartContainer.classList.remove('indicators-mode');
-  }
+  const chartContainer2 = document.getElementById('tradingViewChartContainer');
+  if (chartContainer2) chartContainer2.classList.remove('indicators-mode');
 
-  // Восстанавливаем панель рисования (могла быть скрыта в режиме indicators/tech-table)
   const drawingToolbar = document.getElementById('cryptoDrawingToolbar');
   if (drawingToolbar) drawingToolbar.style.display = '';
 
@@ -4949,31 +4869,26 @@ const renderTradingViewChart = async (klines, symbol) => {
   const ohlc = document.getElementById('chartOhlcDisplay');
   if (ohlc) ohlc.style.display = 'flex';
   
-  // Restore legend for TradingView mode
+  // Легенда
   const legend = document.getElementById('chartLegend');
   if (legend) legend.style.display = 'flex';
   
 
   
-  // Check if LightweightCharts is available
   if (typeof LightweightCharts === 'undefined') {
-
     showNotification('Библиотека графиков не загружена', 'error');
     return;
   }
   
-  // Destroy existing chart before creating new one
+  // Удаляем предыдущий график
   if (window.tvChart) {
     try {
 
       
-      // Disconnect ResizeObserver
       if (window.chartResizeObserver && container) {
         try {
           window.chartResizeObserver.unobserve(container);
-        } catch (e) {
-
-        }
+        } catch (e) {}
       }
       
       window.tvChart.remove();
@@ -4986,63 +4901,51 @@ const renderTradingViewChart = async (klines, symbol) => {
     }
   }
   
-  // Clear container
   container.innerHTML = '';
   
-  // Force layout recalculation
   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   
-  // Ensure parent has dimensions
+  // Размеры родительского элемента
   const parentContainer = container.closest('.chart-area-wrapper') || container.parentElement;
   if (parentContainer && (!parentContainer.clientHeight || parentContainer.clientHeight < 100)) {
-    // Force minimum height on parent
     const minHeight = window.innerWidth < 768 ? 300 : 500;
     parentContainer.style.minHeight = `${minHeight}px`;
     parentContainer.style.height = `${minHeight}px`;
-
   }
   
-  // Force minimum height on container itself
+  // Минимальные размеры контейнера
   if (!container.style.minHeight || parseInt(container.style.minHeight) < 100) {
     const minHeight = window.innerWidth < 768 ? 300 : 500;
     container.style.minHeight = `${minHeight}px`;
     if (!container.style.height || container.style.height === '0px') {
       container.style.height = `${minHeight}px`;
     }
-
   }
   
-  // Wait for dimensions with smart retry logic
+  // Ожидаем появления размеров
   let retries = 0;
   const maxRetries = 15;
   while ((!container.clientWidth || !container.clientHeight) && retries < maxRetries) {
 
-    
-    // Progressive delay: faster retries initially, then slower
     const delay = retries < 5 ? 50 : (retries < 10 ? 100 : 200);
     await new Promise(resolve => setTimeout(resolve, delay));
-    
-    // Force reflow every few attempts
     if (retries % 3 === 0) {
-      void container.offsetHeight; // Force reflow
+      void container.offsetHeight;
       await new Promise(resolve => requestAnimationFrame(resolve));
     }
-    
     retries++;
   }
   
-  // Final check with explicit fallback
+  // Финальная проверка
   if (!container.clientWidth || !container.clientHeight) {
 
     
-    // Last resort: force absolute dimensions (setProperty overrides CSS !important)
     const fallbackHeight = window.innerWidth < 768 ? 300 : 500;
     container.style.setProperty('width', '100%', 'important');
     container.style.setProperty('height', `${fallbackHeight}px`, 'important');
     container.style.setProperty('min-height', `${fallbackHeight}px`, 'important');
     container.style.setProperty('position', 'relative', 'important');
     
-    // Wait one more time
     await new Promise(resolve => setTimeout(resolve, 200));
     
     if (!container.clientHeight) {
@@ -5056,7 +4959,7 @@ const renderTradingViewChart = async (klines, symbol) => {
   
 
   
-  // Prepare data
+  // Подготовка данных
   const candleData = klines.map(k => ({
     time: Math.floor(k[0] / 1000),
     open: parseFloat(k[1]),
@@ -5085,7 +4988,7 @@ const renderTradingViewChart = async (klines, symbol) => {
 
   }
   
-  // Load comparison data BEFORE creating chart if needed
+  // Данные для сравнения
   let originalCompareData = null;
   let compareFirstPrice = null;
   
@@ -5109,7 +5012,6 @@ const renderTradingViewChart = async (klines, symbol) => {
   }
   
   try {
-    // Create chart with explicit dimensions
     const width = container.clientWidth || 600;
     const height = container.clientHeight || 400;
     
@@ -5165,22 +5067,19 @@ const renderTradingViewChart = async (klines, symbol) => {
     
 
     
-    // Check if we need percentage mode (when comparing)
+    // Процентный режим
     const usePercentageMode = compareSymbol !== null && originalCompareData !== null;
     
     if (usePercentageMode) {
-      // Synchronize data - use only common timestamps
+      // Синхронизация по временным меткам
       const mainTimes = new Set(candleData.map(d => d.time));
       const compareTimes = new Set(originalCompareData.map(d => d.time));
       const commonTimes = new Set([...mainTimes].filter(t => compareTimes.has(t)));
       
-      // Filter both datasets to only common times
       const syncedCandleData = candleData.filter(d => commonTimes.has(d.time));
       const syncedCompareData = originalCompareData.filter(d => commonTimes.has(d.time));
       
-
-      
-      // In comparison mode, use line series with percentage normalization
+      // Нормализация
       const firstPrice = syncedCandleData[0].close;
       const normalizedCandleData = syncedCandleData.map(d => ({
         time: d.time,
@@ -5189,7 +5088,7 @@ const renderTradingViewChart = async (klines, symbol) => {
       
       const cryptoInfo = window.CRYPTO_INFO?.[symbol] || { color: '#10b981' };
       
-      // Use line series instead of candlesticks for comparison
+      // Линейный график вместо свечей
       candlestickSeries = tvChart.addLineSeries({
         color: cryptoInfo.color,
         lineWidth: 2,
@@ -5200,11 +5099,11 @@ const renderTradingViewChart = async (klines, symbol) => {
       candlestickSeries.setData(normalizedCandleData);
 
       
-      // Configure price scale for normal mode
+      // Настройка шкалы
       window.tvChart.applyOptions({
         rightPriceScale: {
           borderColor: '#2a2d3a',
-          mode: 0, // Normal mode
+          mode: 0,
           scaleMargins: {
             top: 0.1,
             bottom: 0.1,
@@ -5212,7 +5111,7 @@ const renderTradingViewChart = async (klines, symbol) => {
         },
       });
       
-      // Add synced comparison line
+      // Серия сравнения
       if (syncedCompareData.length > 0) {
         const compareFirstPriceSync = syncedCompareData[0].close;
         const normalizedCompareData = syncedCompareData.map(d => ({
@@ -5233,7 +5132,7 @@ const renderTradingViewChart = async (klines, symbol) => {
 
       }
     } else {
-      // Normal mode - candlesticks
+      // Свечи
       candlestickSeries = tvChart.addCandlestickSeries({
         upColor: '#10b981',
         downColor: '#ef4444',
@@ -5253,7 +5152,7 @@ const renderTradingViewChart = async (klines, symbol) => {
       }
     }
     
-    // Add volume series (only in non-comparison mode)
+    // График объёма (только не в режиме сравнения)
     if (!usePercentageMode) {
       volumeSeries = tvChart.addHistogramSeries({
         color: '#26a69a',
@@ -5273,17 +5172,13 @@ const renderTradingViewChart = async (klines, symbol) => {
 
     }
     
-    // Update legend (only for Price mode, not TradingView)
     if (currentChartType !== 'tradingview') {
-      // Используем 24-часовое изменение из API вместо изменения за период графика
       let change24h = 0;
       try {
         const ticker24h = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}USDT`);
         const data24h = await ticker24h.json();
         change24h = parseFloat(data24h.priceChangePercent) || 0;
-      } catch (e) {
-
-      }
+      } catch (e) {}
       
       const symbol1Data = {
         price: candleData[candleData.length - 1].close,
@@ -5310,11 +5205,9 @@ const renderTradingViewChart = async (klines, symbol) => {
         updateChartLegend(symbol1Data, null);
       }
     } else {
-      // Hide legend in TradingView mode
+      // Скрываем легенду в режиме TradingView
       const chartLegend = document.getElementById('chartLegend');
-      if (chartLegend) {
-        chartLegend.style.display = 'none';
-      }
+      if (chartLegend) chartLegend.style.display = 'none';
     }
     
     // Fit content и принудительное обновление
@@ -5338,23 +5231,20 @@ const renderTradingViewChart = async (klines, symbol) => {
 
     }
     
-    // Handle resize
+    // Обработка resize
     const resizeObserver = new ResizeObserver(entries => {
       if (window.tvChart && entries.length > 0) {
         const { width, height } = entries[0].contentRect;
         if (width > 0 && height > 0) {
           try {
             window.tvChart.applyOptions({ width, height });
-          } catch (e) {
-
-          }
+          } catch (e) {}
         }
       }
     });
     
     resizeObserver.observe(container);
     
-    // Store current series globally for pin functionality
     window.currentSeries = candlestickSeries;
     // Инициализация инструментов разметки
     document.dispatchEvent(new CustomEvent('lwcChartReady', {
@@ -5366,43 +5256,35 @@ const renderTradingViewChart = async (klines, symbol) => {
       },
     }));
 
-    // Add click handler for pin marker (only works in pin mode)
+    // Обработчик закрепления
     const handleCandlePinClick = (e) => {
       if (!isPinModeActive) return;
       
       const rect = container.getBoundingClientRect();
       const x = e.clientX - rect.left;
       
-      // Get time from click position
       if (!(window.tvChart && typeof window.tvChart.timeScale === 'function')) return;
       const timeScale = window.tvChart.timeScale();
       const time = timeScale ? timeScale.coordinateToTime(x) : null;
       
       if (time) {
-        // Find closest data point
         const closestData = candleData.reduce((prev, curr) => {
           return Math.abs(curr.time - time) < Math.abs(prev.time - time) ? curr : prev;
         });
         
-        // Toggle pin
         if (globalPinnedData && Math.abs(globalPinnedData.time - closestData.time) < 3600) {
-          // Remove if clicking near the same pin
           if (globalPinnedMarker) {
             candlestickSeries.removePriceLine(globalPinnedMarker);
             globalPinnedMarker = null;
             globalPinnedData = null;
           }
         } else {
-          // Remove old marker if exists
           if (globalPinnedMarker) {
             try {
               candlestickSeries.removePriceLine(globalPinnedMarker);
-            } catch (e) {
-
-            }
+            } catch (e) {}
           }
           
-          // Create new pin marker
           globalPinnedData = closestData;
           globalPinnedMarker = candlestickSeries.createPriceLine({
             price: usePercentageMode ? 
@@ -5414,76 +5296,47 @@ const renderTradingViewChart = async (klines, symbol) => {
             axisLabelVisible: true,
             title: '',
           });
-          
-
         }
       }
     };
     
     container.addEventListener('click', handleCandlePinClick);
     
-    // Subscribe to crosshair move for OHLC updates only (no tooltip in TradingView mode)
-    if (!window.tvChart) {
-
-      return;
-    }
     window.tvChart.subscribeCrosshairMove(param => {
-      // If pin mode is active and there's pinned data, use it
       if (isPinModeActive && globalPinnedData) {
         updateOHLCDisplay(globalPinnedData.open, globalPinnedData.high, globalPinnedData.low, globalPinnedData.close, 0);
         return;
       }
       
-      if (!param.time || !param.point) {
-        return;
-      }
+      if (!param.time || !param.point) return;
       
       const data = param.seriesData.get(candlestickSeries);
-      if (!data) {
-        return;
-      }
+      if (!data) return;
       
-      // Update OHLC display based on mode
       if (usePercentageMode) {
-        // In percentage mode, show percentage value
         const percentValue = data.value || 0;
         updateOHLCDisplay(percentValue, percentValue, percentValue, percentValue, percentValue);
       } else {
-        // In normal mode, show OHLC
         const change = ((data.close - data.open) / data.open * 100);
         updateOHLCDisplay(data.open, data.high, data.low, data.close, change);
       }
     });
     
-
-    
-    // Add ResizeObserver to handle container size changes
     if (!window.chartResizeObserver) {
       window.chartResizeObserver = new ResizeObserver(entries => {
         for (const entry of entries) {
           const { width, height } = entry.contentRect;
-          
-          // Only resize if dimensions are valid
           if (width > 100 && height > 100 && window.tvChart) {
             try {
               requestAnimationFrame(() => {
-                if (window.tvChart) {
-                  window.tvChart.applyOptions({ 
-                    width, 
-                    height 
-                  });
-
-                }
+                if (window.tvChart) window.tvChart.applyOptions({ width, height });
               });
-            } catch (e) {
-
-            }
+            } catch (e) {}
           }
         }
       });
     }
     
-    // Observe container
     if (container && window.chartResizeObserver) {
       window.chartResizeObserver.observe(container);
     }
@@ -5654,7 +5507,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   }
 
-  // Custom dropdowns for Create Portfolio modal (currency and risk) — reuse trading-tools styles
+  // Dropdown'ы для модала создания портфеля
   (() => {
     const setups = [
       {displayId: 'portfolioCurrencyDisplay', dropdownId: 'portfolioCurrencyDropdown', hiddenId: 'portfolioCurrency'},
@@ -5667,7 +5520,6 @@ document.addEventListener('DOMContentLoaded', function() {
       const hidden = document.getElementById(hiddenId);
       if (!display || !dropdown || !hidden) return;
 
-      // Toggle dropdown
       display.addEventListener('click', (e) => {
         const opened = dropdown.style.display === 'block';
         closeAllPortfolioDropdowns();
@@ -5675,13 +5527,10 @@ document.addEventListener('DOMContentLoaded', function() {
         display.setAttribute('aria-expanded', String(!opened));
       });
 
-      // Click on item
       dropdown.querySelectorAll('.tools-crypto-item').forEach(item => {
         item.addEventListener('click', (e) => {
           const value = item.dataset.value || item.textContent.trim();
-          // update hidden input
           hidden.value = value;
-          // update display label (use inner name if present)
           const nameEl = item.querySelector('.tools-crypto-name');
           if (nameEl) display.querySelector('.tools-crypto-name').textContent = nameEl.textContent.trim();
           else display.querySelector('.tools-crypto-name').textContent = value;
@@ -5700,7 +5549,6 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
 
-    // Close on outside click
     document.addEventListener('click', (e) => {
       if (!e.target.closest('#portfolioCurrencyDisplay') && !e.target.closest('#portfolioCurrencyDropdown')
           && !e.target.closest('#portfolioRiskDisplay') && !e.target.closest('#portfolioRiskDropdown')){
@@ -5708,7 +5556,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
 
-    // Close on Escape
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closeAllPortfolioDropdowns();
     });
@@ -5770,12 +5617,9 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
 
-    // initialize visible transaction dropdown behaviors
     try {
       setupTransactionDropdowns();
-    } catch (err) {
-
-    }
+    } catch (err) {}
   }
 });
 
@@ -5815,19 +5659,17 @@ const populateCompareList = () => {
       item.classList.add('selected');
     }
     
-    // Create icon container
     const iconDiv = document.createElement('div');
     iconDiv.className = 'compare-item-icon';
     iconDiv.style.background = info.color;
     
-    // Create image element
     const img = document.createElement('img');
     const imgUrl = `https://assets.coincap.io/assets/icons/${symbol.toLowerCase()}@2x.png`;
     img.src = imgUrl;
     img.alt = symbol;
     img.style.cssText = 'width: 100%; height: 100%; object-fit: contain;';
     
-    // Multi-step fallback: CryptoIcons CDN → fa icon
+    // Фоллбэк иконки
     img.onerror = function() {
       if (!this.dataset.cryptoFallback) {
         this.dataset.cryptoFallback = '1';
@@ -5843,7 +5685,6 @@ const populateCompareList = () => {
     
     iconDiv.appendChild(img);
     
-    // Create info container
     const infoDiv = document.createElement('div');
     infoDiv.className = 'compare-item-info';
     infoDiv.innerHTML = `
@@ -5854,7 +5695,6 @@ const populateCompareList = () => {
     item.appendChild(iconDiv);
     item.appendChild(infoDiv);
     
-    // Add click handler
     item.onclick = () => selectCompareSymbol(symbol);
     
     list.appendChild(item);
@@ -5864,20 +5704,16 @@ const populateCompareList = () => {
 window.selectCompareSymbol = async function(symbol) {
 
   
-  // Toggle: если кликнули на уже выбранный - убираем его
   if (compareSymbol === symbol) {
-
     removeCompareSymbol();
     return;
   }
   
   compareSymbol = symbol;
   
-  // Close dropdown
   document.getElementById('compareDropdownMenu').style.display = 'none';
   document.getElementById('compareBtn').classList.remove('active');
   
-  // Update button with symbol and close button
   const btn = document.getElementById('compareBtn');
   btn.innerHTML = `
     <span>
@@ -5887,10 +5723,8 @@ window.selectCompareSymbol = async function(symbol) {
   `;
   btn.classList.add('has-selection');
   
-  // Show legend
   document.getElementById('chartLegend').style.display = 'flex';
   
-  // Reload chart with comparison
   await window.loadCryptoDetailCharts(window.currentCryptoSymbol, currentCryptoInterval);
 };
 
@@ -5899,29 +5733,23 @@ window.removeCompareSymbol = function() {
   compareSymbol = null;
   compareSeriesLine = null;
   compareSeriesCandle = null;
-  
-  // Reset visibility state
   compareSeriesVisible = true;
   
-  // Reset button
   const btn = document.getElementById('compareBtn');
   btn.innerHTML = '<i class="fas fa-plus"></i> Compare';
   btn.classList.remove('has-selection');
   
-  // Hide only second legend item, keep legend visible for main symbol
   const legend2 = document.getElementById('legend2');
   if (legend2) legend2.style.display = 'none';
   
-  // Close dropdown if open
   const dropdown = document.getElementById('compareDropdownMenu');
   if (dropdown) dropdown.style.display = 'none';
   btn.classList.remove('active');
   
-  // Reload chart without comparison
   window.loadCryptoDetailCharts(window.currentCryptoSymbol, currentCryptoInterval);
 };
 
-// Search in compare dropdown
+// Поиск в compare dropdown
 document.addEventListener('DOMContentLoaded', function() {
   const searchInput = document.getElementById('compareSearch');
   if (searchInput) {
@@ -5947,7 +5775,7 @@ const updateChartLegend = (symbol1Data, symbol2Data) => {
   
   if (!legend1 || !legend2) return;
   
-  // Update primary symbol
+  // Основной символ
   const info1 = window.CRYPTO_INFO?.[window.currentCryptoSymbol] || { color: '#3b82f6' };
   const color1 = legend1.querySelector('.legend-color');
   color1.style.background = info1.color;
@@ -5995,7 +5823,7 @@ const toggleMainSeries = () => {
     }
   }
   
-  // Update legend color state
+  // Цвет легенды
   const color1 = document.getElementById('legend1')?.querySelector('.legend-color');
   if (color1) {
     color1.className = 'legend-color' + (mainSeriesVisible ? '' : ' hidden');
@@ -6011,7 +5839,7 @@ const toggleCompareSeries = () => {
     compareSeriesCandle.applyOptions({ visible: compareSeriesVisible });
   }
   
-  // Update legend color state
+  // Цвет легенды
   const color2 = document.getElementById('legend2')?.querySelector('.legend-color');
   if (color2) {
     color2.className = 'legend-color' + (compareSeriesVisible ? '' : ' hidden');
@@ -6085,31 +5913,26 @@ window.applyBuyMarkersFromAnalytics = function(series, chartData) {
   // Сбрасываем контекст — позиция применена однократно
   window._analyticsPosition = null;
 };
-// This MUST happen to ensure the new chart system is used instead of the old Chart.js one
 if (!window.app) {
   window.app = {};
-
 }
-
 
 window.app.showCryptoDetail = window.showCryptoDetail;
 
-// Verify the override worked
 if (window.app.showCryptoDetail === window.showCryptoDetail) {
 
 } else {
 
 }
 
-// Export other functions globally
 window.initApp = initApp;
 window.showSection = showSection;
 window.setupMarketTabs = setupMarketTabs;
 window.setupMarketSearch = setupMarketSearch;
 window.setupMarketSort = setupMarketSort;
-window.switchChartType = window.switchChartType || function() {}; // Already defined above
-window.changeCryptoChartPeriod = window.changeCryptoChartPeriod || function() {}; // Already defined above
-window.toggleChartScale = window.toggleChartScale || function() {}; // Already defined above
+window.switchChartType = window.switchChartType || function() {};
+window.changeCryptoChartPeriod = window.changeCryptoChartPeriod || function() {};
+window.toggleChartScale = window.toggleChartScale || function() {};
 
 
 

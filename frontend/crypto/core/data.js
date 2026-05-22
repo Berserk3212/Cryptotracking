@@ -76,7 +76,7 @@ function _cgProcessQueue() {
 }
 
 async function safeFetchCoinGeckoJson(url, options = {}, ttl = 0) {
-  // localStorage cache when ttl > 0
+  // Кэш в localStorage при ttl > 0
   const key = 'cg_cache:' + url;
   if (ttl > 0) {
     try {
@@ -115,7 +115,7 @@ async function fetchCoinGeckoPrices(symbols) {
 
     if (!coinGeckoCache.coinsList) return prices;
 
-    // Map symbols -> possible ids (case-insensitive match)
+    // Сопоставляем тикеры с возможными id (без учёта регистра)
     const symToId = {};
     const lowerToIds = {};
     coinGeckoCache.coinsList.forEach(c => {
@@ -462,7 +462,7 @@ export function getPriceSync(symbol) {
     return priceCache[symbol].price;
   }
   
-  // Fallback to window lists
+  // Запасной вариант: ищем в window-списках
   if (window.cryptoList) {
     const c = window.cryptoList.find(x => (x.symbol || '').toUpperCase() === String(symbol).toUpperCase());
     if (c) {
@@ -489,7 +489,7 @@ export function getPriceSync(symbol) {
     }
   }
   
-  // Fallback to last transaction price
+  // Запасной вариант: цена последней транзакции
   const lastTx = transactions
     .filter(t => t.symbol === symbol)
     .sort((a, b) => new Date(b.date) - new Date(a.date))[0];

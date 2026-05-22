@@ -1,8 +1,5 @@
-// =============================================
-// МОБИЛЬНЫЕ ИСПРАВЛЕНИЯ ГРАФИКОВ И МОДАЛЬНЫХ ОКОН v3
-// Только touch-handling + body scroll lock
-// Все размеры и лейаут контролируются через CSS
-// =============================================
+// Мобильные исправления графиков v3
+// touch-handling + body scroll lock; размеры через CSS
 
 (function() {
   'use strict';
@@ -12,7 +9,7 @@
   
   if (!isMobile) return;
   
-  // === Body Scroll Lock при открытии модалок
+  // Body scroll lock при открытии модалок
   let scrollLockCount = 0;
   
   function lockBodyScroll() {
@@ -70,12 +67,9 @@
     observer.observe(modal, { attributes: true, attributeFilter: ['style', 'class'] });
   });
   
-  // ===================================================
-  // 2. TOUCH-ACTION: разрешаем вертикальный скролл поверх графика
-  // ===================================================
-  // LightweightCharts перехватывает ВСЕ touch-события.
-  // Решение: добавляем touch-action: pan-y на контейнеры графиков,
-  // а также настраиваем handleScroll в опциях LC через патч.
+  // Touch-action: разрешаем вертикальный скролл поверх графика
+  // LightweightCharts перехватывает все touch-события;
+  // добавляем pan-y на контейнеры графиков.
   
   function applyTouchFix(chartContainer) {
     if (!chartContainer) return;
@@ -129,12 +123,8 @@
     });
   }
   
-  // ===================================================
-  // 3. PATCH LightweightCharts: отключаем вертикальный touch-drag
-  // ===================================================
-  // Объект LightweightCharts заморожен (frozen/sealed), Proxy invariant
-  // запрещает подмену non-configurable свойств. Поэтому создаём
-  // wrapper-объект, копируя все свойства оригинала.
+  // Патч LightweightCharts: отключаем вертикальный touch-drag
+  // Объект заморожен, поэтому создаём wrapper-объект с копией всех свойств.
   
   function patchLightweightCharts() {
     if (!window.LightweightCharts) return;
@@ -157,8 +147,7 @@
     
     // Наша обёртка createChart с мобильными опциями
     wrapper.createChart = function(container, options = {}) {
-      // Исключение: миниграфик «История портфеля» в welcome-секции дашборда.
-      // Он маленький (160px), мобильные overrides ломают его вёрстку.
+      // Исключение: миниграфик дашборда — мобильные overrides ломают его вёрстку.
       if (container && container.id === 'miniChart') {
         return original.createChart(container, options);
       }
@@ -166,16 +155,11 @@
       // Убираем явные width/height — autoSize сам возьмёт из CSS
       const { width, height, ...restOptions } = options;
       
-      // Критично: autoSize читает clientHeight контейнера.
-      // Если контейнер не имеет inline style.height (только CSS height:100%),
-      // clientHeight может быть 0 до первого рефлоу браузера → пустой чарт.
-      // indicators.js решает это через явный style.height перед createChart.
-      // Делаем то же самое для всех контейнеров без inline-высоты.
+      // autoSize читает clientHeight; если его нет до рефлоу — чарт пустой.
+      // Задаём inline height заранее (как в indicators.js).
       if (!container.style.height) {
         const clientH = container.clientHeight;
-        // Если clientHeight уже есть — используем его; иначе считаем как 55vh (совпадает с CSS)
-        const finalH = clientH > 0 ? clientH : Math.round(0.55 * window.innerHeight);
-        // Зажимаем в разумные пределы: не меньше 250px, не больше 520px (max-height в CSS)
+        // Нет clientHeight — берём 55vh; зажимаем в 250–520px
         container.style.height = Math.min(Math.max(finalH, 250), 520) + 'px';
 
       }
@@ -183,7 +167,7 @@
       const mobileOptions = {
         ...restOptions,
         autoSize: true,
-        devicePixelRatio: window.devicePixelRatio || 2, // Высокое качество для retina
+        devicePixelRatio: window.devicePixelRatio || 2,
         handleScroll: {
           ...restOptions.handleScroll,
           vertTouchDrag: false,
@@ -197,27 +181,27 @@
         },
         layout: {
           ...restOptions.layout,
-          fontSize: 12, // Увеличенный шрифт для мобильных
+          fontSize: 12,
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          background: { color: 'transparent' }, // Прозрачный фон
-          textColor: '#d1d5db', // Синхронизировано с ui.js
+          background: { color: 'transparent' },
+          textColor: '#d1d5db',
         },
         rightPriceScale: {
           ...restOptions.rightPriceScale,
-          // Эти параметры ПОСЛЕ spread — всегда побеждают вызывающий код
+          // Параметры ПОСЛЕ spread — всегда перекрывают вызывающий код
           scaleMargins: {
             top: 0.08,   // достаточный отступ чтобы верхний лейбл не клипился
             bottom: 0.08,
           },
-          minimumWidth: 56, // 56px на мобильных — достаточно для 6-значных цен
+          minimumWidth: 56,
           borderVisible: false,
           textColor: '#d1d5db',
         },
         timeScale: {
           ...restOptions.timeScale,
-          visible: true,  // всегда показываем ось времени на мобильных
+          visible: true,
           borderVisible: false,
-          barSpacing: 8, // Больше пространства между барами
+          barSpacing: 8,
           minBarSpacing: 4,
           textColor: '#d1d5db',
         },
@@ -232,15 +216,14 @@
         },
         crosshair: {
           ...restOptions.crosshair,
-          mode: 1, // Normal mode для touch устройств
+          mode: 1,
         },
       };
       
       const chart = original.createChart(container, mobileOptions);
       
-      // Перехватываем applyOptions чтобы не дать внешнему коду сломать autoSize.
-      // НО: если container реально имеет размеры и передали корректные значения —
-      // разрешаем их, иначе autoSize может не вызваться при первом рендере.
+      // Перехватываем applyOptions, чтобы не сломать autoSize.
+      // Разрешаем width/height только если они реальные и контейнер уже имеет размеры.
       const origApplyOptions = chart.applyOptions.bind(chart);
       chart.applyOptions = function(opts = {}) {
         const { width, height, autoSize, ...safeOpts } = opts;
@@ -273,9 +256,7 @@
               }
             });
             // Сбрасываем автомасштабирование прайс-шкалычтобы значения не сжимались
-            try {
-              chart.priceScale('right').applyOptions({ autoScale: true });
-            } catch (e) { /* LightweightCharts <= 4.1 not support */ }
+            try { chart.priceScale('right').applyOptions({ autoScale: true }); } catch (e) { /* не поддерживается в LC <= 4.1 */ }
           } catch (e) {
 
           }
@@ -289,9 +270,7 @@
 
   }
   
-  // ===================================================
-  // 4. ОБНОВЛЕНИЕ СУЩЕСТВУЮЩИХ ГРАФИКОВ
-  // ===================================================
+  // Обновление существующих графиков
   function updateExistingCharts() {
     // Обновляем все активные графики в модальных окнах
     const chartSelectors = [
@@ -303,10 +282,8 @@
     chartSelectors.forEach(selector => {
       const container = document.querySelector(selector);
       if (container) {
-        // Ищем график через глобальную переменную tvChart
+        // Ищем график через tvChart или _lwChart
         let chart = window.tvChart;
-        
-        // Или в контейнере как _lwChart
         if (!chart && container._lwChart) {
           chart = container._lwChart;
         }
@@ -347,11 +324,8 @@
     });
   }
 
-  // ===================================================
-  // 5. ФОРС-RESIZE ПОСЛЕ ОТКРЫТИЯ МОДАЛКИ КРИПТОВАЛЮТЫ
-  // ===================================================
-  // LightweightCharts иногда инициализируется до завершения flex-layout.
-  // Когда модалка становится видимой — форсируем resize через ResizeObserver-триггер.
+  // Форс-resize после открытия модалки
+  // LC иногда инициализируется до завершения flex-layout.
   function forceChartResize() {
     const container = document.getElementById('cryptoDetailPriceChart');
     if (!container) return;
@@ -365,12 +339,8 @@
       try {
         chart.resize(w, h);
         chart.timeScale().fitContent();
-        // Автомасштабирование прайс-шкалы — устраняет сжатость оси цены
         try { chart.priceScale('right').applyOptions({ autoScale: true }); } catch(e) {}
-
-      } catch (e) {
-
-      }
+      } catch (e) {}
     }
   }
 
@@ -378,10 +348,10 @@
     const modal = document.getElementById('cryptoDetailModal');
     if (!modal) return;
 
-    // MutationObserver смотрит на class 'active'
+    // MutationObserver: следим за class 'active'
     const mo = new MutationObserver(() => {
       if (modal.classList.contains('active')) {
-        // Несколько попыток с нарастающей задержкой (включая позднее — на случай медленного API)
+        // Несколько попыток с нарастающей задержкой
         [100, 300, 600, 1000, 1500].forEach(delay => {
           setTimeout(forceChartResize, delay);
         });
@@ -390,14 +360,12 @@
     mo.observe(modal, { attributes: true, attributeFilter: ['class'] });
   }
 
-  // ===================================================
-  // 6. ИНИЦИАЛИЗАЦИЯ
-  // ===================================================
+  // Инициализация
   function init() {
     patchLightweightCharts();
     initTouchFixes();
-    updateExistingCharts(); // Обновляем уже существующие графики
-    watchModalOpen();       // Форс-resize при открытии модалки
+    updateExistingCharts();
+    watchModalOpen();
 
   }
   
@@ -411,7 +379,7 @@
   window.addEventListener('orientationchange', () => {
     setTimeout(() => {
       initTouchFixes();
-      updateExistingCharts(); // Обновляем графики после поворота экрана
+      updateExistingCharts();
       forceChartResize();
     }, 500);
   });

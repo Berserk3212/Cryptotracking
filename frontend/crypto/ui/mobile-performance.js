@@ -1,7 +1,4 @@
-// =============================================
-// ОПТИМИЗАЦИЯ ПРОИЗВОДИТЕЛЬНОСТИ ДЛЯ МОБИЛЬНЫХ
-// Mobile Performance Optimization Script
-// =============================================
+// Оптимизация производительности для мобильных
 
 (function() {
   'use strict';
@@ -11,7 +8,7 @@
   const isSmallScreen = window.innerWidth <= 768;
   
   if (isMobile || isSmallScreen) {
-    // === 1. ПРОИЗВОДИТЕЛЬНОСТЬ: только целевые оптимизации (НЕ убиваем анимации) ===
+    // 1. CSS-оптимизации (без отключения анимаций)
     const style = document.createElement('style');
     style.id = 'mobile-performance-optimizations';
     style.textContent = `
@@ -60,7 +57,7 @@
     `;
     document.head.appendChild(style);
     
-    // === 2. DEBOUNCE ДЛЯ RESIZE И SCROLL СОБЫТИЙ ===
+    // 2. Debounce для resize/scroll
     function debounce(func, wait) {
       let timeout;
       return function executedFunction(...args) {
@@ -73,7 +70,7 @@
       };
     }
     
-    // === 3. LAZY LOADING ДЛЯ ИЗОБРАЖЕНИЙ ===
+    // 3. Ленивая загрузка изображений
     function initLazyLoading() {
       const images = document.querySelectorAll('img[data-src]');
       
@@ -101,11 +98,11 @@
       }
     }
     
-    // === 4. УМЕНЬШЕНИЕ ЧАСТОТЫ ОБНОВЛЕНИЯ ГРАФИКОВ ===
+    // 4. Оптимизация графиков
     function optimizeCharts() {
       // Уменьшаем количество точек данных на графиках для мобильных
       window.MOBILE_CHART_OPTIMIZATION = true;
-      window.MOBILE_MAX_DATA_POINTS = 50; // Вместо 100+ на десктопе
+      window.MOBILE_MAX_DATA_POINTS = 50;
       
       // Отключаем анимации в Chart.js
       if (window.Chart) {
@@ -113,7 +110,7 @@
       }
     }
     
-    // === 5. ВИРТУАЛЬНЫЙ СКРОЛЛИНГ ДЛЯ БОЛЬШИХ ТАБЛИЦ ===
+    // 5. Виртуальный скроллинг таблиц
     function optimizeTables() {
       const tables = document.querySelectorAll('table');
       
@@ -125,7 +122,7 @@
         
         // Если таблица большая (>50 строк), показываем только видимые
         if (rows.length > 50) {
-          let visibleRows = 20; // Показываем первые 20 строк
+          let visibleRows = 20;
           
           // Скрываем остальные
           rows.forEach((row, index) => {
@@ -158,11 +155,11 @@
       });
     }
     
-    // === 6. ОТКЛЮЧЕНИЕ ТЯЖЕЛЫХ ФОНОВЫХ ЗАДАЧ ===
+    // 6. Ограничение фоновых задач
     function disableHeavyBackgroundTasks() {
       // Увеличиваем интервалы обновления данных
       if (window.UPDATE_INTERVAL) {
-        window.UPDATE_INTERVAL = Math.max(window.UPDATE_INTERVAL * 2, 30000); // Минимум 30 секунд
+        window.UPDATE_INTERVAL = Math.max(window.UPDATE_INTERVAL * 2, 30000);
       }
       
       // Отключаем автообновление когда приложение в фоне
@@ -177,16 +174,15 @@
       });
     }
     
-    // === 7. ОПТИМИЗАЦИЯ SPARKLINE ГРАФИКОВ ===
+    // 7. Sparkline-оптимизация
     function optimizeSparklines() {
       // Уменьшаем разрешение sparkline графиков
       window.SPARKLINE_RESOLUTION = 'low';
-      window.SPARKLINE_MAX_POINTS = 20; // Вместо 100
+      window.SPARKLINE_MAX_POINTS = 20;
     }
     
-    // === 8. TOUCH GESTURE OPTIMIZATIONS ===
+    // 8. Оптимизация touch-жестов
     function initTouchOptimizations() {
-      // Улучшаем отзывчивость touch событий
       let touchStartX = 0;
       let touchStartY = 0;
       
@@ -205,7 +201,7 @@
           const diffX = Math.abs(touchEndX - touchStartX);
           const diffY = Math.abs(touchEndY - touchStartY);
           
-          // Если горизонтальный свайп, разрешаем прокрутку таблицы
+          // горизонтальный свайп — разрешаем
           if (diffX > diffY) {
             e.stopPropagation();
           }
@@ -213,14 +209,14 @@
       }, { passive: true });
     }
     
-    // === 9. УМЕНЬШЕНИЕ КОЛИЧЕСТВА DOM ЭЛЕМЕНТОВ ===
+    // 9. Скрытие декоративных элементов
     function simplifyDOM() {
       // На мобильных скрываем декоративные элементы
       const decorativeElements = document.querySelectorAll('.decoration, .ornament, .background-effect');
       decorativeElements.forEach(el => el.style.display = 'none');
     }
     
-    // === 10. КЭШИРОВАНИЕ В LOCAL STORAGE ===
+    // 10. Кэширование
     function initMobileCaching() {
       // Увеличиваем время кэширования для мобильных
       if (window.CACHE_DURATION) {
@@ -232,7 +228,7 @@
 
     }
     
-    // === 11. ОПТИМИЗАЦИЯ GRIDSTACK (если используется) ===
+    // 11. GridStack
     function optimizeGridStack() {
       if (window.GridStack) {
         document.addEventListener('DOMContentLoaded', () => {
@@ -240,10 +236,10 @@
           grids.forEach(grid => {
             const gridInstance = GridStack.init({
               cellHeight: 100,
-              animate: false, // Отключаем анимации
-              disableResize: true, // Отключаем изменение размера на мобильных
-              disableDrag: true, // Отключаем перетаскивание на мобильных
-              column: 1, // Одна колонка для мобильных
+              animate: false,
+              disableResize: true,
+              disableDrag: true,
+              column: 1,
               float: false
             }, grid);
           });
@@ -251,7 +247,7 @@
       }
     }
     
-    // === 12. УМЕНЬШЕНИЕ КАЧЕСТВА ИЗОБРАЖЕНИЙ ===
+    // 12. Изображения
     function optimizeImages() {
       const images = document.querySelectorAll('img');
       images.forEach(img => {
@@ -259,16 +255,10 @@
         if (!img.hasAttribute('loading')) {
           img.setAttribute('loading', 'lazy');
         }
-        
-        // Уменьшаем качество изображений
-        if (img.src && !img.src.includes('icon') && !img.src.includes('logo')) {
-          // Можно добавить параметры для изменения качества, если API поддерживает
-          // Например: img.src = img.src + '?quality=70&width=800';
-        }
       });
     }
     
-    // === 13. ОТСЛЕЖИВАНИЕ ПРОИЗВОДИТЕЛЬНОСТИ ===
+    // 13. Мониторинг производительности
     function monitorPerformance() {
       if ('performance' in window) {
         window.addEventListener('load', () => {
@@ -286,7 +276,7 @@
       }
     }
     
-    // === 14. CONTENT-VISIBILITY ДЛЯ OFF-SCREEN СЕКЦИЙ ===
+    // 14. content-visibility для скрытых секций
     function optimizeContentVisibility() {
       // content-visibility: auto позволяет браузеру пропускать рендеринг невидимых секций
       const sections = document.querySelectorAll(
@@ -322,7 +312,7 @@
       });
     }
 
-    // === ИНИЦИАЛИЗАЦИЯ ===
+    // Инициализация
     function init() {
       optimizeCharts();
       optimizeSparklines();
@@ -333,7 +323,7 @@
       initTouchOptimizations();
       monitorPerformance();
       
-      // Инициализируем после загрузки DOM
+      // после загрузки DOM
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
           initLazyLoading();
@@ -349,10 +339,8 @@
       }
     }
     
-    // Запускаем инициализацию
     init();
     
-    // Экспортируем флаг для других модулей
     window.IS_MOBILE_OPTIMIZED = true;
     window.IS_MOBILE_DEVICE = true;
   }

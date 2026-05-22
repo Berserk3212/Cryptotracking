@@ -1,20 +1,14 @@
-/**
- * Admin Panel — Main Script
- * CryptoPortfolio Admin v1.0
- */
+//Панель администратора — основной скрипт
 
-// ═══════════════════════════════════════
-// SUPABASE INIT
-// ═══════════════════════════════════════
+
+
 const SUPABASE_URL     = 'https://yvliktxpfglofdgvxrcl.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2bGlrdHhwZmdsb2ZkZ3Z4cmNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjExNDcyOTcsImV4cCI6MjA3NjcyMzI5N30.gJWKm8rZYDu-x4vdKIA4HJ8PZo_JcqBTpttseJCpDJU';
 
 const { createClient } = window.supabase;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ═══════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════
+
 const state = {
   currentSection: 'dashboard',
   currentUser:    null,
@@ -169,24 +163,24 @@ function renderAdminUser(profile) {
   document.getElementById('adminAvatar').textContent   = name[0].toUpperCase();
 }
 
-// ═══════════════════════════════════════
-// EVENT LISTENERS
-// ═══════════════════════════════════════
+
+// ОБРАБОТЧИКИ СОБЫТИЙ
+
 function setupEventListeners() {
-  // Sidebar nav
+  // Навигация по боковой панели
   document.querySelectorAll('.nav-item[data-section]').forEach(item => {
     item.addEventListener('click', () => loadSection(item.dataset.section));
   });
-  // Btn-link in cards
+  // Кнопки-ссылки в карточках
   document.querySelectorAll('.btn-link[data-section]').forEach(btn => {
     btn.addEventListener('click', () => loadSection(btn.dataset.section));
   });
 
-  // Sidebar toggle
+  // Переключатель боковой панели
   document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
   document.getElementById('mobileMenuBtn').addEventListener('click', toggleMobileSidebar);
 
-  // Topbar
+  // Верхняя панель
   document.getElementById('refreshPageBtn').addEventListener('click', () => loadSection(state.currentSection));
   document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
   document.getElementById('adminLogoutBtn').addEventListener('click', handleLogout);
@@ -297,7 +291,7 @@ function setupEventListeners() {
 }
 
 // ═══════════════════════════════════════
-// NAVIGATION
+// НАВИГАЦИЯ
 // ═══════════════════════════════════════
 const sectionMeta = {
   dashboard:  { label: 'Дашборд',              icon: 'bi bi-speedometer2' },
@@ -312,25 +306,25 @@ const sectionMeta = {
 function loadSection(name) {
   state.currentSection = name;
 
-  // Hide all
+  // Скрываем все секции
   document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
 
-  // Show target
+  // Показываем нужную секцию
   const section = document.getElementById('section' + capitalize(name));
   if (section) section.classList.add('active');
 
   const navItem = document.querySelector(`.nav-item[data-section="${name}"]`);
   if (navItem) navItem.classList.add('active');
 
-  // Breadcrumb
+  // Хлебная крошка
   const meta = sectionMeta[name];
   if (meta) {
     document.getElementById('adminBreadcrumb').innerHTML =
       `<span><i class="${meta.icon}"></i> ${meta.label}</span>`;
   }
 
-  // Load data
+  // Загружаем данные
   const loaders = {
     dashboard:  loadDashboard,
     users:      loadUsersTable,
@@ -342,7 +336,7 @@ function loadSection(name) {
   };
   if (loaders[name]) loaders[name]();
 
-  // Close mobile sidebar
+  // Закрываем мобильную боковую панель
   document.getElementById('adminSidebar').classList.remove('mobile-open');
 }
 
@@ -358,14 +352,14 @@ function toggleMobileSidebar() {
 }
 
 // ═══════════════════════════════════════
-// DASHBOARD
+// ДАШБОРД
 // ═══════════════════════════════════════
 async function loadDashboard() {
   const today     = new Date().toISOString().split('T')[0];
   const week7ago  = new Date(Date.now() - 7 * 86400000).toISOString();
   const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
-  // Parallel queries
+  // Параллельные запросы
   const [
     { count: totalUsers },
     { count: blockedUsers },
@@ -388,7 +382,7 @@ async function loadDashboard() {
       .eq('resolved', false).eq('level', 'critical'),
   ]);
 
-  // Update KPI
+  // Обновляем KPI-показатели
   document.getElementById('kpiTotalUsers').textContent  = totalUsers ?? '—';
   document.getElementById('kpiActiveUsers').textContent = activeUsers ?? '—';
   document.getElementById('kpiBlockedUsers').textContent= blockedUsers ?? '—';
@@ -410,22 +404,22 @@ async function loadDashboard() {
     critEvents > 0 ? `${critEvents} критических!` : 'Всё в норме';
   document.getElementById('kpiCriticalEvents').className = 'kpi-delta ' + (critEvents > 0 ? 'danger' : 'success');
 
-  // Update badges
+  // Обновляем счётчики значков
   document.getElementById('badgeUsers').textContent   = totalUsers ?? 0;
   document.getElementById('badgeBlocked').textContent = blockedUsers ?? 0;
   document.getElementById('badgeEvents').textContent  = openEvents ?? 0;
 
-  // DB ping check
+  // Замеряем задержку до БД
   const t0 = performance.now();
   await supabase.from('profiles').select('id', { head: true }).limit(1);
   const dbPing = Math.round(performance.now() - t0);
   document.getElementById('kpiDbStatus').textContent = dbPing < 1000 ? 'OK' : 'Slow';
   document.getElementById('kpiDbPing').textContent   = `${dbPing} мс`;
 
-  // Charts
+  // Графики
   await Promise.all([loadRegistrationsChart(), loadActivityChart()]);
 
-  // Recent tables
+  // Последние записи
   await Promise.all([loadRecentUsers(), loadRecentEvents()]);
 }
 
@@ -443,7 +437,7 @@ async function loadRegistrationsChart() {
     .gte('created_at', from.toISOString())
     .order('created_at');
 
-  // Group by day
+  // Группируем по дням
   const byDay = {};
   for (let i = 0; i < days; i++) {
     const d = new Date(from.getTime() + i * 86400000);
@@ -565,7 +559,7 @@ async function loadRecentEvents() {
 }
 
 // ═══════════════════════════════════════
-// USERS TABLE
+// ТАБЛИЦА ПОЛЬЗОВАТЕЛЕЙ
 // ═══════════════════════════════════════
 async function loadUsersTable() {
   const tbody = document.getElementById('usersTableBody');
@@ -720,7 +714,7 @@ async function bulkAction(type) {
 }
 
 // ═══════════════════════════════════════
-// BLOCKED TABLE
+// ЗАБЛОКИРОВАННЫЕ ПОЛЬЗОВАТЕЛИ
 // ═══════════════════════════════════════
 async function loadBlockedTable() {
   const tbody = document.getElementById('blockedTableBody');
@@ -756,7 +750,7 @@ async function loadBlockedTable() {
 }
 
 // ═══════════════════════════════════════
-// USER MODAL
+// МОДАЛЬНОЕ ОКНО ПОЛЬЗОВАТЕЛЯ
 // ═══════════════════════════════════════
 window.openUserModal = async function(userId) {
   state.pendingBlockUserId = userId;
@@ -770,11 +764,11 @@ window.openUserModal = async function(userId) {
   document.getElementById('userModalTitle').textContent =
     profile.full_name || profile.email || 'Пользователь';
 
-  // Btn visibility
+  // Видимость кнопок
   document.getElementById('modalBlockBtn').style.display    = profile.is_blocked ? 'none' : '';
   document.getElementById('modalUnblockBtn').style.display  = profile.is_blocked ? ''     : 'none';
 
-  // Recent logs
+  // Последние действия
   const { data: logs } = await supabase
     .from('activity_logs')
     .select('action, section, created_at')
@@ -846,7 +840,7 @@ function closeUserModal() {
 }
 
 // ═══════════════════════════════════════
-// BLOCK / UNBLOCK
+// БЛОКИРОВКА / РАЗБЛОКИРОВКА
 // ═══════════════════════════════════════
 window.openBlockReasonModal = function(userId) {
   state.pendingBlockUserId = userId;
@@ -868,7 +862,7 @@ async function confirmBlock() {
 
   if (error) { toast('Ошибка блокировки: ' + error.message, 'error'); return; }
 
-  // Log event
+  // Записываем событие в журнал
   await logSystemEvent('warning', 'admin', `Пользователь заблокирован: ${state.pendingBlockUserId}. Причина: ${reason}`);
 
   toast('Пользователь заблокирован', 'success');
@@ -918,7 +912,7 @@ async function loadDashboardBadges() {
 }
 
 // ═══════════════════════════════════════
-// LOGS TABLE
+// ТАБЛИЦА ЛОГОВ
 // ═══════════════════════════════════════
 async function loadLogsTable() {
   const tbody = document.getElementById('logsTableBody');
@@ -987,7 +981,7 @@ function renderLogsPagination(total) {
 window.setLogsPage = function(p) { state.logs.page = p; loadLogsTable(); };
 
 // ═══════════════════════════════════════
-// EVENTS TABLE
+// ТАБЛИЦА СОБЫТИЙ
 // ═══════════════════════════════════════
 async function loadEventsTable() {
   const tbody = document.getElementById('eventsTableBody');
@@ -1065,7 +1059,7 @@ async function addTestEvent() {
 }
 
 // ═══════════════════════════════════════
-// MONITORING
+// МОНИТОРИНГ
 // ═══════════════════════════════════════
 async function loadMonitoring() {
   // Reset all to checking
@@ -1195,7 +1189,7 @@ async function loadSectionUsageChart() {
 }
 
 // ═══════════════════════════════════════
-// SETTINGS
+// НАСТРОЙКИ
 // ═══════════════════════════════════════
 async function loadSettings() {
   const { data, error } = await supabase
@@ -1273,7 +1267,7 @@ async function saveSettings() {
   const now = new Date().toISOString();
   const maintenanceMsg = (document.getElementById('settingMaintenanceMsg')?.value || '').trim();
 
-  // Helper: read numeric input with a safe fallback (avoids saving NaN)
+  // вспомогательная функция: читает числовое поле с запасным значением
   const getNum = (id, def) => {
     const v = parseFloat(document.getElementById(id)?.value);
     return isNaN(v) ? def : v;
@@ -1320,7 +1314,7 @@ async function saveSettings() {
 }
 
 // ═══════════════════════════════════════
-// EXPORT
+// ЭКСПОРТ
 // ═══════════════════════════════════════
 async function exportUsersCSV() {
   const { data } = await supabase
@@ -1370,7 +1364,7 @@ function downloadCSV(rows, filename) {
 }
 
 // ═══════════════════════════════════════
-// HELPERS
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ═══════════════════════════════════════
 async function logSystemEvent(level, source, message, details = null) {
   await supabase.from('system_events').insert({
@@ -1468,7 +1462,7 @@ function safeSetBool(id, val) {
   if (el) el.checked = Boolean(val);
 }
 
-// Clock
+// Часы
 function startClock() {
   const el = document.getElementById('topbarTime');
   function upd() {
@@ -1479,7 +1473,7 @@ function startClock() {
   setInterval(upd, 1000);
 }
 
-// Theme
+// Тема оформления
 function toggleTheme() {
   const root = document.documentElement;
   const isLight = root.dataset.theme === 'light';
@@ -1489,13 +1483,13 @@ function toggleTheme() {
   localStorage.setItem('adminTheme', root.dataset.theme);
 }
 
-// Logout
+// Выход из системы
 async function handleLogout() {
   await supabase.auth.signOut();
   window.location.href = '../login.html';
 }
 
-// Toast
+// Уведомление
 window.toast = function(message, type = 'info', duration = 3500) {
   const icons = {
     success: 'bi bi-check-circle-fill',
@@ -1510,13 +1504,13 @@ window.toast = function(message, type = 'info', duration = 3500) {
   setTimeout(() => t.remove(), duration);
 };
 
-// Apply saved theme
+// Восстанавливаем сохранённую тему
 (function() {
   const saved = localStorage.getItem('adminTheme');
   if (saved) document.documentElement.dataset.theme = saved;
 })();
 
 // ═══════════════════════════════════════
-// BOOT
+// ЗАПУСК
 // ═══════════════════════════════════════
 document.addEventListener('DOMContentLoaded', init);

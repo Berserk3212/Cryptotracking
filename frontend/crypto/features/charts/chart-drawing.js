@@ -1,21 +1,8 @@
-/**
- * Chart Drawing Tools
- * ───────────────────
- * Добавляет панель инструментов разметки графиков (как на CoinMarketCap/TradingView):
- *   Курсор · Горизонтальная линия · Линия тренда · Луч · Расширенная линия
- *   Прямоугольник · Fibonacci Retracement · Текст · Ластик · Отмена · Очистить
- *
- * Использует нативный LightweightCharts.createPriceLine() для горизонтальных линий
- * и canvas overlay для остальных инструментов (синхронизируется с pan/zoom).
- *
- * Запуск: другой модуль диспатчит CustomEvent 'lwcChartReady' с полями:
- *   { chart, series, containerId, toolbarId }
- */
 
 (function (global) {
   'use strict';
 
-  // ─── DRAWING MANAGER ─────────────────────────────────────────────────────────
+  // МЕНЕДЖЕР РИСОВАНИЯ
 
   class DrawingManager {
     constructor(containerId, toolbarId) {
@@ -43,7 +30,7 @@
       this._keyHandler  = null;
     }
 
-    // ── Публичный init ──────────────────────────────────────────────────────
+    // Публичный init
     init(chart, series) {
       this.chart  = chart;
       this.series = series;
@@ -53,7 +40,7 @@
       this._bindKeyboard();
     }
 
-    // ── Canvas overlay ──────────────────────────────────────────────────────
+    // Canvas-оверлей
     _buildCanvas() {
       const host = document.getElementById(this.containerId);
       if (!host) return;
@@ -93,7 +80,7 @@
       this._ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 
-    // ── Подписка на события графика (pan/zoom → перерисовка) ───────────────
+    // Подписка на события графика (pan/zoom → перерисовка)
     _subscribeChart() {
       if (!this.chart) return;
       const u1 = this.chart.timeScale().subscribeVisibleTimeRangeChange(() => this._redraw());
@@ -101,7 +88,7 @@
       this._unsubs.push(u1, u2);
     }
 
-    // ── Toolbar события ─────────────────────────────────────────────────────
+    // Toolbar события
     _bindToolbar() {
       const tb = document.getElementById(this.toolbarId);
       if (!tb) return;
@@ -148,7 +135,7 @@
       document.addEventListener('keydown', this._keyHandler);
     }
 
-    // ── Выбор инструмента ───────────────────────────────────────────────────
+    // Выбор инструмента
     setTool(tool) {
       this.activeTool = tool;
       const tb = document.getElementById(this.toolbarId);
@@ -177,7 +164,7 @@
       }
     }
 
-    // ── Canvas события мыши/тач ─────────────────────────────────────────────
+    // Canvas события мыши/тач 
     _bindCanvas() {
       const c = this._canvas;
       c.addEventListener('mousedown',  e => this._onDown(e));
@@ -216,7 +203,7 @@
       };
     }
 
-    // ── Обработчики pointer ─────────────────────────────────────────────────
+    // Обработчики pointer
     _onDown(e) {
       const { x, y } = this._xy(e);
       const pt = this._toChart(x, y);
@@ -306,7 +293,7 @@
       this._redraw();
     }
 
-    // ── Рендеринг ──────────────────────────────────────────────────────────
+    // Рендеринг 
     _redraw() {
       if (!this._ctx || !this._canvas) return;
       const host = document.getElementById(this.containerId);
@@ -342,12 +329,12 @@
         if (!this._validPx(p1, p2)) { ctx.restore(); return; }
         const dx = p2.x - p1.x, dy = p2.y - p1.y;
         if (Math.hypot(dx, dy) < 0.5) { ctx.restore(); return; }
-        // extend to right edge
+        // продлеваем до правого края
         const scale = dx !== 0 ? (r.width - p1.x) / dx : 0;
         ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash([]);
         ctx.beginPath(); ctx.moveTo(p1.x, p1.y);
         ctx.lineTo(p1.x + dx * scale, p1.y + dy * scale); ctx.stroke();
-        // small arrowhead
+        // маленький наконечник стрелки
         this._arrowhead(ctx, p1.x, p1.y, p1.x + dx * scale, p1.y + dy * scale, color, width);
         if (!preview) this._dots(ctx, [p1], color);
 
@@ -387,7 +374,7 @@
         if (!p || p.x == null || p.y == null) { ctx.restore(); return; }
         ctx.font = 'bold 13px Inter,-apple-system,sans-serif';
         const m = ctx.measureText(d.text), pad = 5, bh = 22;
-        // pill background
+        // фон в форме таблетки
         ctx.fillStyle = 'rgba(10,14,23,0.78)';
         if (ctx.roundRect) {
           ctx.beginPath();
@@ -467,20 +454,20 @@
         ctx.lineWidth   = 1;
         ctx.setLineDash([5, 4]);
         ctx.globalAlpha = 0.82;
-        // full-width dashed line
+        // пунктирная линия на всю ширину
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(r.width, y); ctx.stroke();
 
         ctx.setLineDash([]);
         ctx.globalAlpha = 1;
         ctx.font = '11px Inter,-apple-system,sans-serif';
         ctx.fillStyle = col;
-        // price label
+        // метка цены
         const priceStr = Math.abs(price) >= 1 ? price.toFixed(2) : price.toPrecision(4);
         ctx.fillText(`${label}  ${priceStr}`, lx + 4, y - 3);
         ctx.restore();
       });
 
-      // Shaded Fibonacci zones (between adjacent levels)
+      // Закрашенные зоны Фибоначчи (между соседними уровнями)
       for (let i = 0; i < LEVELS.length - 1; i++) {
         const priceA = p1 - (p1 - p0) * LEVELS[i].r;
         const priceB = p1 - (p1 - p0) * LEVELS[i + 1].r;
@@ -494,7 +481,7 @@
       }
     }
 
-    // ── Ластик ──────────────────────────────────────────────────────────────
+    // Ластик 
     _erase(x, y) {
       const THR = 12;
 
@@ -550,7 +537,7 @@
       return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
     }
 
-    // ── История ─────────────────────────────────────────────────────────────
+    // История и очистка
     undo() {
       if (this.drawings.length > 0) {
         this.drawings.pop();
@@ -572,7 +559,7 @@
       this._redraw();
     }
 
-    // ── Уничтожение ─────────────────────────────────────────────────────────
+    // Уничтожение
     destroy() {
       if (this._ro)         this._ro.disconnect();
       if (this._keyHandler) document.removeEventListener('keydown', this._keyHandler);
@@ -586,7 +573,7 @@
     }
   }
 
-  // ─── РЕЕСТР МЕНЕДЖЕРОВ ───────────────────────────────────────────────────────
+  // РЕЕСТР МЕНЕДЖЕРОВ
 
   const _managers = {};
 
@@ -599,7 +586,7 @@
     return mgr;
   }
 
-  // ─── ГЛОБАЛЬНОЕ СОБЫТИЕ ───────────────────────────────────────────────────────
+  // ГЛОБАЛЬНОЕ СОБЫТИЕ
 
   document.addEventListener('lwcChartReady', function (e) {
     const { chart, series, containerId, toolbarId } = e.detail || {};
@@ -612,7 +599,7 @@
     }, 200);
   });
 
-  // ─── PUBLIC API ───────────────────────────────────────────────────────────────
+  // ПУБЛИЧНЫЙ ИНТЕРФЕЙС
 
   global.ChartDrawing = {
     initDrawingTools,

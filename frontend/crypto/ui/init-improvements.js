@@ -252,7 +252,7 @@ export function initCurrencyChangeHandler() {
                 // 6. Обновляем избранное
                 if (typeof window.renderFavorites === 'function' && typeof window.getFavorites === 'function') {
                     window.getFavorites().then(favs => window.renderFavorites(favs)).catch(e => {
-                        // Error updating favorites
+                        // ошибка обновления избранного
                     });
                 }
                 
@@ -261,7 +261,7 @@ export function initCurrencyChangeHandler() {
                     window.renderAnalytics();
                 }
             } catch (e) {
-                // Error updating UI elements
+                // ошибка обновления UI
             }
             
             updateTimeout = null;

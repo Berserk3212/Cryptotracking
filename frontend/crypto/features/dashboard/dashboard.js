@@ -32,8 +32,7 @@ function _setCached(url, data) {
         const k = _cacheKey(url);
         localStorage.setItem(k, JSON.stringify({ ts: Date.now(), data }));
     } catch (e) {
-        // localStorage may be full or blocked
-
+        // localStorage переполнен
     }
 }
 
@@ -43,7 +42,6 @@ async function _performFetchWithRetries(url, options, maxRetries = 3) {
         try {
             const resp = await fetch(url, options);
             if (resp.status === 429) {
-                // Too many requests — backoff and retry
                 const backoff = 500 * Math.pow(2, attempt) + Math.floor(Math.random() * 300);
 
                 await new Promise(r => setTimeout(r, backoff));
@@ -52,7 +50,6 @@ async function _performFetchWithRetries(url, options, maxRetries = 3) {
             }
             return resp;
         } catch (e) {
-            // Network or CORS error — fail fast for non-429, but try a few times
             const backoff = 400 * Math.pow(2, attempt) + Math.floor(Math.random() * 200);
 
             await new Promise(r => setTimeout(r, backoff));
@@ -91,7 +88,6 @@ function _processFetchQueue() {
 
                 try { item.reject(e); } catch (_) {}
             }
-            // wait between requests to avoid hitting rate limits
             await new Promise(r => setTimeout(r, MIN_INTERVAL_MS));
         }
         __fetchQueueRunning = false;
@@ -124,9 +120,7 @@ async function safeFetchJsonGlobal(url, options = {}, ttl = 60 * 1000) {
         return null;
     });
 }
-// ============================================================================
-// DASHBOARD MODULE - Модуль управления дашбордом
-// ============================================================================
+
 
 // Простая функция экранирования HTML для безопасного вывода
 function escapeHtml(text) {
@@ -193,9 +187,7 @@ export async function initDashboard() {
     }
 }
 
-// ============================================================================
-// ЗАГРУЗКА ДАННЫХ ДАШБОРДА
-// ============================================================================
+
 
 export async function loadDashboardData() {
     if (dashboardState.isLoading) {
@@ -333,7 +325,7 @@ export function renderFavorites(items) {
                 }
             }
             
-            // Format price with adaptive precision + currency conversion
+            // Форматирование цены
             const _sym = currency.getCurrencySymbol();
             const formatPriceForDisplay = (p) => {
                 if (!Number.isFinite(p) || p <= 0) return '—';
@@ -399,7 +391,6 @@ export function renderFavorites(items) {
 
         }
 
-        // handlers
         container.querySelectorAll('button[data-action="remove"]').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const id = btn.getAttribute('data-id');
@@ -419,26 +410,20 @@ export function renderFavorites(items) {
                 const id = btn.getAttribute('data-id');
                 const card = btn.closest('.favorite-card');
                 const symbol = card?.getAttribute('data-symbol');
-                // Optimistic UI: animate star immediately
                 try {
                     btn.classList.add('animating', 'play-burst');
                     btn.classList.toggle('active');
-                    // remove temporary classes after animation
                     setTimeout(() => { btn.classList.remove('animating'); btn.classList.remove('play-burst'); }, 600);
 
                     if (id) {
-                        // removing
                         await removeFavorite(id);
                     } else if (symbol) {
-                        // adding
                         await addFavorite(symbol);
                     }
 
                     const updated = await getFavorites();
                     renderFavorites(updated);
                 } catch (err) {
-                    // Revert visual state on error
-
                     btn.classList.toggle('active');
                     showNotification('Ошибка обновления избранного', 'error');
                     const updated = await getFavorites();

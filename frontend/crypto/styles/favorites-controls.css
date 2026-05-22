@@ -11,7 +11,7 @@
   --accent: #3B82F6;
 }
 
-/* ─── Main Panel ─────────────────────────────────────────────────── */
+/* Main Panel*/
 .fc-panel {
   display: flex;
   flex-direction: column;
@@ -37,7 +37,7 @@
   border-top: 1px solid var(--fc-border);
 }
 
-/* ─── Search ─────────────────────────────────────────────────────── */
+/* Search */
 .fc-search {
   display: flex;
   align-items: center;
@@ -71,7 +71,7 @@
 
 .search-clear{ background:transparent; border:none; color:var(--fc-muted); cursor:pointer; }
 
-/* ─── Control groups ─────────────────────────────────────────────── */
+/* Control groups */
 .fc-control-group {
   display: flex;
   align-items: center;
@@ -83,7 +83,7 @@
   white-space: nowrap;
 }
 
-/* ─── Custom select (from enhanceSelect()) ───────────────────────── */
+/* Custom select (from enhanceSelect()) */
 .custom-select-wrapper {
   position: relative;
   display: inline-block;
@@ -154,7 +154,7 @@
 .custom-select-options::-webkit-scrollbar { width: 6px; }
 .custom-select-options::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 6px; }
 
-/* ─── Price range filter ──────────────────────────────────────────── */
+/* Price range filter */
 .fc-price-range {
   display: flex;
   align-items: center;
@@ -225,6 +225,7 @@
   transition: background 0.12s, color 0.12s;
   line-height: 1;
   -webkit-appearance: none;
+  appearance: none;
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
 }
@@ -244,7 +245,7 @@
   overflow: visible;
 }
 
-/* ─── Action buttons ─────────────────────────────────────────────── */
+/* Action buttons */
 .fc-btn {
   padding: 6px 12px;
   border-radius: 8px;
@@ -267,7 +268,7 @@
 }
 .fc-btn:active { transform: translateY(0); }
 
-/* ─── Grid и карточки ───────────────────────────────────────────── */
+/* Grid и карточки */
 #favoritesSection .crypto-grid{
   display:grid;
   grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 360px));
@@ -298,7 +299,7 @@
   font-weight:700;
 }
 
-/* ─── Mobile ─────────────────────────────────────────────────────── */
+/* Mobile */
 @media (max-width: 700px) {
   .fc-row { gap: 6px; }
   .custom-select-wrapper { min-width: 100px; }

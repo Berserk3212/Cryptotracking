@@ -1,6 +1,4 @@
-/* ============================================
-   RESET & BASE STYLES
-   ============================================ */
+
 * {
     margin: 0;
     padding: 0;
@@ -89,10 +87,6 @@
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
-html {
-    /* No background — let body gradient cover the entire canvas */
-}
-
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
     background: linear-gradient(135deg, var(--bg-primary) 0%, var(--border) 100%);
@@ -107,9 +101,9 @@ body {
     background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
 }
 
-/* ============================================
+/*
    LOADING SCREEN
-   ============================================ */
+*/
 .loading-screen {
     position: fixed;
     top: 0;
@@ -148,17 +142,14 @@ body {
     margin: 0 auto;
 }
 
-/* ============================================
+/*
    APP LAYOUT
-   ============================================ */
+*/
 .app {
     display: flex;
     min-height: 100vh;
 }
 
-/* ============================================
-   SIDEBAR
-   ============================================ */
 .sidebar {
     width: 280px;
     background: rgba(10, 10, 15, 0.98);
@@ -594,9 +585,6 @@ body {
     box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
 }
 
-/* ============================================
-   MAIN CONTENT
-   ============================================ */
 .main-content {
     flex: 1;
     margin-left: 280px;
@@ -689,9 +677,6 @@ body {
     position: relative;
 }
 
-/* ============================================
-   SECTIONS
-   ============================================ */
 .section {
     display: none;
 }
@@ -732,9 +717,6 @@ body {
     letter-spacing: -0.02em;
 }
 
-/* ============================================
-   WELCOME CARD
-   ============================================ */
 .welcome-card {
     background: linear-gradient(135deg, #2563EB, #1D4ED8, #059669);
     backdrop-filter: blur(20px);
@@ -912,9 +894,6 @@ body {
     font-weight: 700;
 }
 
-/* ============================================
-   STATS GRID
-   ============================================ */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -1225,9 +1204,6 @@ body {
     color: #D97706;
 }
 
-/* ============================================
-   CHARTS
-   ============================================ */
 .charts-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(400px, 100%), 1fr));
@@ -1385,12 +1361,6 @@ body {
     overflow: hidden;
 }
 
-/* ============================================
-   PORTFOLIOS
-   ============================================ */
-/* ============================================
-   PORTFOLIOS - Улучшенный дизайн
-   ============================================ */
 .portfolios-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(350px, 100%), 1fr));
@@ -1741,9 +1711,6 @@ body {
     opacity: 0.9;
 }
 
-/* ============================================
-   MARKET & CRYPTO
-   ============================================ */
 .tabs {
     display: flex;
     gap: 0.5rem;
@@ -1914,18 +1881,12 @@ body {
     color: var(--text-secondary);
 }
 
-/* ============================================
-   CRYPTO GRID
-   ============================================ */
 .crypto-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
     gap: 1.5rem;
 }
 
-/* ============================================
-   АНИМАЦИИ ДЛЯ КАРТОЧЕК
-   ============================================ */
 @keyframes fadeInUp {
     from {
         opacity: 0;
@@ -1955,9 +1916,6 @@ body {
     }
 }
 
-/* ============================================
-   КАРТОЧКИ КРИПТОВАЛЮТ
-   ============================================ */
 .crypto-card {
     background: white;
     padding: 1.5rem;
@@ -2444,9 +2402,6 @@ body {
     font-size: 0.95rem;
 }
 
-/* ============================================
-   BUTTONS
-   ============================================ */
 .btn {
     padding: 0.75rem 1.5rem;
     border: none;
@@ -2500,9 +2455,6 @@ body {
     font-size: 1rem;
 }
 
-/* ============================================
-   MODALS
-   ============================================ */
 .modal {
     display: none;
     position: fixed;
@@ -2935,9 +2887,6 @@ body {
     }
 }
 
-/* ============================================
-   EMPTY STATE
-   ============================================ */
 .empty-state {
     text-align: center;
     padding: 4.5rem 2rem 4rem;
@@ -3040,9 +2989,6 @@ body {
     background: linear-gradient(135deg, #4f52e0 0%, #7c3aed 100%);
 }
 
-/* ============================================
-   NOTIFICATIONS
-   ============================================ */
 #notifications {
     position: fixed;
     top: 1rem;
@@ -3126,9 +3072,6 @@ body {
     color: #f59e0b;
 }
 
-/* ============================================
-   TRANSACTIONS & ANALYTICS
-   ============================================ */
    
 /* Улучшенные стили для раздела аналитики */
 #analyticsSection {
@@ -3231,7 +3174,6 @@ body {
     flex-wrap: wrap;
 }
 
-/* --- Filters & Quick buttons - trading-tools style --- */
 .filter-select {
     padding: 0.6rem 1.1rem;
     border-radius: 14px;
@@ -3755,7 +3697,6 @@ body {
     line-height: 1.4;
     color: #ffffff;
 }
-/* ───────────────────────────────────────────────────────────────────────── */
 
 .chart-body-large {
     height: 400px;
@@ -4053,9 +3994,6 @@ body {
     background: var(--bg-primary);
 }
 
-/* ============================================
-   INDICES GRID
-   ============================================ */
 .indices-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
@@ -4607,12 +4545,9 @@ body {
 }
 
 @media (max-width: 768px) {
-    /* =============================================
-       МОДАЛЬНОЕ ОКНО КРИПТО/АКЦИЙ — МОБИЛЬНАЯ ВЕРСИЯ
-       Fullscreen bottom-sheet + крупный график
-       ============================================= */
     
-    /* --- Модальное окно — fullscreen --- */
+    
+    
     .crypto-detail-modal {
         padding: 0 !important;
         align-items: flex-end !important;
@@ -4630,7 +4565,7 @@ body {
         overflow: visible !important; /* Снимаем base overflow:hidden — скролл через .crypto-detail-body */
     }
     
-    /* --- Хедер — sticky, компактный --- */
+    
     .crypto-detail-modal .modal-header {
         position: sticky !important;
         top: 0 !important;
@@ -4701,7 +4636,7 @@ body {
         flex-shrink: 0 !important;
     }
     
-    /* --- Боди — scroll container --- */
+    
     .crypto-detail-modal .crypto-detail-body {
         flex: 1 !important;
         padding: 0.75rem !important;
@@ -4739,7 +4674,7 @@ body {
         display: none !important;
     }
     
-    /* --- Секция цены — компактная --- */
+    
     .crypto-detail-modal .crypto-detail-price-section {
         padding: 0.75rem !important;
         margin-bottom: 0.75rem !important;
@@ -4823,7 +4758,7 @@ body {
         font-size: 0.65rem !important;
     }
     
-    /* --- ГРАФИК — ключевой элемент на мобильных --- */
+    
     
     /* touch-action: разрешаем вертикальный скролл через область графика */
     .crypto-detail-modal .crypto-detail-chart-container,
@@ -4934,7 +4869,7 @@ body {
         font-size: 0.7rem !important;
     }
     
-    /* --- Контролы графика --- */
+    
     .crypto-detail-modal .chart-controls-wrapper {
         flex-direction: column !important;
         gap: 0.5rem !important;
@@ -5011,7 +4946,7 @@ body {
         display: none !important;
     }
     
-    /* --- Дополнительная статистика --- */
+    
     .crypto-detail-modal .crypto-detail-additional-stats {
         margin-bottom: 0.75rem !important;
     }
@@ -5035,7 +4970,7 @@ body {
         font-size: 0.8rem !important;
     }
     
-    /* --- Кнопки действий — sticky снизу --- */
+    
     .crypto-detail-modal .crypto-detail-actions {
         position: sticky !important;
         bottom: 0 !important;
@@ -5093,7 +5028,7 @@ body {
         overflow-y: auto !important;
     }
     
-    /* === ИНДИКАТОРЫ (Indicators tab) — мобильная версия === */
+    
     .crypto-detail-chart-container.indicators-mode {
         height: auto !important;
         min-height: auto !important;
@@ -5107,7 +5042,7 @@ body {
         height: auto !important;
     }
     
-    /* === ТАБЛИЦА ТЕХ. ИНДИКАТОРОВ (Tech-table tab) — мобильная версия === */
+    
     .tech-indicators-table-wrapper {
         padding: 0.75rem !important;
         max-width: 100% !important;
@@ -5244,10 +5179,6 @@ body {
     }
 }
 
-/* =============================================
-   МОДАЛЬНОЕ ОКНО — МАЛЫЕ ЭКРАНЫ (≤480px)
-   Уменьшаем отступы, но сохраняем высоту графика
-   ============================================= */
 @media (max-width: 480px) {
     .crypto-detail-modal .modal-header {
         padding: 0.5rem 0.75rem !important;
@@ -5355,9 +5286,6 @@ body {
     }
 }
 
-/* =============================================
-   МОДАЛЬНОЕ ОКНО — КРОШЕЧНЫЕ ЭКРАНЫ (≤360px)
-   ============================================= */
 @media (max-width: 360px) {
     .crypto-detail-modal .crypto-detail-chart-container,
     .crypto-detail-modal .crypto-detail-chart-container.enhanced,
@@ -5403,10 +5331,6 @@ body {
     }
 }
 
-/* =============================================
-   МОДАЛЬНОЕ ОКНО — LANDSCAPE НА МОБИЛЬНЫХ
-   Максимум экрана под график
-   ============================================= */
 @media (max-width: 768px) and (orientation: landscape) {
     .crypto-detail-modal .modal-header {
         padding: 0.375rem 0.75rem !important;
@@ -7025,7 +6949,6 @@ body {
     position: relative;
 }
 
-/* ========== POSITION PANEL (открывается из Аналитики) ========== */
 .position-panel {
     margin-top: 1.5rem;
     background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(16, 185, 129, 0.06) 100%);
@@ -7203,9 +7126,6 @@ body {
     margin: 0;
 }
 
-/* ============================================
-   RESPONSIVE
-   ============================================ */
 
 /* Десктоп - кнопка закрытия sidebar скрыта */
 @media (min-width: 1025px) {
@@ -7495,7 +7415,6 @@ body {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-/* ==================== STOCKS SECTION STYLES ==================== */
 /* Stocks now use the same card styling as crypto - no custom styles needed */
 
 /* Stock Detail Modal - Now uses .crypto-detail-modal class styles (same as crypto) */
@@ -7745,7 +7664,6 @@ body {
 }
 
 
-/* ==================== IMPROVED TRANSACTION MODAL STYLES ==================== */
 .crypto-select-wrapper {
     position: relative;
     margin-bottom: 20px;
@@ -7997,7 +7915,6 @@ body {
     background: #9ca3af;
 }
 
-/* ==================== TRANSACTION STATISTICS CARDS ==================== */
 .transaction-stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -8085,7 +8002,6 @@ body {
     line-height: 1;
 }
 
-/* ==================== IMPROVED TRANSACTION FILTERS ==================== */
 .filter-bar {
     background: var(--bg-secondary);
     padding: 24px;
@@ -8251,7 +8167,6 @@ body {
     }
 }
 
-/* ==================== TRANSACTIONS — mirror ASSETS TABLE EXACTLY ==================== */
 /* Card wrapper same as assets */
 .card:has(.transactions-table-wrapper) {
     overflow: hidden;
@@ -8775,7 +8690,6 @@ body {
     content: '\f0dd';
 }
 
-/* ==================== IMPROVED DELETE BUTTON & TABLE FIXES ==================== */
 
 /* Красивая кнопка удаления транзакций */
 .delete-transaction-btn {
@@ -8958,7 +8872,6 @@ body {
     }
 }
 
-/* ==================== IMPROVED TABLE SORTING STYLES ==================== */
 
 /* Стили для сортируемых заголовков */
 .sortable {
@@ -9013,7 +8926,6 @@ tbody tr {
     animation: sortHighlight 0.3s ease;
 }
 
-/* ==================== FIX CRYPTO DETAIL ICON DISPLAY ==================== */
 
 /* Иконка в модальном окне деталей криптовалюты */
 .crypto-detail-icon {
@@ -9106,7 +9018,6 @@ tbody tr {
     color: white !important; /* Белый текст для буквы */
 }
 
-/* === CHART COMPARISON STYLES === */
 .chart-compare-dropdown {
     position: relative;
 }
@@ -9182,7 +9093,6 @@ tbody tr {
     font-weight: 500;
 }
 
-/* === CHART TOOLTIP STYLES === */
 .chart-tooltip {
     position: absolute;
     display: none;
@@ -9517,7 +9427,6 @@ tbody tr {
     background: rgba(239, 68, 68, 0.3);
 }
 
-/* ==================== TRADING TOOLS SECTION ==================== */
 
 /* Calculator Hero Section */
 .calculator-hero {
@@ -10016,7 +9925,6 @@ tbody tr {
 }
 
 
-/* ==================== TRADING TOOLS SECTION ==================== */
 .calc-tabs {
     display: flex;
     gap: 1rem;
@@ -10058,11 +9966,7 @@ tbody tr {
     box-shadow: var(--shadow);
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   CHART DRAWING TOOLBAR  (chart-drawing.js)
-   Панель инструментов разметки графиков.
-   Абсолютно позиционирована внутри .chart-area-wrapper / #stockPriceChartWrapper
-   ═══════════════════════════════════════════════════════════════════ */
+
 
 .chart-drawing-toolbar {
     position: absolute;
@@ -10414,7 +10318,6 @@ tbody tr {
     }
 }
 
-/* ====== FORCE transactions to match Analytics assets TABLE exactly (appended override) ====== */
 .transactions-table-wrapper {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -10516,7 +10419,6 @@ tbody tr {
 .transactions-table .asset-icon-cell img, .transactions-table .asset-icon-cell svg { width: 100%; height: 100%; object-fit: cover; display: block; }
 .transactions-table .asset-name strong { color: #E2E8F0; }
 
-/* === Ensure Assets table uses card-like hover + transaction icon styles (higher specificity) === */
 .card:has(.assets-table-wrapper) .assets-table tbody tr:hover:not(.total-row) {
     background: rgba(255,255,255,0.02);
     transform: translateY(-1px);
@@ -10593,9 +10495,6 @@ tbody tr {
     .transactions-table tr td:nth-child(8)::before { content: 'Действия'; }
 }
 
-/* ============================================
-   MODAL DOCK STYLES
-   ============================================ */
 
 /* Dock button styles */
 .modal-header-actions {
@@ -11375,9 +11274,6 @@ tbody tr {
   opacity: 1 !important;
 }
 
-/* ===================================
-   GOOGLE TRANSLATE - СКРЫТИЕ ТОЛЬКО UI
-   =================================== */
 
 /* Скрываем только визуальные элементы Google Translate */
 .goog-te-banner-frame,
@@ -11409,9 +11305,6 @@ body > .skiptranslate:not(iframe):not(select) {
   display: none !important;
 }
 
-/* ============================================
-   ГОСТЕВОЙ РЕЖИМ
-   ============================================ */
 
 /* Верхний баннер гостя */
 .guest-top-banner {

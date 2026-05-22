@@ -183,7 +183,7 @@ async function generatePDFDocument(data, charts) {
     }
   };
   
-  // === СТРАНИЦА 1: ЗАГОЛОВОК И МЕТРИКИ (один большой блок) ===
+
   const page1HTML = `
     <div style="padding: 15px;">
       <div style="height: 3px; background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%); margin-bottom: 10px; border-radius: 2px;"></div>
@@ -642,9 +642,8 @@ function calculateTopAssets(transactions) {
   return assets.sort((a, b) => b.value - a.value);
 }
 
-/**
- * Форматирование чисел
- */
+// Форматирование чисел
+ 
 function formatNumber(num) {
   if (num === null || num === undefined || isNaN(num)) return '0';
   

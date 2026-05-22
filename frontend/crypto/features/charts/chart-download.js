@@ -60,7 +60,7 @@ async function downloadChartWithTooltip(format = 'png') {
           }
         });
 
-        // Convert composed canvas to blob
+        // Собираем результирующий canvas в blob
         exportedBlob = await new Promise((resolve) => outCanvas.toBlob(resolve, format === 'jpg' ? 'image/jpeg' : 'image/png', format === 'jpg' ? 0.95 : undefined));
       } catch (e) {
 
@@ -68,24 +68,24 @@ async function downloadChartWithTooltip(format = 'png') {
       }
     }
 
-    // If native canvas export failed or no canvases found, fallback to html2canvas
+    // Если нативный экспорт не сработал — используем html2canvas как запасной вариант
     if (!exportedBlob) {
       const fallbackCanvas = await html2canvas(chartContainer, {
         backgroundColor: '#1a1d28',
-        scale: 2, // Higher quality
+        scale: 2, // повышенное качество
         logging: false,
         useCORS: true,
         allowTaint: true
       });
 
-      // Restore controls
+      // Восстанавливаем элементы управления
       if (controls && controlsDisplay !== null) {
         controls.style.display = controlsDisplay;
       }
 
       exportedBlob = await new Promise((resolve) => fallbackCanvas.toBlob(resolve, format === 'jpg' ? 'image/jpeg' : 'image/png', format === 'jpg' ? 0.95 : undefined));
     } else {
-      // Restore controls if we used canvas path
+      // Восстанавливаем элементы управления после нативного экспорта
       if (controls && controlsDisplay !== null) {
         controls.style.display = controlsDisplay;
       }
@@ -96,7 +96,7 @@ async function downloadChartWithTooltip(format = 'png') {
       return;
     }
 
-    // Create download link
+    // Создаём временную ссылку для скачивания
     const url = URL.createObjectURL(exportedBlob);
     const link = document.createElement('a');
     const symbol = window.currentCryptoSymbol || 'crypto';
@@ -119,21 +119,21 @@ async function downloadChartWithTooltip(format = 'png') {
 }
 
 /**
- * Download chart as JPG image
+ * Скачать график в формате JPG
  */
 window.downloadChartAsJPG = function() {
   downloadChartWithTooltip('jpg');
 };
 
 /**
- * Download chart as PNG image
+ * Скачать график в формате PNG
  */
 window.downloadChartAsPNG = function() {
   downloadChartWithTooltip('png');
 };
 
 /**
- * Toggle download menu visibility
+ * Переключить видимость меню загрузки
  */
 window.toggleDownloadMenu = function() {
   const menu = document.getElementById('downloadMenu');
@@ -142,7 +142,7 @@ window.toggleDownloadMenu = function() {
   const isVisible = menu.style.display === 'block';
   menu.style.display = isVisible ? 'none' : 'block';
   
-  // Close menu when clicking outside
+  // Закрыть меню при клике вне его
   if (!isVisible) {
     setTimeout(() => {
       document.addEventListener('click', function closeMenu(e) {

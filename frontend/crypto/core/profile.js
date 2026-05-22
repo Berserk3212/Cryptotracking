@@ -100,14 +100,14 @@ window.app.closeModal = (id) => {
     const section = modal.closest('.section');
     try {
       const sectionId = section?.id;
-      // find grid inside the section and restore
+      // находим сетку внутри секции и восстанавливаем отображение
       const grid = section?.querySelector('.crypto-grid');
       const panel = section?.querySelector('.detail-panel-area');
       if (panel) panel.style.display = 'none';
       if (grid) grid.style.display = '';
       section?.classList.remove('detail-open');
 
-      // move modal back to its original parent if possible
+      // возвращаем модальку в исходный родитель
       if (modal._originalParent) {
         if (modal._originalNext && modal._originalNext.parentNode === modal._originalParent) {
           modal._originalParent.insertBefore(modal, modal._originalNext);
@@ -119,7 +119,7 @@ window.app.closeModal = (id) => {
       }
 
       modal.classList.remove('panel-docked');
-      // reset any inline size styles
+      // сбрасываем встроенные стили размеров
       const content = modal.querySelector('.modal-content') || modal.querySelector('.modal-container');
       if (content) { content.style.width = ''; content.style.height = ''; }
       
@@ -146,7 +146,7 @@ window.app.closeModal = (id) => {
     }
   }
 
-  // normal hide (for floating modal or after undocking)
+  // обычное скрытие (плавающая модалька или после открепления)
   modal.classList.remove('active');
   setTimeout(() => {
     modal.style.display = 'none';
